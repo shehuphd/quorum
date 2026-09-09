@@ -98,6 +98,18 @@ defmodule QuorumWeb.SettingsLive do
   def handle_event("reset_questions", _params, socket),
     do: {:noreply, start_save(socket, Sessions.question_defaults())}
 
+  def handle_event("toggle_account_default", _params, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("toggle_account_default", _params, socket) do
+    user = socket.assigns.current_user
+
+    case Quorum.Accounts.set_moderation_default(user, !user.hold_for_review_default?) do
+      {:ok, user} -> {:noreply, assign(socket, current_user: user, status: :saved)}
+      {:error, _} -> {:noreply, assign(socket, status: :failed)}
+    end
+  end
+
   def handle_event("reset_moderation", _params, socket),
     do:
       {:noreply, socket |> assign(word_error: nil) |> start_save(Sessions.moderation_defaults())}
@@ -361,7 +373,12 @@ defmodule QuorumWeb.SettingsLive do
             <% "questions" -> %>
               <.questions_pane room={@room} />
             <% "moderation" -> %>
-              <.moderation_pane room={@room} held={@held} error={@word_error} />
+              <.moderation_pane
+                room={@room}
+                held={@held}
+                current_user={@current_user}
+                error={@word_error}
+              />
             <% "resources" -> %>
               <.resources_pane
                 room={@room}
@@ -563,6 +580,20 @@ defmodule QuorumWeb.SettingsLive do
         </p>
       </div>
 
+      <hr class="q-divider" style="margin:8px 0;" />
+
+      <h3>After the session</h3>
+      <.hold_switch
+        field="keep_questions?"
+        on={@room.keep_questions?}
+        label="Keep this room's questions"
+      >
+        A term of questions is the record of what didn't land: which weeks drew nothing, which
+        drew the same question forty times, what to put in the next tutorial. Turning this off
+        deletes every question in this room, and its votes, the moment you close the session.
+        There's no undo.
+      </.hold_switch>
+
       <div style="margin-top:8px;">
         <button type="button" class="q-button--link" phx-click="reset_questions">
           Reset this tab
@@ -572,8 +603,35 @@ defmodule QuorumWeb.SettingsLive do
     """
   end
 
+  attr :field, :string, required: true
+  attr :on, :boolean, required: true
+  attr :label, :string, required: true
+  slot :inner_block, required: true
+
+  defp hold_switch(assigns) do
+    ~H"""
+    <div class="q-field">
+      <div class="q-switch-row">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={to_string(@on)}
+          class={["q-switch", @on && "q-switch--on"]}
+          phx-click="toggle"
+          phx-value-field={@field}
+        >
+          <span class="q-switch-knob"></span>
+        </button>
+        <span class="q-label">{@label}, {if @on, do: "on", else: "off"}</span>
+      </div>
+      <p class="q-meta">{render_slot(@inner_block)}</p>
+    </div>
+    """
+  end
+
   attr :room, :map, required: true
   attr :held, :integer, required: true
+  attr :current_user, :map, default: nil
   attr :error, :string, default: nil
 
   defp moderation_pane(assigns) do
@@ -581,26 +639,48 @@ defmodule QuorumWeb.SettingsLive do
     <section class="q-pane">
       <h2>Moderation</h2>
 
-      <div class="q-field">
-        <div class="q-switch-row">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={to_string(@room.hold_for_review?)}
-            class={["q-switch", @room.hold_for_review? && "q-switch--on"]}
-            phx-click="toggle"
-            phx-value-field="hold_for_review?"
-          >
-            <span class="q-switch-knob"></span>
-          </button>
-          <span class="q-label">
-            Hold every question for review, {if @room.hold_for_review?, do: "on", else: "off"}
-          </span>
-        </div>
+      <p class="q-meta" style="margin-top:0;">
+        Four things can hold a question. Any one of them is enough, and every one holds rather than
+        refuses, so the worst a mistake costs an asker is a wait.
+      </p>
+
+      <.hold_switch
+        field="hold_for_review?"
+        on={@room.hold_for_review?}
+        label="Hold every question for review"
+      >
+        Off, a question reaches the room as soon as it's posted and you can hide it from the
+        console. On, nothing reaches the room until you approve it, and the asker sees their own
+        question waiting so they don't post it twice.
+      </.hold_switch>
+
+      <.hold_switch
+        field="hold_first_question?"
+        on={@room.hold_first_question?}
+        label="Hold a student's first question"
+      >
+        Students have no accounts here, so the only history a room can read is what this browser
+        has had approved in it. Once you approve one question from someone, the rest go straight
+        through.
+      </.hold_switch>
+
+      <.hold_switch field="hold_links?" on={@room.hold_links?} label="Hold anything with a link">
+        A link is how a room full of phones gets advertised at. Web addresses count, and so does a
+        bare domain; file names like Node.js don't.
+      </.hold_switch>
+
+      <div :if={@current_user} class="q-field">
+        <label class="q-check">
+          <input
+            type="checkbox"
+            checked={@current_user.hold_for_review_default?}
+            phx-click="toggle_account_default"
+          />
+          <span class="q-label">Start the rooms I open with the first of these on</span>
+        </label>
         <p class="q-meta">
-          Off, a question reaches the room as soon as it's posted and you can hide it from the
-          console. On, nothing reaches the room until you approve it, and the asker sees their own
-          question waiting so they don't post it twice.
+          Seeds a new room only. This one keeps whatever it says above, so changing it now doesn't
+          rewrite a lecture that's already running.
         </p>
       </div>
 
@@ -615,8 +695,8 @@ defmodule QuorumWeb.SettingsLive do
 
       <h3>Hold anything using these words</h3>
       <p class="q-meta" style="margin-top:0;">
-        A question using one of these waits for you even when the switch above is off. It's held,
-        never refused, so a word used innocently costs the asker a wait and nothing more.
+        The fourth trigger, and the only one you write yourself. A word matches whole, so "class"
+        doesn't trip on "ass".
       </p>
 
       <form id="add-word-form" phx-submit="add_word" class="q-word-form">

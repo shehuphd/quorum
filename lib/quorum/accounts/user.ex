@@ -27,6 +27,11 @@ defmodule Quorum.Accounts.User do
     update :set_name do
       accept([:name])
     end
+
+    update :set_moderation_default do
+      description("Whether rooms this lecturer opens start by holding every question.")
+      accept([:hold_for_review_default?])
+    end
   end
 
   attributes do
@@ -41,6 +46,15 @@ defmodule Quorum.Accounts.User do
     attribute :name, :string do
       public?(true)
       constraints(max_length: 120)
+    end
+
+    # A lecturer who moderates one lecture usually moderates the next. This
+    # seeds each new room they open; changing it never touches a room already
+    # running, so turning it on mid-term doesn't rewrite today's lecture.
+    attribute :hold_for_review_default?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(false)
     end
 
     create_timestamp(:inserted_at)

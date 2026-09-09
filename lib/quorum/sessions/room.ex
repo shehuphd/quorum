@@ -30,7 +30,7 @@ defmodule Quorum.Sessions.Room do
 
     create :open do
       description("Open a new room. The caller keeps the returned host_token.")
-      accept([:name, :auto_close_at, :demo?, :owner_id])
+      accept([:name, :auto_close_at, :demo?, :owner_id, :hold_for_review?])
     end
 
     update :close do
@@ -57,7 +57,10 @@ defmodule Quorum.Sessions.Room do
         :question_max_length,
         :questions_per_student,
         :allow_display_name?,
+        :keep_questions?,
         :hold_for_review?,
+        :hold_links?,
+        :hold_first_question?,
         :held_words
       ])
     end
@@ -192,9 +195,36 @@ defmodule Quorum.Sessions.Room do
       default(true)
     end
 
+    # Questions outlive the lecture by default. A term of them is what tells a
+    # lecturer which material didn't land, so they're the record the room is
+    # for. A lecturer who'd rather not keep them turns this off, and closing
+    # the session takes them.
+    attribute :keep_questions?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(true)
+    end
+
     # Moderation. Off is post-hoc: a question appears, and the lecturer can hide
     # it. On holds every question until the lecturer approves it.
     attribute :hold_for_review?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(false)
+    end
+
+    # A question carrying a link waits, whatever the toggle above says. Links
+    # are how a live room gets used to advertise at a captive audience.
+    attribute :hold_links?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(false)
+    end
+
+    # Hold a student's first question in this room, and let them through once
+    # one has been approved. Students have no accounts, so "new" can only mean
+    # new to this room.
+    attribute :hold_first_question?, :boolean do
       allow_nil?(false)
       public?(true)
       default(false)

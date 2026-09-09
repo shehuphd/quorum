@@ -1,6 +1,6 @@
 # Quorum manifest
 
-Last updated: 2026-09-09 21:15:00 UTC
+Last updated: 2026-09-09 21:45:00 UTC
 
 Map of every source file: what it defines and what it touches. The Ash resources
 are grouped under the `Quorum.Sessions` domain; the LiveViews are the five live
@@ -11,7 +11,7 @@ screens, and the landing page is a plain controller.
 | File | Role |
 |---|---|
 | `lib/quorum/accounts.ex` | Lecturer accounts and the magic-link rules: fifteen minutes to live, single use, and a thirty-second cooldown between requests. `request_link/1` returns `{:ok, user, token}`, `{:wait, seconds}`, or an error; `claim_link/1` returns the lecturer once and then `:spent` or `:expired`, so the screen can say which. |
-| `lib/quorum/accounts/user.ex` | `User` resource: a lecturer's email and optional name. Students never have one. `register` upserts on the email, so one address is one account. Postgres table `users`. |
+| `lib/quorum/accounts/user.ex` | `User` resource: a lecturer's email, optional name, and whether the rooms they open start by holding every question. Students never have one. `register` upserts on the email, so one address is one account. Postgres table `users`. |
 | `lib/quorum/accounts/login_token.ex` | `LoginToken` resource: one single-use sign-in link, 32 random bytes with an expiry. Spent tokens are kept rather than deleted, so a second click is told apart from a token that never existed. Postgres table `login_tokens`. |
 | `lib/quorum/accounts/notifier.ex` | The one email Quorum sends. In development it goes to the local mailbox at `/dev/mailbox` rather than out to the internet. |
 
@@ -19,11 +19,11 @@ screens, and the landing page is a plain controller.
 
 | File | Role |
 |---|---|
-| `lib/quorum/sessions.ex` | The `Quorum.Sessions` Ash domain. Lists the four resources, exposes `topic/1` and `subscribe/1` for a room's live feed, and holds every read and command helper the LiveViews call, so the web layer never builds a changeset or query by hand. `partition/1` splits a room's questions into the ranked queue, the ones held for review, and the answered list. `update_settings/2` is the single write behind every settings control, and each pane's defaults sit beside it for Reset this tab. `ask/2` applies the room's own limits, which are per room and so can't be resource constraints, and names each refusal (`:too_long`, `:too_many`) so the screen can say which one stopped it. `spotlight/2` refuses anything the room can't already see. |
-| `lib/quorum/sessions/room.ex` | `Room` resource: a live session with a generated `join_code` and secret `host_token`, an open/closed `status`, an optional `auto_close_at`, a nullable `spotlight_question` that drives the projection, and a nullable `owner`. Also carries the projection's four gradient colours, its angle, whether it drifts, whether students are pointed at the reading list, what a student may post (length, allowance, whether they can sign it), and what's moderated (hold everything, and the words that hold a question on their own). Actions: `open`, `close`, `rename`, `new_code`, `spotlight`, `clear_spotlight`, `settings`. Postgres table `rooms`. |
+| `lib/quorum/sessions.ex` | The `Quorum.Sessions` Ash domain. Lists the four resources, exposes `topic/1` and `subscribe/1` for a room's live feed, and holds every read and command helper the LiveViews call, so the web layer never builds a changeset or query by hand. `partition/1` splits a room's questions into the ranked queue, the ones held for review, and the answered list. `update_settings/2` is the single write behind every settings control, and each pane's defaults sit beside it for Reset this tab. `ask/2` applies the room's own limits, which are per room and so can't be resource constraints, and names each refusal (`:too_long`, `:too_many`) so the screen can say which one stopped it. `spotlight/2` refuses anything the room can't already see. `hold_reason/3` resolves the four moderation triggers to the one that fired. `close_room/1` deletes the room's questions when the room says not to keep them. |
+| `lib/quorum/sessions/room.ex` | `Room` resource: a live session with a generated `join_code` and secret `host_token`, an open/closed `status`, an optional `auto_close_at`, a nullable `spotlight_question` that drives the projection, and a nullable `owner`. Also carries the projection's four gradient colours, its angle, whether it drifts, whether students are pointed at the reading list, what a student may post (length, allowance, whether they can sign it, and whether the questions outlive the session), and what's moderated (hold everything, hold a first question, hold links, and the words that hold a question on their own). Actions: `open`, `close`, `rename`, `new_code`, `spotlight`, `clear_spotlight`, `settings`. Postgres table `rooms`. |
 | `lib/quorum/sessions/reading.ex` | `Reading` resource: one item on a room's approved reading list, with a title, an optional page reference, and an optional link. Deleted with its room. This list is the only corpus the reading pointer may draw on. Postgres table `readings`. |
 | `lib/quorum/sessions/question.ex` | `Question` resource: belongs to a room, holds `body`, optional `display_name`, private `submitter_token`, and a `status` (pending/visible/answered/hidden). Aggregate `vote_count`. Actions: `ask`, `approve`, `answer`, `hide`, `restore`. `ask` derives the status from a `held?` argument rather than accepting one, so no crafted request posts straight past a review queue. Postgres table `questions`. |
-| `lib/quorum/sessions/vote.ex` | `Vote` resource: belongs to a question, carries `voter_token`, unique per (question, voter). Action `cast` upserts, so a repeat vote is a no-op. Postgres table `votes`. |
+| `lib/quorum/sessions/vote.ex` | `Vote` resource: belongs to a question, carries `voter_token`, unique per (question, voter). Action `cast` upserts, so a repeat vote is a no-op. Deleted with the question it's about, so an upvoted question stays retractable. Postgres table `votes`. |
 | `lib/quorum/sessions/codes.ex` | Generators for a room's five-character public join code (ambiguous glyphs removed) and its secret host token. |
 | `lib/quorum/sessions/demo.ex` | The seeded demo lecture the landing page points at. Holds the question set, keeps one open demo room at a time, and exposes `current/0` (read only), `ensure_room/0` (seeds if needed), `seed/1`, and `clear/0`. |
 | `lib/quorum/sessions/broadcaster.ex` | Ash notifier. On any room, question, or vote change, broadcasts `{:room_changed, room_id}` on the room's PubSub topic so every watching LiveView reloads. Reads the database to resolve a vote's room, since a vote carries only a question id. |
@@ -102,6 +102,8 @@ screens, and the landing page is a plain controller.
 | `priv/repo/migrations/20260909180739_add_accounts.exs` | Creates `users` and `login_tokens`, and adds `rooms.owner_id`, nilified when the lecturer's account goes so the room stays reachable by its host link. |
 | `priv/repo/migrations/20260909200148_add_settings.exs` | Creates `readings`, and adds the room's projection colours, gradient angle, drift flag, and reading-pointer flag. |
 | `priv/repo/migrations/20260909204309_add_questions_and_moderation.exs` | Adds the room's question length, per-student allowance, signing flag, hold-for-review flag, and held-word list. |
+| `priv/repo/migrations/20260909210338_add_hold_triggers.exs` | Adds the room's hold-on-links and hold-first-question flags, and the lecturer's hold-by-default preference. |
+| `priv/repo/migrations/20260909210546_add_retention_and_vote_cascade.exs` | Adds the room's keep-questions flag, and makes votes cascade when their question is deleted. |
 
 ## Launchers
 

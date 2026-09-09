@@ -13,6 +13,12 @@ defmodule Quorum.Sessions.Vote do
   postgres do
     table "votes"
     repo Quorum.Repo
+
+    references do
+      # A vote is a fact about a question. Without this, a student couldn't
+      # retract their own question once anyone had upvoted it.
+      reference :question, on_delete: :delete
+    end
   end
 
   actions do

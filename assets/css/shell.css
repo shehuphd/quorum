@@ -624,6 +624,23 @@
 
 /* The reading list */
 
+/* A plain checkbox with its label, for a setting that isn't the room's own. */
+
+.q-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--q-touch);
+  cursor: pointer;
+}
+.q-check input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--q-accent);
+  cursor: pointer;
+}
+
 /* The review queue, above the ranked queue while anything is held. */
 
 .q-review {

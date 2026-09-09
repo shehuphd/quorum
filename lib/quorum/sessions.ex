@@ -30,17 +30,51 @@ defmodule Quorum.Sessions do
   ## Rooms
 
   def open_room(name, opts \\ []) do
+    owner_id = Keyword.get(opts, :owner_id)
+
     attrs = %{
       name: name,
       demo?: Keyword.get(opts, :demo?, false),
-      owner_id: Keyword.get(opts, :owner_id)
+      owner_id: owner_id,
+      hold_for_review?: Keyword.get(opts, :hold_for_review?, moderates_by_default?(owner_id))
     }
 
     Room |> Ash.Changeset.for_create(:open, attrs) |> Ash.create()
   end
 
-  def close_room(room),
-    do: room |> Ash.Changeset.for_update(:close) |> Ash.update()
+  # A lecturer who moderates one lecture usually moderates the next, so a new
+  # room starts where their last preference left it. A room with no owner has
+  # nowhere to have remembered one.
+  defp moderates_by_default?(nil), do: false
+
+  defp moderates_by_default?(owner_id) do
+    case Quorum.Accounts.get_user(owner_id) do
+      {:ok, %{hold_for_review_default?: hold?}} -> hold?
+      _ -> false
+    end
+  end
+
+  @doc """
+  Close a room to new questions and votes.
+
+  The questions stay unless the room says otherwise. A term of them is what
+  tells a lecturer which material didn't land, so keeping them is the point of
+  the room rather than a default nobody chose. A room with `keep_questions?`
+  off has them deleted here, with their votes, and there's no undo.
+  """
+  def close_room(room) do
+    with {:ok, closed} <- room |> Ash.Changeset.for_update(:close) |> Ash.update() do
+      unless closed.keep_questions?, do: delete_questions(closed.id)
+      {:ok, closed}
+    end
+  end
+
+  defp delete_questions(room_id) do
+    Question
+    |> Ash.Query.filter(room_id == ^room_id)
+    |> Ash.read!()
+    |> Enum.each(&Ash.destroy!/1)
+  end
 
   @doc """
   Put a question on the projection.
@@ -161,7 +195,7 @@ defmodule Quorum.Sessions do
           attrs
           |> Map.drop([:status, "status", :held?, "held?"])
           |> Map.put(:room_id, room_id)
-          |> Map.put(:held?, held?(room, body))
+          |> Map.put(:held?, held?(room, body, Map.get(attrs, :submitter_token)))
           |> drop_name_if_anonymous(room)
 
         Question |> Ash.Changeset.for_create(:ask, attrs) |> Ash.create()
@@ -194,9 +228,46 @@ defmodule Quorum.Sessions do
   defp drop_name_if_anonymous(attrs, %{allow_display_name?: true}), do: attrs
   defp drop_name_if_anonymous(attrs, _room), do: Map.drop(attrs, [:display_name, "display_name"])
 
-  @doc "Whether this room's moderation settings hold a question with this body."
-  def held?(%{hold_for_review?: true}, _body), do: true
-  def held?(room, body), do: held_word?(room.held_words, body)
+  @doc """
+  Why this room's moderation would hold this question, or `nil` to let it pass.
+
+  Four triggers, checked in the order a lecturer would explain them. Each one
+  holds; none refuses, so the cost of a false positive is a wait.
+
+    * `:room` the room holds everything
+    * `:first` the asker has had nothing approved here yet
+    * `:word` the body uses a word on the room's held list
+    * `:link` the body carries a link
+  """
+  def hold_reason(room, body, submitter_token) do
+    cond do
+      room.hold_for_review? -> :room
+      room.hold_first_question? and newcomer?(room.id, submitter_token) -> :first
+      held_word?(room.held_words, body) -> :word
+      room.hold_links? and link?(body) -> :link
+      true -> nil
+    end
+  end
+
+  @doc "Whether this room's moderation settings hold a question."
+  def held?(room, body, submitter_token),
+    do: hold_reason(room, body, submitter_token) != nil
+
+  # Students have no accounts, so the only trust a room can read is what this
+  # browser has had approved here. A question still waiting doesn't count, or
+  # the first one would let the second through while it was still unread.
+  defp newcomer?(_room_id, nil), do: true
+
+  defp newcomer?(room_id, token) do
+    count =
+      Question
+      |> Ash.Query.filter(
+        room_id == ^room_id and submitter_token == ^token and status in [:visible, :answered]
+      )
+      |> Ash.count!()
+
+    count == 0
+  end
 
   defp held_word?([], _body), do: false
 
@@ -204,6 +275,25 @@ defmodule Quorum.Sessions do
     Enum.any?(words, fn word ->
       Regex.match?(~r/\b#{Regex.escape(word)}\b/iu, body)
     end)
+  end
+
+  # Extensions that read as a domain but aren't one. A lecture on Node.js
+  # shouldn't hold every question that names it.
+  @not_a_domain ~w(js ts py rb ex exs go rs md json html css sh yml yaml txt csv pdf png jpg)
+
+  @doc "Whether a body carries something a student could follow out of the room."
+  def link?(body) do
+    cond do
+      Regex.match?(~r{\w+://}u, body) -> true
+      Regex.match?(~r{\bwww\.\S}iu, body) -> true
+      true -> bare_domain?(body)
+    end
+  end
+
+  defp bare_domain?(body) do
+    ~r/\b[\w-]+\.([a-z]{2,24})\b/iu
+    |> Regex.scan(body)
+    |> Enum.any?(fn [_match, tld] -> String.downcase(tld) not in @not_a_domain end)
   end
 
   def answer(question), do: question |> Ash.Changeset.for_update(:answer) |> Ash.update()
@@ -279,12 +369,17 @@ defmodule Quorum.Sessions do
 
   @doc "What a new room allows students to post, for Reset this tab."
   def question_defaults do
-    %{question_max_length: 500, questions_per_student: 0, allow_display_name?: true}
+    %{
+      question_max_length: 500,
+      questions_per_student: 0,
+      allow_display_name?: true,
+      keep_questions?: true
+    }
   end
 
   @doc "What a new room moderates, for Reset this tab. Post-hoc, as the room ships."
   def moderation_defaults do
-    %{hold_for_review?: false, held_words: []}
+    %{hold_for_review?: false, hold_links?: false, hold_first_question?: false, held_words: []}
   end
 
   @doc """

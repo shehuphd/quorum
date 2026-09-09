@@ -97,6 +97,18 @@ defmodule Quorum.Accounts do
     end
   end
 
+  @doc """
+  Set whether rooms this lecturer opens start by holding every question.
+
+  It seeds new rooms only. A room already running keeps whatever its own
+  Moderation tab says, so changing this never rewrites a lecture in progress.
+  """
+  def set_moderation_default(%User{} = user, hold?),
+    do:
+      user
+      |> Ash.Changeset.for_update(:set_moderation_default, %{hold_for_review_default?: hold?})
+      |> Ash.update()
+
   @doc "What to call a lecturer on screen before they've set a name."
   def display_name(%User{name: name}) when is_binary(name) and name != "", do: name
   def display_name(%User{email: email}), do: email |> String.split("@") |> hd()

@@ -195,13 +195,39 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert feed =~ "Every question here is anonymous."
     end
 
+    test "keeping questions is the default, and the switch says why it matters", %{conn: conn} do
+      room = room()
+
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/questions")
+
+      assert html =~ "Keep this room&#39;s questions, on"
+      assert html =~ "which weeks drew nothing"
+      assert html =~ "There&#39;s no undo."
+    end
+
+    test "turning keeping off means closing the session takes the questions", %{conn: conn} do
+      room = room()
+      Sessions.ask(room.id, %{body: "Gone at the bell", submitter_token: "a"})
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/questions")
+      view |> element(~s([phx-value-field="keep_questions?"])) |> render_click()
+
+      assert settle(view) =~ "Keep this room&#39;s questions, off"
+
+      {:ok, room} = Sessions.get_room(room.id)
+      Sessions.close_room(room)
+
+      assert Sessions.list_questions(room.id) == []
+    end
+
     test "reset this tab puts the limits back", %{conn: conn} do
       room = room()
 
       Sessions.update_settings(room, %{
         question_max_length: 140,
         questions_per_student: 3,
-        allow_display_name?: false
+        allow_display_name?: false,
+        keep_questions?: false
       })
 
       {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/questions")
@@ -212,6 +238,7 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert reset.question_max_length == 500
       assert reset.questions_per_student == 0
       assert reset.allow_display_name?
+      assert reset.keep_questions?
     end
   end
 
@@ -301,6 +328,52 @@ defmodule QuorumWeb.SettingsLiveTest do
       {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
 
       refute html =~ "waiting for review"
+    end
+
+    test "each of the three switches names its state and takes effect", %{conn: conn} do
+      room = room()
+      {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      assert html =~ "Hold a student&#39;s first question, off"
+      assert html =~ "Hold anything with a link, off"
+
+      view |> element(~s([phx-value-field="hold_first_question?"])) |> render_click()
+      settle(view)
+      view |> element(~s([phx-value-field="hold_links?"])) |> render_click()
+
+      html = settle(view)
+      assert html =~ "Hold a student&#39;s first question, on"
+      assert html =~ "Hold anything with a link, on"
+
+      assert {:ok, saved} = Sessions.get_room(room.id)
+      assert saved.hold_first_question?
+      assert saved.hold_links?
+    end
+
+    test "the account default is offered only to a signed-in presenter", %{conn: conn} do
+      room = room()
+
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      refute html =~ "Start the rooms I open"
+    end
+
+    test "a signed-in presenter can make holding the default for their next room", %{conn: conn} do
+      {:ok, user, _token} = Quorum.Accounts.request_link("presenter@example.ac.uk")
+      {:ok, room} = Sessions.open_room("Signed in", owner_id: user.id)
+      conn = Plug.Test.init_test_session(conn, %{}) |> QuorumWeb.CurrentUser.sign_in(user)
+
+      {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+      assert html =~ "Start the rooms I open"
+
+      view |> element(~s(input[phx-click="toggle_account_default"])) |> render_click()
+
+      assert {:ok, %{hold_for_review_default?: true}} = Quorum.Accounts.get_user(user.id)
+
+      # It seeds the next room, and leaves this one where it was.
+      assert {:ok, %{hold_for_review?: false}} = Sessions.get_room(room.id)
+      {:ok, next} = Sessions.open_room("Opened after", owner_id: user.id)
+      assert next.hold_for_review?
     end
 
     test "reset this tab clears the switch and the list", %{conn: conn} do

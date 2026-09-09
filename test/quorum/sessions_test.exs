@@ -377,6 +377,232 @@ defmodule Quorum.SessionsTest do
     end
   end
 
+  describe "holding a student's first question" do
+    setup do
+      room = open_room()
+      {:ok, room} = Sessions.update_settings(room, %{hold_first_question?: true})
+      %{room: room}
+    end
+
+    test "the first is held and the rest go through once one is approved", %{room: room} do
+      assert {:ok, first} = Sessions.ask(room.id, %{body: "my first", submitter_token: "amara"})
+      assert first.status == :pending
+
+      # Still held while the first one waits: nothing has been approved yet.
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "my second", submitter_token: "amara"})
+
+      Sessions.approve(first)
+
+      assert {:ok, %{status: :visible}} =
+               Sessions.ask(room.id, %{body: "my third", submitter_token: "amara"})
+    end
+
+    test "a student refused once stays held", %{room: room} do
+      {:ok, first} = Sessions.ask(room.id, %{body: "no thanks", submitter_token: "amara"})
+      Sessions.reject(first)
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "trying again", submitter_token: "amara"})
+    end
+
+    test "an answered question also counts as approved", %{room: room} do
+      {:ok, first} = Sessions.ask(room.id, %{body: "my first", submitter_token: "amara"})
+      Sessions.approve(first)
+      Sessions.answer(first)
+
+      assert {:ok, %{status: :visible}} =
+               Sessions.ask(room.id, %{body: "my second", submitter_token: "amara"})
+    end
+
+    test "one student being trusted doesn't let another through", %{room: room} do
+      {:ok, first} = Sessions.ask(room.id, %{body: "mine", submitter_token: "amara"})
+      Sessions.approve(first)
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "theirs", submitter_token: "ben"})
+    end
+
+    test "trust is per room, not across rooms", %{room: room} do
+      {:ok, first} = Sessions.ask(room.id, %{body: "mine here", submitter_token: "amara"})
+      Sessions.approve(first)
+
+      other = open_room("Another lecture")
+      {:ok, other} = Sessions.update_settings(other, %{hold_first_question?: true})
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(other.id, %{body: "mine there", submitter_token: "amara"})
+    end
+  end
+
+  describe "holding anything with a link" do
+    setup do
+      room = open_room()
+      {:ok, room} = Sessions.update_settings(room, %{hold_links?: true})
+      %{room: room}
+    end
+
+    test "holds a web address, a bare domain, and a www host", %{room: room} do
+      for body <- [
+            "See https://spam.example/deal",
+            "go to buy-now.example/cheap",
+            "www.spam.example has it",
+            "Try HTTP://SHOUTY.EXAMPLE"
+          ] do
+        assert {:ok, %{status: :pending}} =
+                 Sessions.ask(room.id, %{body: body, submitter_token: "s-#{body}"})
+      end
+    end
+
+    test "leaves a file name and ordinary prose alone", %{room: room} do
+      for body <- [
+            "How does Node.js handle this?",
+            "Is it in main.py or app.exs?",
+            "So, i.e. the epistemic gap etc.",
+            "What is a supervision tree?"
+          ] do
+        assert {:ok, %{status: :visible}} =
+                 Sessions.ask(room.id, %{body: body, submitter_token: "s-#{body}"})
+      end
+    end
+
+    test "off, a link posts straight to the room" do
+      room = open_room()
+
+      assert {:ok, %{status: :visible}} =
+               Sessions.ask(room.id, %{body: "https://fine.example", submitter_token: "a"})
+    end
+  end
+
+  describe "why a question was held" do
+    test "names the trigger, in the order a presenter would explain them" do
+      room = open_room()
+
+      {:ok, room} =
+        Sessions.update_settings(room, %{hold_links?: true, hold_first_question?: true})
+
+      {:ok, room} = Sessions.add_held_word(room, "grade")
+
+      assert Sessions.hold_reason(room, "anything", "newcomer") == :first
+
+      # Once they're trusted, the remaining triggers still apply in turn.
+      {:ok, q} = Sessions.ask(room.id, %{body: "first one", submitter_token: "amara"})
+      Sessions.approve(q)
+      {:ok, room} = Sessions.get_room(room.id)
+
+      assert Sessions.hold_reason(room, "about my grade", "amara") == :word
+      assert Sessions.hold_reason(room, "see spam.example/x", "amara") == :link
+      assert Sessions.hold_reason(room, "a plain question", "amara") == nil
+
+      {:ok, room} = Sessions.update_settings(room, %{hold_for_review?: true})
+      assert Sessions.hold_reason(room, "a plain question", "amara") == :room
+    end
+  end
+
+  describe "what a new room starts with" do
+    test "a room opened by a presenter who moderates starts moderated" do
+      {:ok, user, _token} = Quorum.Accounts.request_link("moderates@example.ac.uk")
+      Quorum.Accounts.set_moderation_default(user, true)
+
+      {:ok, room} = Sessions.open_room("Held from the start", owner_id: user.id)
+      assert room.hold_for_review?
+    end
+
+    test "their next room follows the preference as it stands now" do
+      {:ok, user, _token} = Quorum.Accounts.request_link("changes-mind@example.ac.uk")
+      Quorum.Accounts.set_moderation_default(user, true)
+      {:ok, first} = Sessions.open_room("Moderated", owner_id: user.id)
+
+      {:ok, user} = Quorum.Accounts.get_user(user.id)
+      Quorum.Accounts.set_moderation_default(user, false)
+      {:ok, second} = Sessions.open_room("Not moderated", owner_id: user.id)
+
+      assert first.hold_for_review?
+      refute second.hold_for_review?
+    end
+
+    test "changing the preference never touches a room already running" do
+      {:ok, user, _token} = Quorum.Accounts.request_link("mid-term@example.ac.uk")
+      {:ok, room} = Sessions.open_room("Already running", owner_id: user.id)
+      refute room.hold_for_review?
+
+      Quorum.Accounts.set_moderation_default(user, true)
+
+      assert {:ok, %{hold_for_review?: false}} = Sessions.get_room(room.id)
+    end
+
+    test "a room with no owner has nowhere to have remembered one" do
+      {:ok, room} = Sessions.open_room("No account behind it")
+      refute room.hold_for_review?
+    end
+  end
+
+  describe "what happens to questions when the session ends" do
+    test "they're kept by default, because they're the record the room is for" do
+      room = open_room()
+      Sessions.ask(room.id, %{body: "Worth reading back in week 9", submitter_token: "a"})
+
+      {:ok, closed} = Sessions.close_room(room)
+
+      assert closed.keep_questions?
+      assert [%{body: "Worth reading back in week 9"}] = Sessions.list_questions(room.id)
+    end
+
+    test "a room set to discard them takes them, and their votes, on close" do
+      room = open_room()
+      {:ok, room} = Sessions.update_settings(room, %{keep_questions?: false})
+      {:ok, question} = Sessions.ask(room.id, %{body: "Gone at the bell", submitter_token: "a"})
+      Sessions.vote(question.id, "voter-1")
+
+      Sessions.close_room(room)
+
+      assert Sessions.list_questions(room.id) == []
+      assert Vote |> Ash.Query.filter(question_id == ^question.id) |> Ash.read!() == []
+    end
+
+    test "discarding takes held and answered ones too, not only the live queue" do
+      room = open_room()
+
+      {:ok, room} =
+        Sessions.update_settings(room, %{keep_questions?: false, hold_for_review?: true})
+
+      {:ok, held} = Sessions.ask(room.id, %{body: "still waiting", submitter_token: "a"})
+      Sessions.approve(held)
+      Sessions.answer(held)
+      Sessions.ask(room.id, %{body: "never approved", submitter_token: "b"})
+
+      Sessions.close_room(room)
+
+      assert Sessions.list_questions(room.id) == []
+    end
+
+    test "the room itself survives, so its link still opens" do
+      room = open_room()
+      {:ok, room} = Sessions.update_settings(room, %{keep_questions?: false})
+      Sessions.ask(room.id, %{body: "gone", submitter_token: "a"})
+
+      Sessions.close_room(room)
+
+      assert {:ok, %{status: :closed}} = Sessions.get_room(room.id)
+    end
+  end
+
+  describe "retracting a question that has votes" do
+    test "the votes go with it, rather than the delete failing" do
+      room = open_room()
+
+      {:ok, question} =
+        Sessions.ask(room.id, %{body: "upvoted, then retracted", submitter_token: "a"})
+
+      Sessions.vote(question.id, "voter-1")
+      Sessions.vote(question.id, "voter-2")
+
+      assert :ok = Sessions.retract(question)
+      assert Sessions.list_questions(room.id) == []
+      assert Vote |> Ash.Query.filter(question_id == ^question.id) |> Ash.read!() == []
+    end
+  end
+
   describe "words that hold a question" do
     setup do
       room = open_room()

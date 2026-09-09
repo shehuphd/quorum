@@ -119,7 +119,22 @@ The undrawn tab says what will go in it and that nothing is missing from your ro
 
 **Questions** sets the longest a question may be (140, 280, 500, or 1000 characters), how many a student can have waiting at once, and whether students may sign what they post. The composer follows all three. Answered and hidden questions stop counting against their asker, so a student who's been answered can post again. Turning signing off posts every question anonymously, including any name an old page still sends.
 
-**Moderation** decides what reaches the room. With **Hold every question for review** on, nothing appears until you approve it. You can also name words that hold a question on their own, whatever that switch says. A held word matches whole words, so "ass" doesn't catch "class", and it holds rather than refuses, so a word used innocently costs the asker a wait.
+The same tab decides what happens to the questions when the session ends. **Keep this room's questions** is on, because a term of them is the record of what didn't land: which weeks drew nothing, which drew the same question forty times, what belongs in the next tutorial. Turning it off deletes every question in the room, and its votes, the moment you close the session, with no undo.
+
+**Moderation** decides what reaches the room. Four things can hold a question, and any one of them is enough:
+
+| Trigger | Holds when |
+|---|---|
+| Hold every question for review | Always, until you approve each one |
+| Hold a student's first question | The asker has had nothing approved in this room yet |
+| Hold anything with a link | The question carries a web address or a bare domain |
+| Held words | The question uses a word you've put on the room's list |
+
+Every one of them holds rather than refuses, so the worst a mistake costs an asker is a wait. Held words match whole words, so "ass" doesn't catch "class". The link check ignores file names, so a question about Node.js goes straight through.
+
+Holding a student's first question reads trust per room, because students have no accounts here: the only history a room can see is what that browser has had approved in it. Approve one of someone's questions and the rest go through.
+
+If you're signed in, **Start the rooms I open with the first of these on** makes holding your default. It seeds a new room only, so changing it never rewrites a session already running.
 
 A held question is invisible to the room and to the projection. Its own asker sees it waiting, and can retract it, so nobody posts the same question twice thinking the first one failed. While anything is held, the console carries a review queue above the ranked queue, with **Approve** to send a question to the room and **Refuse** to hide it. A refused question is hidden rather than deleted, so you can restore it.
 

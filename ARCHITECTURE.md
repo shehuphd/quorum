@@ -16,6 +16,10 @@ Settings are per-room rather than per-account, so they follow the host token lik
 
 Moderation is post-hoc by default: a question appears and the lecturer can hide it. A room can switch to pre-publish, where a question is written with a `pending` status and reaches nobody but its own asker until the lecturer approves it. Because a held question exists as a row rather than being refused, the asker can see it waiting and retract it, and an approval is one status change rather than a re-post.
 
+Four triggers feed that one decision, resolved by `Sessions.hold_reason/3`: the room holds everything, the asker has had nothing approved in this room, the body uses a held word, or the body carries a link. Students have no accounts, so the second reads trust per room from what that browser has had approved in it. Every trigger holds and none refuses, which keeps the cost of a false positive to a wait and means the triggers can be blunt without being punitive.
+
+Questions outlive the session. A term of them is the record of which material didn't land, which is what a room is kept for rather than a default nobody chose, so retention is on unless a room turns it off. A room that does has its questions and votes deleted when the session closes.
+
 Lecturer accounts are optional and sit beside the host token rather than replacing it: a room opened while signed in belongs to that lecturer and appears in their list, and every host link keeps working with or without an account. Students never have an account at all.
 
 A landing page at `/` fronts all of it, and a seeded demo lecture behind `/demo`, `/demo/host`, and `/demo/project` opens the same room in each of the three roles, so the product can be looked at without a lecture to run.
@@ -81,6 +85,10 @@ Settings ride the same path, which is what lets them do without a save button. C
 | A crafted request tries to project a held question | `Sessions.spotlight/2` refuses anything the room can't already see, so holding a question back means the hall and not only the queue |
 | A student's held question looks like it failed to post | The asker sees their own held question waiting, with a note that nobody else can see it yet, and can retract it from there. Other students see nothing |
 | A held word is used innocently | A held word holds the question rather than refusing it, and matches whole words, so "class" doesn't trip "ass". The cost of a false positive is a wait |
+| A question names a file, not a website | The link check reads a scheme, a `www` host, or a bare domain, and ignores a set of extensions that read as domains. A lecture on Node.js doesn't hold every question that names it |
+| A lecturer's default changes mid-term | The account preference seeds a room at the moment it's opened. A room already running keeps its own setting, so no lecture changes under the person giving it |
+| A student retracts a question others upvoted | The votes foreign key cascades, so the votes go with the question. Before it did, one upvote made a question undeletable |
+| A room is set to discard its questions | They go when the session closes, with their votes, and the room itself survives so its link still opens. There's no undo, and the setting says so |
 | A room is deleted while it's still running | Deleting needs the session closed and the room's name typed, and the action checks both server-side rather than trusting the disabled button |
 | A room is deleted with readings on it | `readings.room_id` cascades, so the list goes with the room rather than outliving it |
 | A settings write fails | The status line stays on "Saving" rather than claiming a save that didn't happen, because it only reports saved once the write returns |
