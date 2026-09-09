@@ -40,6 +40,8 @@ defmodule QuorumWeb.Router do
     live "/r/:code", AttendeeLive, :show
     live "/host/:host_token", HostLive, :show
     live "/host/:host_token/project", ProjectionLive, :show
+    live "/host/:host_token/settings", SettingsLive, :index
+    live "/host/:host_token/settings/:tab", SettingsLive, :show
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

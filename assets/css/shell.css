@@ -18,6 +18,9 @@
 }
 .q-shell-brand {
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--q-touch);
 }
 .q-shell-nav {
   display: flex;
@@ -81,6 +84,11 @@
   align-items: center;
   gap: 22px;
   flex-wrap: wrap;
+}
+/* Reserved space, so the settled message doesn't shove the buttons sideways. */
+.q-room-status {
+  min-width: 150px;
+  text-align: right;
 }
 .q-room-stat {
   text-align: center;
@@ -340,6 +348,11 @@
   .q-room-actions {
     gap: 14px 18px;
   }
+  /* On its own line here, so it reads from the left like everything above it. */
+  .q-room-status {
+    min-width: 0;
+    text-align: left;
+  }
   .q-join-strip {
     flex-wrap: wrap;
   }
@@ -444,5 +457,273 @@
   }
   .q-prose h1 {
     font-size: 30px;
+  }
+}
+
+/* Settings: a rail of categories beside one pane. */
+
+.q-settings {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 244px minmax(0, 1fr);
+  border-top: 1px solid var(--q-hairline);
+}
+.q-settings-rail {
+  border-right: 1px solid var(--q-hairline);
+  padding: 18px 0 40px;
+  display: flex;
+  flex-direction: column;
+}
+.q-settings-rail .q-tab {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-decoration: none;
+  padding-left: 32px;
+  padding-right: 20px;
+}
+.q-tab-note {
+  font: 400 12px var(--q-font-sans);
+  color: var(--q-ink-muted);
+  margin-top: 2px;
+}
+.q-settings-pane {
+  padding: 28px 32px 48px;
+  min-width: 0;
+}
+
+.q-pane {
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.q-pane h2 {
+  font: 600 20px var(--q-font-sans);
+  margin: 0;
+}
+.q-pane h3 {
+  font: 600 17px var(--q-font-sans);
+  margin: 0;
+}
+.q-pane > .q-meta,
+.q-pane p.q-meta {
+  margin: 0;
+}
+.q-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.q-field .q-meta {
+  margin: 0;
+}
+
+/* A capsule switch, the one place a pill shape is allowed. */
+
+.q-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--q-touch);
+}
+.q-switch {
+  width: 48px;
+  height: 28px;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--q-control-border);
+  background: var(--q-surface-raised);
+  cursor: pointer;
+  padding: 0 3px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+/* The capsule reads better at 28px than at 44px, so the thumb gets the
+   remaining 16px as an invisible margin rather than the switch growing. */
+.q-switch::after {
+  content: "";
+  position: absolute;
+  inset: -8px 0;
+}
+.q-switch-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--q-ink-muted);
+  transition: transform 140ms ease, background 140ms ease;
+}
+.q-switch--on {
+  background: var(--q-accent);
+  border-color: var(--q-accent);
+}
+.q-switch--on .q-switch-knob {
+  background: #fff;
+  transform: translateX(20px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .q-switch,
+  .q-switch-knob {
+    transition: none;
+  }
+}
+
+/* The track draws thin; the control still takes a thumb. */
+.q-pane input[type="range"] {
+  min-height: var(--q-touch);
+}
+
+/* Colour pickers, each with its hex field beside it. */
+
+.q-colour-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.q-colour {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.q-colour-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.q-colour-controls input[type="color"] {
+  width: 46px;
+  height: 44px;
+  flex: none;
+  padding: 2px;
+  border: 1px solid var(--q-control-border);
+  border-radius: var(--q-radius-input);
+  background: var(--q-surface-raised);
+  cursor: pointer;
+}
+.q-colour-controls .q-input {
+  font-family: var(--q-font-sans);
+  text-transform: uppercase;
+}
+
+.q-appearance-preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.q-appearance-preview > div {
+  height: 104px;
+  border-radius: var(--q-radius-card);
+  border: 1px solid var(--q-hairline);
+  display: flex;
+  align-items: flex-end;
+  padding: 12px;
+  font: 600 14px var(--q-font-sans);
+}
+
+/* The reading list */
+
+.q-reading-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: end;
+}
+.q-reading-form > div:first-child {
+  grid-column: 1 / -1;
+}
+.q-reading-form .q-label {
+  display: block;
+  margin-bottom: 8px;
+}
+.q-reading-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.q-reading-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--q-hairline);
+  border-radius: var(--q-radius-card);
+  padding: 12px 14px;
+  background: var(--q-surface);
+}
+.q-reading-list a {
+  color: var(--q-accent);
+  word-break: break-all;
+  position: relative;
+}
+/* Same reason as the switch: the link stays inline in the sentence and the
+   thumb gets the height it needs above and below the text. */
+.q-reading-list a::after {
+  content: "";
+  position: absolute;
+  inset: -15px 0;
+}
+
+/* A dialog above the page */
+
+.q-dialog {
+  position: fixed;
+  inset: 0;
+  background: rgb(20 23 26 / 45%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  z-index: 40;
+}
+.q-dialog-card {
+  background: var(--q-surface-raised);
+  border: 1px solid var(--q-hairline);
+  border-radius: var(--q-radius-card);
+  max-width: 460px;
+  width: 100%;
+  padding: 24px;
+}
+
+@media (max-width: 900px) {
+  .q-settings {
+    grid-template-columns: 1fr;
+  }
+  .q-settings-rail {
+    border-right: 0;
+    border-bottom: 1px solid var(--q-hairline);
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0;
+  }
+  /* The rail scrolls here rather than wrapping, so the trailing edge fades to
+     show there are more categories past it. */
+  .q-settings-rail::after {
+    content: "";
+    position: sticky;
+    right: 0;
+    flex: none;
+    align-self: stretch;
+    width: 32px;
+    margin-left: -32px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, var(--q-surface-raised));
+  }
+  .q-settings-rail .q-tab {
+    padding-left: 18px;
+    padding-right: 18px;
+    white-space: nowrap;
+  }
+  .q-settings-pane {
+    padding: 24px 22px 40px;
+  }
+  .q-colour-row,
+  .q-reading-form,
+  .q-appearance-preview {
+    grid-template-columns: 1fr;
   }
 }

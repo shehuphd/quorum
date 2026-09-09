@@ -33,7 +33,9 @@
   font: 400 15px var(--q-font-sans);
   color: var(--q-ink-secondary);
   text-decoration: none;
-  padding: 12px 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--q-touch);
 }
 .q-l-nav-links a:not(.q-button):hover {
   color: var(--q-ink);
@@ -225,7 +227,10 @@
   padding: 14px 16px;
   margin-top: 14px;
 }
-.q-l-pointer-block a {
+/* This block is a picture of what a student sees, so the readings are styled
+   as links without being any: they'd otherwise sit in the tab order pointing
+   at a section of this page that has nothing to do with them. */
+.q-l-pointer-link {
   color: var(--q-accent);
 }
 

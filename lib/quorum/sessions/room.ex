@@ -39,6 +39,24 @@ defmodule Quorum.Sessions.Room do
       change(set_attribute(:status, :closed))
     end
 
+    update :settings do
+      description(
+        "Apply one settings change. Every control on the settings screens saves through here."
+      )
+
+      accept([
+        :name,
+        :auto_close_at,
+        :projection_light_from,
+        :projection_light_to,
+        :projection_dark_from,
+        :projection_dark_to,
+        :projection_angle,
+        :projection_drift?,
+        :readings_pointer?
+      ])
+    end
+
     update :rename do
       description("Change the room's name. The join code and host token are untouched.")
       accept([:name])
@@ -96,6 +114,55 @@ defmodule Quorum.Sessions.Room do
       public?(true)
     end
 
+    # Appearance. These are seeds, not constants: the defaults match the design
+    # tokens, and Settings, Appearance edits them per room.
+    attribute :projection_light_from, :string do
+      allow_nil?(false)
+      public?(true)
+      default("#E9E9E9")
+      constraints(match: ~r/^#[0-9A-Fa-f]{6}$/)
+    end
+
+    attribute :projection_light_to, :string do
+      allow_nil?(false)
+      public?(true)
+      default("#FAFAFA")
+      constraints(match: ~r/^#[0-9A-Fa-f]{6}$/)
+    end
+
+    attribute :projection_dark_from, :string do
+      allow_nil?(false)
+      public?(true)
+      default("#1A1A1A")
+      constraints(match: ~r/^#[0-9A-Fa-f]{6}$/)
+    end
+
+    attribute :projection_dark_to, :string do
+      allow_nil?(false)
+      public?(true)
+      default("#313131")
+      constraints(match: ~r/^#[0-9A-Fa-f]{6}$/)
+    end
+
+    attribute :projection_angle, :integer do
+      allow_nil?(false)
+      public?(true)
+      default(60)
+      constraints(min: 0, max: 360)
+    end
+
+    attribute :projection_drift?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(true)
+    end
+
+    attribute :readings_pointer?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(false)
+    end
+
     # A demo room is the one the landing page points at, so anyone can look at
     # the product without opening a lecture of their own.
     attribute :demo?, :boolean do
@@ -110,6 +177,7 @@ defmodule Quorum.Sessions.Room do
 
   relationships do
     has_many :questions, Quorum.Sessions.Question
+    has_many :readings, Quorum.Sessions.Reading
 
     # The lecturer who opened it, when they were signed in. Rooms opened from
     # /start without an account have no owner and are reached by host_token only.

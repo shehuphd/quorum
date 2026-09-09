@@ -10,12 +10,13 @@ defmodule Quorum.Sessions do
   use Ash.Domain, otp_app: :quorum
 
   require Ash.Query
-  alias Quorum.Sessions.{Question, Room, Vote}
+  alias Quorum.Sessions.{Question, Reading, Room, Vote}
 
   resources do
     resource(Quorum.Sessions.Room)
     resource(Quorum.Sessions.Question)
     resource(Quorum.Sessions.Vote)
+    resource(Quorum.Sessions.Reading)
   end
 
   ## Live feed
@@ -65,6 +66,47 @@ defmodule Quorum.Sessions do
     |> Ash.Query.sort(inserted_at: :desc)
     |> Ash.read!()
   end
+
+  @doc """
+  Apply one settings change. Hot save means every control calls this on change,
+  so it takes whatever subset of settings attributes the control owns.
+  """
+  def update_settings(room, attrs),
+    do: room |> Ash.Changeset.for_update(:settings, attrs) |> Ash.update()
+
+  @doc "Delete a room and everything in it. Only ever called on a closed room."
+  def delete_room(room), do: Ash.destroy(room)
+
+  @doc "The appearance values a new room starts with, for Reset this tab."
+  def appearance_defaults do
+    %{
+      projection_light_from: "#E9E9E9",
+      projection_light_to: "#FAFAFA",
+      projection_dark_from: "#1A1A1A",
+      projection_dark_to: "#313131",
+      projection_angle: 60,
+      projection_drift?: true
+    }
+  end
+
+  ## Readings
+
+  @doc "A room's approved reading list, oldest first."
+  def list_readings(room_id) do
+    Reading
+    |> Ash.Query.filter(room_id == ^room_id)
+    |> Ash.Query.sort(inserted_at: :asc)
+    |> Ash.read!()
+  end
+
+  def add_reading(room_id, attrs),
+    do:
+      Reading
+      |> Ash.Changeset.for_create(:add, Map.put(attrs, :room_id, room_id))
+      |> Ash.create()
+
+  def remove_reading(reading), do: Ash.destroy(reading)
+  def get_reading(id), do: Ash.get(Reading, id)
 
   def rename_room(room, name),
     do: room |> Ash.Changeset.for_update(:rename, %{name: name}) |> Ash.update()

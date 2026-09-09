@@ -1,6 +1,6 @@
 # Quorum usage
 
-Last updated: 2026-09-09 20:50:00 UTC
+Last updated: 2026-09-09 20:30:00 UTC
 
 Quorum runs one lecture at a time as a room. A lecturer opens the room, projects it, and answers the questions students rank from their seats.
 
@@ -45,7 +45,7 @@ mix quorum.demo
 
 That prints the demo lecture's join code and its three links, seeding the room if none is open. `--fresh` closes the old room and seeds a new one; `--name "Your lecture"` does the same under a different title.
 
-## The four screens
+## The screens
 
 | Screen | Route | Who opens it |
 |---|---|---|
@@ -57,6 +57,7 @@ That prints the demo lecture's join code and its three links, seeding the room i
 | Student feed | `/r/:code` | Students, usually by scanning |
 | Host console | `/host/:host_token` | The lecturer |
 | Projection | `/host/:host_token/project` | The lecturer, on the projector |
+| Settings | `/host/:host_token/settings` | The lecturer |
 
 `GET /start` opens a new room and redirects to its console. The host token in that URL is the only credential, so treat the console link as private and project only the `/project` page.
 
@@ -74,7 +75,7 @@ The room bar carries the room's name with a Rename control, the live counts, Ope
 
 The queue is ranked by votes, oldest first within a tie. Each row carries three controls: **Spotlight** puts the question on the projection, **Mark answered** moves it to the answered list and closes voting on it, and **Hide** takes it off both lists. Answered questions can be reopened.
 
-The search field filters the queue as you type and reports how many of the room's questions match.
+The search field filters the queue as you type and reports how many of the room's questions match. Escape clears it. The queue shortcuts below don't fire while you're typing in it.
 
 Keyboard shortcuts, with no modifier:
 
@@ -99,6 +100,29 @@ With nothing spotlighted, the QR code and the five-character join code own the s
 
 The footer counts the students connected and the questions asked.
 
+### Settings
+
+Settings open from the console at `/host/:host_token/settings`, with six categories on a rail. Each has its own URL, so a tab can be linked or reloaded.
+
+Every control applies as you change it. There is no save button, and the line beside the buttons says "Saving", then "All changes saved". Its height is reserved, so the first save doesn't move the buttons under your pointer.
+
+| Tab | What it does |
+|---|---|
+| Room | The room's name, when it closes itself, the join code, and deleting the room |
+| Questions | Not drawn yet |
+| Moderation | Not drawn yet |
+| Readings and AI | The approved reading list, and whether students are pointed at it |
+| Projection | Not drawn yet |
+| Appearance | The projection's colours |
+
+The three undrawn tabs say what will go in them and that nothing is missing from your room meanwhile, rather than showing an empty pane.
+
+**Appearance** sets the two gradients the projection uses, one for a lit hall and one for a dark one, the angle between them, and whether the gradient drifts. A preview stands beside the controls, and one link puts the whole tab back to its defaults. Drift stops on its own for anyone who has asked for reduced motion.
+
+**Readings and AI** holds the room's approved reading list: a title, optionally where in it, and optionally a link. When the reading pointer is on, a student who posts a question is shown items from this list and nothing else. Matching arrives with the model work; the list is stored and ready for it. The list belongs to the room and goes when the room does.
+
+**Deleting a room** needs the session closed first, and then the room's name typed to confirm. It takes the room, its questions, and its votes. The server checks both conditions rather than trusting the disabled button.
+
 ### Student feed
 
 Students post a question, optionally with a name, and upvote anything already asked. A vote holds that row in place while they read, with a **Let it move** control and a count of how many questions have risen above it, so the list never reorders under a thumb.
@@ -107,10 +131,11 @@ Students can retract their own questions. A question they upvoted reads "Voted" 
 
 ## The domain
 
-The `Quorum.Sessions` domain exposes three resources through Ash actions:
+The `Quorum.Sessions` domain exposes four resources through Ash actions:
 
-- `Room`: `open` a room (returns a join code and a host token), then `close` it. `spotlight` and `clear_spotlight` drive the projection. `demo?` marks the room the landing page points at.
+- `Room`: `open` a room (returns a join code and a host token), then `close` it. `spotlight` and `clear_spotlight` drive the projection. `settings` applies one settings change. `demo?` marks the room the landing page points at.
 - `Question`: `ask` in a room, then `answer`, `hide`, or `restore`.
 - `Vote`: `cast` an upvote (idempotent per browser); destroy a vote to unvote.
+- `Reading`: `add` an item to a room's approved list, then `edit` or destroy it.
 
 Subscribe a process to a room's live feed with `Quorum.Sessions.subscribe(room_id)`; every change to that room delivers `{:room_changed, room_id}` so a view can reload its ranked questions.

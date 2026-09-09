@@ -62,8 +62,20 @@ defmodule QuorumWeb.ProjectionLive do
   defp faint(true), do: "color:var(--q-on-dark-faint);"
   defp faint(false), do: "color:var(--q-ink-muted);"
 
-  defp rail_fill(true), do: "background:#1A1A1A;"
-  defp rail_fill(false), do: "background:#E9E9E9;"
+  # The rail behind the join code is a flat fill, taking the darker end of
+  # whichever gradient the hall is using.
+  defp rail_fill(room, true), do: "background:#{room.projection_dark_from};"
+  defp rail_fill(room, false), do: "background:#{room.projection_light_from};"
+
+  # The hall's own gradient, from Settings, Appearance.
+  defp hall(room, dark?) do
+    {from, to} =
+      if dark?,
+        do: {room.projection_dark_from, room.projection_dark_to},
+        else: {room.projection_light_from, room.projection_light_to}
+
+    "background:linear-gradient(#{room.projection_angle}deg, #{from}, #{to});"
+  end
 
   # A white QR card has no edge of its own against a lit hall, so give it one.
   defp qr_frame(true), do: ""
@@ -96,13 +108,13 @@ defmodule QuorumWeb.ProjectionLive do
       class={[
         "q-projection",
         @dark && "q-projection--dark",
-        is_nil(@spotlight) && "q-projection--waiting"
+        is_nil(@spotlight) && @room.projection_drift? && "q-projection--waiting"
       ]}
-      style="min-height:100dvh;display:flex;flex-direction:column;"
+      style={"min-height:100dvh;display:flex;flex-direction:column;#{hall(@room, @dark)}"}
     >
       <%= if @spotlight do %>
         <main style="flex:1;display:flex;min-height:0;">
-          <aside style={"width:268px;flex:none;padding:28px 22px;display:flex;flex-direction:column;gap:12px;#{rail_fill(@dark)}"}>
+          <aside style={"width:268px;flex:none;padding:28px 22px;display:flex;flex-direction:column;gap:12px;#{rail_fill(@room, @dark)}"}>
             <Brand.logo on_dark={@dark} size={22} />
             <p style={"font:400 15px var(--q-font-sans);margin:14px 0 0;#{muted(@dark)}"}>
               Scan to ask a question

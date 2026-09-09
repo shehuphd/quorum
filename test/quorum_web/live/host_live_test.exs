@@ -271,13 +271,31 @@ defmodule QuorumWeb.HostLiveTest do
     assert Sessions.get_room_by_code(room.join_code) == {:ok, nil}
   end
 
-  test "the reading list control is disabled and says what turns it on", %{conn: conn} do
+  test "the reading list panel leads to the readings tab, and counts what's there", %{conn: conn} do
+    room = room()
+
+    {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
+    assert html =~ "Attach a reading list"
+    assert html =~ "Add readings"
+    assert html =~ ~s(href="/host/#{room.host_token}/settings/resources")
+
+    Sessions.add_reading(room.id, %{title: "Nagel, What Is It Like to Be a Bat?"})
+
+    {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
+    assert html =~ "Edit 1 reading"
+    refute html =~ "Edit 1 readings"
+
+    Sessions.add_reading(room.id, %{title: "Chalmers, Facing Up"})
+
+    {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
+    assert html =~ "Edit 2 readings"
+  end
+
+  test "the console links to settings", %{conn: conn} do
     room = room()
 
     {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
 
-    assert html =~ "Attach a reading list"
-    assert html =~ ~s(disabled="disabled")
-    assert html =~ "Turns on once reading lists ship."
+    assert html =~ ~s(href="/host/#{room.host_token}/settings/room")
   end
 end

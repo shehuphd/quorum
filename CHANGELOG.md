@@ -28,5 +28,11 @@ All notable changes to Quorum are recorded here, dated per release.
 - Privacy, Accessibility, and Contact pages behind the footer, so no footer link goes nowhere. Contact mail routes to the configured address, with the sender on reply-to.
 - The landing page's example card cycles through twenty questions, alternating named and anonymous askers and varying the age between 30 seconds and 15 minutes. It holds still for anyone who has asked for reduced motion.
 - More room between the landing page's sections, and the footer's edges line up with the rest of the page.
+- Settings at `/host/:host_token/settings/:tab`, six categories on a rail. Every control applies as you change it, so there is no save button. The three categories that aren't drawn yet say what will go in them and that nothing is missing meanwhile.
+- The Appearance tab sets the projection's two gradients, its angle, and whether it drifts, with a preview beside the controls and one link back to the defaults.
+- A room's approved reading list, which is the only material the reading pointer will be allowed to draw on. Add, search, and remove; the list belongs to the room and goes with it.
+- Deleting a room needs the session closed first and its name typed, and the server checks both rather than trusting the disabled button.
+- A search box no longer swallows its own keystrokes: LiveView listens for key events on the window, so stopping them at the input stopped the search from ever running. The console's question search had the same defect.
+- Touch targets: the site logo, the settings switches, the gradient slider, and the landing nav links all reach 44px. The landing page's sample readings are text rather than links, so they no longer sit in the tab order pointing at an unrelated section.
 - Every page is checked at 375px, 768px, 1280px, and 1600px, and none of them scrolls sideways.
-- LiveView test suite over all four screens, covering ranking, voting, spotlight, search, the close dialog, keyboard shortcuts, and live arrival of questions.
+- LiveView test suite over all five screens, covering ranking, voting, spotlight, search, the close dialog, keyboard shortcuts, settings and readings, and live arrival of questions.

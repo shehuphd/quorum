@@ -44,6 +44,11 @@ defmodule QuorumWeb.HostLive do
   def handle_info(_message, socket), do: {:noreply, load(socket)}
 
   @impl true
+  # An element carrying phx-keyup takes the event instead of the window
+  # binding, so Escape has to be answered here as well as in "key" below.
+  def handle_event("search", %{"key" => "Escape"}, socket),
+    do: {:noreply, socket |> assign(search: "") |> load()}
+
   def handle_event("search", %{"value" => value}, socket),
     do: {:noreply, socket |> assign(search: value) |> load()}
 
@@ -179,6 +184,7 @@ defmodule QuorumWeb.HostLive do
     selected = keep_selected(socket.assigns.selected_id, Enum.map(waiting, & &1.id))
 
     assign(socket,
+      reading_count: length(Sessions.list_readings(room_id)),
       room: room,
       spotlight: room.spotlight_question,
       waiting: waiting,
@@ -222,6 +228,10 @@ defmodule QuorumWeb.HostLive do
 
   defp tally(_term, shown, total),
     do: "Showing #{shown} of #{total} #{if total == 1, do: "question", else: "questions"}"
+
+  defp reading_label(0), do: "Add readings"
+  defp reading_label(1), do: "Edit 1 reading"
+  defp reading_label(n), do: "Edit #{n} readings"
 
   # What the room is seeing right now, in one sentence.
   defp projection_line(nil),
@@ -279,6 +289,10 @@ defmodule QuorumWeb.HostLive do
             style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;"
           >
             <label class="q-sr-only" for="room-name">Room name</label>
+            <%!-- This field has no phx-keyup of its own, so without stopping the
+                  event the window binding would read j and k as queue shortcuts.
+                  Never do this to a field that does carry phx-keyup: LiveView
+                  listens on window, and the event would stop short of it. --%>
             <input
               id="room-name"
               name="name"
@@ -313,6 +327,12 @@ defmodule QuorumWeb.HostLive do
           >
             Open projection
           </a>
+          <.link
+            navigate={~p"/host/#{@room.host_token}/settings/room"}
+            class="q-button q-button--secondary"
+          >
+            Settings
+          </.link>
           <button
             :if={@room.status == :open}
             type="button"
@@ -386,8 +406,6 @@ defmodule QuorumWeb.HostLive do
               placeholder="Search questions"
               autocomplete="off"
               phx-keyup="search"
-              onkeyup="event.stopPropagation()"
-              onkeydown="event.stopPropagation()"
             />
             <p class="q-status" aria-live="polite">
               {tally(@search, length(@waiting), @visible_count)}
@@ -498,14 +516,12 @@ defmodule QuorumWeb.HostLive do
                 Point students at approved readings while they wait for you.
               </p>
             </div>
-            <div>
-              <button type="button" class="q-button q-button--secondary" disabled="disabled">
-                Choose a list
-              </button>
-              <p class="q-meta" style="margin:6px 0 0;max-width:26ch;">
-                Turns on once reading lists ship.
-              </p>
-            </div>
+            <.link
+              navigate={~p"/host/#{@room.host_token}/settings/resources"}
+              class="q-button q-button--secondary"
+            >
+              {reading_label(@reading_count)}
+            </.link>
           </section>
         </main>
 

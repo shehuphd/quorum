@@ -10,7 +10,9 @@ This document describes how Quorum is built: its structure, the domain resources
 
 Quorum is a live classroom engagement tool for university lectures. Students join a session by scanning a projected QR code, then submit and upvote questions from their seats; the lecturer answers the top-ranked ones and closes the session. The interactive UI renders server-side over websockets via Phoenix LiveView.
 
-Four screens make up the product. The projection and the console belong to the lecturer, behind a secret host token. The join screen and the student feed are public to anyone holding the five-character code.
+Five screens make up the product. The projection, the console, and the settings belong to the lecturer, behind a secret host token. The join screen and the student feed are public to anyone holding the five-character code.
+
+Settings are per-room rather than per-account, so they follow the host token like the rest of the lecturer's tools, and a room carries its own look and its own reading list.
 
 Lecturer accounts are optional and sit beside the host token rather than replacing it: a room opened while signed in belongs to that lecturer and appears in their list, and every host link keeps working with or without an account. Students never have an account at all.
 
@@ -19,7 +21,7 @@ A landing page at `/` fronts all of it, and a seeded demo lecture behind `/demo`
 ### Technical stack
 
 - Elixir on the BEAM (Erlang VM)
-- Phoenix web framework, with LiveView for all four screens and a plain controller for the landing page
+- Phoenix web framework, with LiveView for all five screens and a plain controller for the landing page
 - Ash for the domain layer, resources grouped under `Quorum.Sessions` and `Quorum.Accounts`
 - Ecto with PostgreSQL for persistence, through `Quorum.Repo` (an `AshPostgres.Repo`)
 - Phoenix.PubSub (`Quorum.PubSub`) for live updates, driven by an Ash notifier
@@ -38,6 +40,8 @@ A student posts a question to a room. Ash runs the room's `ask` action, which va
 An upvote follows the same path: the `cast` action upserts a vote, so a repeat vote by the same browser changes nothing, and the same broadcast reloads every viewer. A vote is tied to an opaque token in the browser's session cookie, which is also what lets a student retract their own question. No sign-up, and no way for one student to see who asked what.
 
 The lecturer's actions take the same path. Spotlighting a question writes the pick onto the room, and the projection reloads and swaps its layout because it heard the same broadcast, not because the console told it to.
+
+Settings ride the same path, which is what lets them do without a save button. Changing a colour writes it to the room, and the projection in the hall picks up the new gradient from the broadcast. The settings screen itself takes two renders: the change marks the pane saving and hands the write to the process, and the write's own render reports it saved. That ordering is what keeps the status honest, since it can only say "saved" after the write returned.
 
 #### Technical version
 
@@ -70,13 +74,17 @@ The lecturer's actions take the same path. Spotlighting a question writes the pi
 | Someone asks for link after link | A 30-second cooldown returns the same "check your email" screen and sends nothing, so the address can't be mailed repeatedly |
 | An address is probed to see who has an account | The screen after a request reads the same whether or not the address was known |
 | A lecturer's account is deleted | `rooms.owner_id` is nilified rather than cascading, so their rooms stay reachable by host link instead of disappearing |
+| A room is deleted while it's still running | Deleting needs the session closed and the room's name typed, and the action checks both server-side rather than trusting the disabled button |
+| A room is deleted with readings on it | `readings.room_id` cascades, so the list goes with the room rather than outliving it |
+| A settings write fails | The status line stays on "Saving" rather than claiming a save that didn't happen, because it only reports saved once the write returns |
+| A key event in a text field triggers a shortcut | An element carrying its own `phx-keyup` takes the event and the window binding doesn't fire, so typing "j" in a search box filters instead of moving the queue. Fields without one stop the event themselves |
 | Database unreachable | Ash returns a transport error from the action; nothing is silently swallowed |
 
 ### Observability
 
 - Ecto logs every query with timings in dev, so the SQL a run issued is visible without adding print statements
-- The ExUnit suite drives every resource action against a live database, and the LiveView suite drives all four screens through `Phoenix.LiveViewTest`, asserting the rendered outcome rather than internal state
+- The ExUnit suite drives every resource action against a live database, and the LiveView suite drives all five screens through `Phoenix.LiveViewTest`, asserting the rendered outcome rather than internal state
 - Sign-in emails land in the local mailbox at `/dev/mailbox` in development, so the link is readable without a mail provider
-- Every page is measured at 375px, 768px, and 1280px, asserting `scrollWidth <= clientWidth`, rather than eyeballed
+- Every page is measured at 375px, 768px, 1280px, and 1600px, asserting `scrollWidth <= clientWidth` and that no control's target falls under 44px, rather than eyeballed. `Phoenix.LiveViewTest` dispatches events straight to the server, so anything that can go wrong between a browser's key press and the socket has to be measured in a browser
 - `Phoenix.LiveDashboard` is mounted for process, memory, and query inspection
 - Telemetry handlers that record each handler's decision arrive when there are decisions to record; today every screen's state is one reload of the same query, which the query log already shows
