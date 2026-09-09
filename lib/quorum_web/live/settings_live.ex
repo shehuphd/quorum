@@ -6,9 +6,8 @@ defmodule QuorumWeb.SettingsLive do
   screens. A change sets the indicator to "Saving", does the work, and settles on
   "All changes saved", so the header always says where the room stands.
 
-  Five tabs are drawn and one, Projection, is named but not drawn yet. The rail
-  carries all six either way, so the shape of the settings never changes
-  underneath someone as panes are added.
+  All six tabs are drawn. The rail carries them in a fixed order, so the shape of
+  the settings doesn't move under someone as panes change.
   """
   use QuorumWeb, :live_view
 
@@ -24,7 +23,6 @@ defmodule QuorumWeb.SettingsLive do
     {"appearance", "Appearance"}
   ]
 
-  @built ~w(room questions moderation resources appearance)
   @slugs Enum.map(@tabs, &elem(&1, 0))
 
   @impl true
@@ -95,6 +93,9 @@ defmodule QuorumWeb.SettingsLive do
   def handle_event("reset_resources", _params, socket),
     do: {:noreply, start_save(socket, %{readings_pointer?: false})}
 
+  def handle_event("reset_projection", _params, socket),
+    do: {:noreply, start_save(socket, Sessions.projection_defaults())}
+
   def handle_event("reset_questions", _params, socket),
     do: {:noreply, start_save(socket, Sessions.question_defaults())}
 
@@ -136,6 +137,9 @@ defmodule QuorumWeb.SettingsLive do
     {:ok, room} = Sessions.remove_held_word(socket.assigns.room, word)
     {:noreply, socket |> assign(room: room, word_error: nil, status: :saved) |> load()}
   end
+
+  def handle_event("clear_words", _params, socket),
+    do: {:noreply, socket |> assign(word_error: nil) |> start_save(%{held_words: []})}
 
   ## Readings
 
@@ -221,7 +225,7 @@ defmodule QuorumWeb.SettingsLive do
     params
     |> Map.take(~w(name auto_close_at projection_light_from projection_light_to
                    projection_dark_from projection_dark_to projection_angle
-                   question_max_length questions_per_student))
+                   question_max_length questions_per_student projection_question_scale))
     |> Enum.reject(fn {_k, v} -> v == nil end)
     |> Map.new(fn {k, v} -> {String.to_existing_atom(k), normalise(k, v)} end)
   end
@@ -238,6 +242,7 @@ defmodule QuorumWeb.SettingsLive do
   defp normalise("projection_angle", value), do: whole(value, 60)
   defp normalise("question_max_length", value), do: whole(value, 500)
   defp normalise("questions_per_student", value), do: whole(value, 0)
+  defp normalise("projection_question_scale", value), do: whole(value, 100)
 
   defp normalise(_key, value), do: value
 
@@ -277,8 +282,6 @@ defmodule QuorumWeb.SettingsLive do
 
   defp label(slug), do: @tabs |> Enum.find({slug, slug}, &(elem(&1, 0) == slug)) |> elem(1)
 
-  defp built?(slug), do: slug in @built
-
   defp tabs, do: @tabs
 
   defp status_text(:saving), do: "Saving"
@@ -290,6 +293,18 @@ defmodule QuorumWeb.SettingsLive do
 
   defp local_input(at),
     do: at |> DateTime.truncate(:second) |> DateTime.to_iso8601() |> String.slice(0, 16)
+
+  # Named rather than numbered, because a percentage means nothing until it's
+  # on a wall. The note beside it says what each one is for.
+  defp scales, do: [{75, "Small"}, {100, "Standard"}, {125, "Large"}, {150, "Largest"}]
+
+  defp scale_note(75),
+    do: "For a seminar room, or a long question you'd rather not have wrapping."
+
+  defp scale_note(100), do: "What the design fixes: readable from the back of a full hall."
+  defp scale_note(125), do: "For a deep room, or a projector that isn't bright enough."
+  defp scale_note(150), do: "As large as it goes. A long question will take the whole wall."
+  defp scale_note(_), do: ""
 
   defp allowance_note(0),
     do: "A student can post as many as they like. Answered questions never count against anyone."
@@ -362,7 +377,6 @@ defmodule QuorumWeb.SettingsLive do
             aria-current={@tab == slug && "page"}
           >
             {name}
-            <span :if={!built?(slug)} class="q-tab-note">Not drawn yet</span>
           </.link>
         </nav>
 
@@ -387,10 +401,12 @@ defmodule QuorumWeb.SettingsLive do
                 search={@search}
                 error={@reading_error}
               />
+            <% "projection" -> %>
+              <.projection_pane room={@room} />
             <% "appearance" -> %>
               <.appearance_pane room={@room} />
             <% slug -> %>
-              <.undrawn_pane slug={slug} name={label(slug)} />
+              <.undrawn_pane name={label(slug)} />
           <% end %>
         </main>
       </div>
@@ -695,8 +711,9 @@ defmodule QuorumWeb.SettingsLive do
 
       <h3>Hold anything using these words</h3>
       <p class="q-meta" style="margin-top:0;">
-        The fourth trigger, and the only one you write yourself. A word matches whole, so "class"
-        doesn't trip on "ass".
+        The fourth trigger, and the only one you edit yourself. A room starts with a short list of
+        profanity and insults so it isn't ungated on day one; it's a starting point, not a policy,
+        and every word comes off. A word matches whole, so "class" doesn't trip on "ass".
       </p>
 
       <form id="add-word-form" phx-submit="add_word" class="q-word-form">
@@ -716,7 +733,8 @@ defmodule QuorumWeb.SettingsLive do
       <p class="q-status" style={@error && "color:var(--q-destructive);"}>{@error}</p>
 
       <p :if={@room.held_words == []} class="q-meta">
-        No words held. Add one above, or leave the list empty and use the switch when you need it.
+        No words held. Add one above, or leave the list empty and use the switches when you need
+        them.
       </p>
 
       <ul :if={@room.held_words != []} class="q-word-list">
@@ -734,7 +752,15 @@ defmodule QuorumWeb.SettingsLive do
         </li>
       </ul>
 
-      <div style="margin-top:8px;">
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;">
+        <button
+          :if={@room.held_words != []}
+          type="button"
+          class="q-button--link"
+          phx-click="clear_words"
+        >
+          Remove every word
+        </button>
         <button type="button" class="q-button--link" phx-click="reset_moderation">
           Reset this tab
         </button>
@@ -871,6 +897,91 @@ defmodule QuorumWeb.SettingsLive do
 
   attr :room, :map, required: true
 
+  defp projection_pane(assigns) do
+    ~H"""
+    <section class="q-pane">
+      <h2>Projection</h2>
+      <p class="q-meta" style="margin-top:0;">
+        What the screen at the front of the room puts on the wall. Colours are on the Appearance
+        tab.
+      </p>
+
+      <form id="projection-scale-form" phx-change="save" class="q-field">
+        <label class="q-label" for="projection_question_scale">Question size</label>
+        <select id="projection_question_scale" name="projection_question_scale" class="q-input">
+          <option
+            :for={{value, name} <- scales()}
+            value={value}
+            selected={@room.projection_question_scale == value}
+          >
+            {name}
+          </option>
+        </select>
+        <p class="q-meta">
+          {scale_note(@room.projection_question_scale)}
+        </p>
+      </form>
+
+      <hr class="q-divider" style="margin:8px 0;" />
+
+      <h3>Under the question</h3>
+      <.hold_switch
+        field="projection_show_asker?"
+        on={@room.projection_show_asker?}
+        label="Show who asked"
+      >
+        A name only appears if the asker typed one; otherwise this reads "Asked anonymously".
+        Turning it off drops the line either way.
+      </.hold_switch>
+
+      <.hold_switch
+        field="projection_show_votes?"
+        on={@room.projection_show_votes?}
+        label="Show the vote count"
+      >
+        How many wanted this one. Some rooms would rather the wall didn't rank people's questions
+        in front of them.
+      </.hold_switch>
+
+      <hr class="q-divider" style="margin:8px 0;" />
+
+      <h3>Around the question</h3>
+      <.hold_switch
+        field="projection_show_joining?"
+        on={@room.projection_show_joining?}
+        label="Keep the join code beside a question"
+      >
+        The QR code and join code stay in a rail on the left while you're answering, for anyone
+        arriving late. Off gives the question the whole wall.
+      </.hold_switch>
+
+      <.hold_switch
+        field="projection_show_counts?"
+        on={@room.projection_show_counts?}
+        label="Show the counts along the bottom"
+      >
+        How many are connected and how many have asked. Useful while a room fills up, less so once
+        it has.
+      </.hold_switch>
+
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;">
+        <.link
+          navigate={~p"/host/#{@room.host_token}/project"}
+          class="q-button--link"
+          target="_blank"
+        >
+          Open the projection
+        </.link>
+        <button type="button" class="q-button--link" phx-click="reset_projection">
+          Reset this tab
+        </button>
+      </div>
+    </section>
+    """
+  end
+
+  attr :room, :map, required: true
+
   defp appearance_pane(assigns) do
     ~H"""
     <section class="q-pane">
@@ -974,26 +1085,19 @@ defmodule QuorumWeb.SettingsLive do
     """
   end
 
-  attr :slug, :string, required: true
   attr :name, :string, required: true
 
+  # A safety net, not a state anyone should reach: every tab in the rail has a
+  # pane. It catches a tab added to @tabs without one, so the mistake reads as
+  # a note rather than a crash in front of a room.
   defp undrawn_pane(assigns) do
     ~H"""
     <section class="q-pane">
       <h2>{@name}</h2>
-      <p class="q-meta">{undrawn_copy(@slug)}</p>
       <p class="q-meta">
-        The tab is here so the settings keep their shape as panes are added. Nothing is missing
-        from your room in the meantime.
+        This pane hasn't been drawn yet. Nothing is missing from your room in the meantime.
       </p>
     </section>
     """
   end
-
-  defp undrawn_copy("projection"),
-    do:
-      "What the projection shows and how large it draws it will live here. " <>
-        "Today it shows the join code, then whichever question you spotlight."
-
-  defp undrawn_copy(_), do: "This pane hasn't been drawn yet."
 end

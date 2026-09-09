@@ -16,7 +16,7 @@ Settings are per-room rather than per-account, so they follow the host token lik
 
 Moderation is post-hoc by default: a question appears and the presenter can hide it. A room can switch to pre-publish, where a question is written with a `pending` status and reaches nobody but its own asker until the presenter approves it. Because a held question exists as a row rather than being refused, the asker can see it waiting and retract it, and an approval is one status change rather than a re-post.
 
-Four triggers feed that one decision, resolved by `Sessions.hold_reason/3`: the room holds everything, the asker has had nothing approved in this room, the body uses a held word, or the body carries a link. Students have no accounts, so the second reads trust per room from what that browser has had approved in it. Every trigger holds and none refuses, which keeps the cost of a false positive to a wait and means the triggers can be blunt without being punitive.
+A new room starts with twenty held words so it isn't ungated on day one; the list is a starting point a presenter edits, not a policy. Four triggers feed that one decision, resolved by `Sessions.hold_reason/3`: the room holds everything, the asker has had nothing approved in this room, the body uses a held word, or the body carries a link. Students have no accounts, so the second reads trust per room from what that browser has had approved in it. Every trigger holds and none refuses, which keeps the cost of a false positive to a wait and means the triggers can be blunt without being punitive.
 
 Questions outlive the session. A term of them is the record of which material didn't land, which is what a room is kept for rather than a default nobody chose, so retention is on unless a room turns it off. A room that does has its questions and votes deleted when the session closes.
 
@@ -80,6 +80,10 @@ Settings ride the same path, which is what lets them do without a save button. C
 | Someone asks for link after link | A 30-second cooldown returns the same "check your email" screen and sends nothing, so the address can't be mailed repeatedly |
 | An address is probed to see who has an account | The screen after a request reads the same whether or not the address was known |
 | A presenter's account is deleted | `rooms.owner_id` is nilified rather than cascading, so their rooms stay reachable by host link instead of disappearing |
+| A student posts, then sees the same question already asked | Posting opens a ten-second window before anything is written. Cancelling inside it writes nothing at all, so there's no row to retract and no other student saw one |
+| A student's browser drops mid-window | The question was never written, and isn't. The window lives in the LiveView's own process, so leaving takes the pending question with it |
+| A session closes mid-window | The reload that closes the room drops the pending question and says so, rather than counting down against a room that can't take it |
+| A question arrives at a closed session | `Sessions.ask/2` refuses it. The composer is already hidden, so this catches a stale page or a question written at the end of its window |
 | A question is longer than the room allows, or the student is at their allowance | `Sessions.ask/2` refuses before the write and names which limit stopped it, so the composer says the length or the allowance rather than "couldn't be posted". These are per-room, so they can't be resource constraints |
 | A crafted request tries to post past a review queue | `status` is never accepted from the client. The `ask` action derives it from a `held?` argument the domain computes from the room's own settings |
 | A crafted request tries to project a held question | `Sessions.spotlight/2` refuses anything the room can't already see, so holding a question back means the hall and not only the queue |

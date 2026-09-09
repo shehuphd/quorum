@@ -124,6 +124,17 @@ defmodule Quorum.Sessions do
   @doc "Delete a room and everything in it. Only ever called on a closed room."
   def delete_room(room), do: Ash.destroy(room)
 
+  @doc "What a new room's projection shows, for Reset this tab."
+  def projection_defaults do
+    %{
+      projection_question_scale: 100,
+      projection_show_asker?: true,
+      projection_show_votes?: true,
+      projection_show_joining?: true,
+      projection_show_counts?: true
+    }
+  end
+
   @doc "The appearance values a new room starts with, for Reset this tab."
   def appearance_defaults do
     %{
@@ -173,6 +184,7 @@ defmodule Quorum.Sessions do
   here, before the write, and each refusal names itself so the screen can say
   which one stopped it:
 
+    * `{:error, :closed}` the session ended before this arrived
     * `{:error, :too_long}` past the room's maximum length
     * `{:error, :too_many}` the student already has their allowance waiting
 
@@ -184,6 +196,9 @@ defmodule Quorum.Sessions do
     body = attrs |> Map.get(:body, "") |> to_string()
 
     cond do
+      room.status == :closed ->
+        {:error, :closed}
+
       String.length(body) > room.question_max_length ->
         {:error, :too_long}
 
@@ -377,9 +392,30 @@ defmodule Quorum.Sessions do
     }
   end
 
+  # A starting list, not a policy. Twenty words a room would rather see before
+  # the hall does, so a new room has a gate on day one instead of an empty box
+  # nobody thinks to fill. Every one of them is removable, and a presenter who
+  # wants none of it empties the list.
+  #
+  # Deliberately profanity and insults rather than slurs: a hardcoded slur list
+  # in a repo ages badly and belongs in the institutional registry on the
+  # roadmap, maintained by people whose job that is.
+  @default_held_words ~w(
+    fuck fucking fucker shit bullshit bitch bastard cunt dick prick
+    asshole arsehole wanker twat slut whore idiot moron retard stupid
+  )
+
+  @doc "The held words a new room starts with. Removable, one at a time or all at once."
+  def default_held_words, do: @default_held_words
+
   @doc "What a new room moderates, for Reset this tab. Post-hoc, as the room ships."
   def moderation_defaults do
-    %{hold_for_review?: false, hold_links?: false, hold_first_question?: false, held_words: []}
+    %{
+      hold_for_review?: false,
+      hold_links?: false,
+      hold_first_question?: false,
+      held_words: @default_held_words
+    }
   end
 
   @doc """

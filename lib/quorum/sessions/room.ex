@@ -53,6 +53,11 @@ defmodule Quorum.Sessions.Room do
         :projection_dark_to,
         :projection_angle,
         :projection_drift?,
+        :projection_question_scale,
+        :projection_show_asker?,
+        :projection_show_votes?,
+        :projection_show_joining?,
+        :projection_show_counts?,
         :readings_pointer?,
         :question_max_length,
         :questions_per_student,
@@ -165,6 +170,45 @@ defmodule Quorum.Sessions.Room do
       default(true)
     end
 
+    # What the projection puts on the wall, and how large. A hall with a back
+    # row forty metres away needs a bigger question than a seminar room does.
+    attribute :projection_question_scale, :integer do
+      allow_nil?(false)
+      public?(true)
+      default(100)
+      constraints(min: 75, max: 150)
+    end
+
+    # The line under a spotlighted question: who asked it, and how many wanted
+    # it. Either can go, for a room where attribution or a vote count on the
+    # wall would change what people ask.
+    attribute :projection_show_asker?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(true)
+    end
+
+    attribute :projection_show_votes?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(true)
+    end
+
+    # The joining rail beside a spotlighted question. Off gives the question the
+    # whole wall once everyone is already in the room.
+    attribute :projection_show_joining?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(true)
+    end
+
+    # The connected and asked counts along the bottom.
+    attribute :projection_show_counts?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(true)
+    end
+
     attribute :readings_pointer?, :boolean do
       allow_nil?(false)
       public?(true)
@@ -235,7 +279,7 @@ defmodule Quorum.Sessions.Room do
     attribute :held_words, {:array, :string} do
       allow_nil?(false)
       public?(true)
-      default([])
+      default(&Quorum.Sessions.default_held_words/0)
     end
 
     # A demo room is the one the landing page points at, so anyone can look at

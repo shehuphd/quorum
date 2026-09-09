@@ -42,14 +42,22 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert html =~ ~s(aria-current="page")
     end
 
-    test "a tab that isn't drawn says so rather than looking broken", %{conn: conn} do
+    test "every tab in the rail opens a pane of its own", %{conn: conn} do
       room = room()
 
-      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/projection")
+      for {tab, heading} <- [
+            {"room", "Room"},
+            {"questions", "Questions"},
+            {"moderation", "Moderation"},
+            {"resources", "Readings and AI"},
+            {"projection", "Projection"},
+            {"appearance", "Appearance"}
+          ] do
+        {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/#{tab}")
 
-      assert html =~ "Not drawn yet"
-      assert html =~ "What the projection shows"
-      assert html =~ "Nothing is missing"
+        assert html =~ "<h2>#{heading}</h2>"
+        refute html =~ "hasn&#39;t been drawn yet"
+      end
     end
 
     test "an unknown tab falls back to Room instead of erroring", %{conn: conn} do
@@ -257,13 +265,25 @@ defmodule QuorumWeb.SettingsLiveTest do
                Sessions.ask(room.id, %{body: "held one", submitter_token: "a"})
     end
 
-    test "the empty word list says what to do instead", %{conn: conn} do
+    test "a room arrives with a starting list rather than an empty box", %{conn: conn} do
       room = room()
 
       {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
 
+      assert html =~ "starting point, not a policy"
+      assert html =~ "Remove every word"
+      refute html =~ "No words held."
+    end
+
+    test "removing every word empties the list and says what to do instead", %{conn: conn} do
+      room = room()
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+      view |> element("button", "Remove every word") |> render_click()
+      html = settle(view)
+
       assert html =~ "No words held."
-      assert html =~ "use the switch when you need it"
+      assert {:ok, %{held_words: []}} = Sessions.get_room(room.id)
     end
 
     test "a word is added, listed, and holds a question", %{conn: conn} do
@@ -287,7 +307,8 @@ defmodule QuorumWeb.SettingsLiveTest do
       html = view |> form("#add-word-form") |> render_submit(%{"word" => "GRADE"})
 
       assert html =~ "That word is already on the list."
-      assert {:ok, %{held_words: ["grade"]}} = Sessions.get_room(room.id)
+      assert {:ok, saved} = Sessions.get_room(room.id)
+      assert Enum.count(saved.held_words, &(&1 == "grade")) == 1
     end
 
     test "a blank word is refused", %{conn: conn} do
@@ -297,15 +318,17 @@ defmodule QuorumWeb.SettingsLiveTest do
       html = view |> form("#add-word-form") |> render_submit(%{"word" => "   "})
 
       assert html =~ "Type a word to hold."
-      assert {:ok, %{held_words: []}} = Sessions.get_room(room.id)
+      assert {:ok, saved} = Sessions.get_room(room.id)
+      assert saved.held_words == Sessions.default_held_words()
     end
 
     test "a word is removed", %{conn: conn} do
       room = room()
-      {:ok, room} = Sessions.add_held_word(room, "grade")
+      {:ok, room} = Sessions.update_settings(room, %{held_words: []})
+      {:ok, _room} = Sessions.add_held_word(room, "grade")
 
       {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
-      html = view |> element("button", "Remove") |> render_click()
+      html = view |> element(~s(button[phx-value-word="grade"])) |> render_click()
 
       refute html =~ ">grade<"
       assert {:ok, %{held_words: []}} = Sessions.get_room(room.id)
@@ -376,9 +399,9 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert next.hold_for_review?
     end
 
-    test "reset this tab clears the switch and the list", %{conn: conn} do
+    test "reset this tab clears the switches and puts the starting list back", %{conn: conn} do
       room = room()
-      {:ok, room} = Sessions.add_held_word(room, "grade")
+      {:ok, room} = Sessions.update_settings(room, %{held_words: ["something-else"]})
       Sessions.update_settings(room, %{hold_for_review?: true})
 
       {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
@@ -387,7 +410,126 @@ defmodule QuorumWeb.SettingsLiveTest do
 
       assert {:ok, reset} = Sessions.get_room(room.id)
       refute reset.hold_for_review?
-      assert reset.held_words == []
+      assert reset.held_words == Sessions.default_held_words()
+    end
+  end
+
+  describe "projection" do
+    setup %{conn: conn} do
+      room = room()
+      question = question(room, "What is a supervision tree?") |> votes(3)
+      Sessions.spotlight(room, question.id)
+      %{room: room, conn: conn}
+    end
+
+    test "the size saves and the projected question follows it", %{conn: conn, room: room} do
+      {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/projection")
+      assert html =~ "readable from the back of a full hall"
+
+      view
+      |> form("#projection-scale-form")
+      |> render_change(%{"projection_question_scale" => "150"})
+
+      assert settle(view) =~ "As large as it goes"
+
+      {:ok, _view, wall} = live(conn, ~p"/host/#{room.host_token}/project")
+      assert wall =~ "font-size:93px"
+    end
+
+    test "the standard size adds no override at all", %{conn: conn, room: room} do
+      {:ok, _view, wall} = live(conn, ~p"/host/#{room.host_token}/project")
+
+      refute wall =~ "font-size:62px"
+      assert wall =~ "q-question--projected"
+    end
+
+    test "turning off who asked drops it from the wall", %{conn: conn, room: room} do
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/projection")
+
+      view |> element(~s([phx-value-field="projection_show_asker?"])) |> render_click()
+      assert settle(view) =~ "Show who asked, off"
+
+      {:ok, _view, wall} = live(conn, ~p"/host/#{room.host_token}/project")
+      refute wall =~ "Asked anonymously"
+      assert wall =~ "3 votes"
+    end
+
+    test "turning off the vote count drops it from the wall", %{conn: conn, room: room} do
+      Sessions.update_settings(room, %{projection_show_votes?: false})
+
+      {:ok, _view, wall} = live(conn, ~p"/host/#{room.host_token}/project")
+
+      refute wall =~ "3 votes"
+      assert wall =~ "Asked anonymously"
+    end
+
+    test "with both off there is no line under the question at all", %{conn: conn, room: room} do
+      Sessions.update_settings(room, %{
+        projection_show_asker?: false,
+        projection_show_votes?: false
+      })
+
+      {:ok, _view, wall} = live(conn, ~p"/host/#{room.host_token}/project")
+
+      refute wall =~ "Asked anonymously"
+      refute wall =~ "3 votes"
+      assert wall =~ "What is a supervision tree?"
+    end
+
+    test "the join rail can be taken off while answering", %{conn: conn, room: room} do
+      {:ok, _view, with_rail} = live(conn, ~p"/host/#{room.host_token}/project")
+      assert with_rail =~ "Scan to ask a question"
+
+      Sessions.update_settings(room, %{projection_show_joining?: false})
+
+      {:ok, _view, without} = live(conn, ~p"/host/#{room.host_token}/project")
+      refute without =~ "Scan to ask a question"
+      assert without =~ "What is a supervision tree?"
+    end
+
+    test "the join code still owns the waiting screen whatever that switch says", %{
+      conn: conn,
+      room: room
+    } do
+      Sessions.update_settings(room, %{projection_show_joining?: false})
+      {:ok, room} = Sessions.get_room(room.id)
+      Sessions.clear_spotlight(room)
+
+      {:ok, _view, wall} = live(conn, ~p"/host/#{room.host_token}/project")
+
+      assert wall =~ "Scan to ask a question"
+      assert wall =~ room.join_code
+    end
+
+    test "the counts can be taken off the bottom", %{conn: conn, room: room} do
+      Sessions.update_settings(room, %{projection_show_counts?: false})
+
+      {:ok, _view, wall} = live(conn, ~p"/host/#{room.host_token}/project")
+
+      refute wall =~ "connected"
+      # The keyboard hint stays, since it's the only place the map is shown.
+      assert wall =~ "for a lit hall"
+    end
+
+    test "reset this tab puts all five back", %{conn: conn, room: room} do
+      Sessions.update_settings(room, %{
+        projection_question_scale: 150,
+        projection_show_asker?: false,
+        projection_show_votes?: false,
+        projection_show_joining?: false,
+        projection_show_counts?: false
+      })
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/projection")
+      view |> element("button", "Reset this tab") |> render_click()
+      settle(view)
+
+      assert {:ok, reset} = Sessions.get_room(room.id)
+      assert reset.projection_question_scale == 100
+      assert reset.projection_show_asker?
+      assert reset.projection_show_votes?
+      assert reset.projection_show_joining?
+      assert reset.projection_show_counts?
     end
   end
 

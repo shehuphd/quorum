@@ -84,6 +84,27 @@ defmodule QuorumWeb.ProjectionLive do
   defp asker(%{display_name: name}) when is_binary(name) and name != "", do: "Asked by #{name}"
   defp asker(_), do: "Asked anonymously"
 
+  # The line under the question. Either half can be turned off, and with both
+  # off there's no line at all rather than an empty one.
+  defp attribution(room, question) do
+    [
+      room.projection_show_asker? && asker(question),
+      room.projection_show_votes? && "#{question.vote_count} #{votes(question.vote_count)}"
+    ]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.join(", ")
+    |> case do
+      "" -> nil
+      line -> line
+    end
+  end
+
+  # 62px is what the design fixes for a full hall; the room scales from there.
+  defp question_size(%{projection_question_scale: 100}), do: ""
+
+  defp question_size(room),
+    do: "font-size:#{round(62 * room.projection_question_scale / 100)}px;"
+
   defp votes(1), do: "vote"
   defp votes(_), do: "votes"
 
@@ -114,7 +135,10 @@ defmodule QuorumWeb.ProjectionLive do
     >
       <%= if @spotlight do %>
         <main style="flex:1;display:flex;min-height:0;">
-          <aside style={"width:268px;flex:none;padding:28px 22px;display:flex;flex-direction:column;gap:12px;#{rail_fill(@room, @dark)}"}>
+          <aside
+            :if={@room.projection_show_joining?}
+            style={"width:268px;flex:none;padding:28px 22px;display:flex;flex-direction:column;gap:12px;#{rail_fill(@room, @dark)}"}
+          >
             <Brand.logo on_dark={@dark} size={22} />
             <p style={"font:400 15px var(--q-font-sans);margin:14px 0 0;#{muted(@dark)}"}>
               Scan to ask a question
@@ -130,9 +154,14 @@ defmodule QuorumWeb.ProjectionLive do
             <p style="font:600 20px var(--q-font-sans);color:var(--q-accent-on-dark);margin:0 0 18px;">
               Answering now
             </p>
-            <p class="q-question--projected" style="margin:0;">{@spotlight.body}</p>
-            <p style={"font:400 20px var(--q-font-sans);margin:28px 0 0;#{muted(@dark)}"}>
-              {asker(@spotlight)}, {@spotlight.vote_count} {votes(@spotlight.vote_count)}
+            <p class="q-question--projected" style={"margin:0;#{question_size(@room)}"}>
+              {@spotlight.body}
+            </p>
+            <p
+              :if={attribution(@room, @spotlight)}
+              style={"font:400 20px var(--q-font-sans);margin:28px 0 0;#{muted(@dark)}"}
+            >
+              {attribution(@room, @spotlight)}
             </p>
           </section>
         </main>
@@ -156,7 +185,10 @@ defmodule QuorumWeb.ProjectionLive do
       <% end %>
 
       <footer style="display:flex;justify-content:space-between;align-items:flex-end;gap:22px;padding:24px 32px;">
-        <div style={"font:400 18px var(--q-font-sans);line-height:1.5;#{muted(@dark)}"}>
+        <div
+          :if={@room.projection_show_counts?}
+          style={"font:400 18px var(--q-font-sans);line-height:1.5;#{muted(@dark)}"}
+        >
           <div>
             <strong>{@connected}</strong> {if @connected == 1, do: "student", else: "students"} connected
           </div>

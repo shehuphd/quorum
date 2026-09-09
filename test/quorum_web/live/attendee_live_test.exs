@@ -6,6 +6,13 @@ defmodule QuorumWeb.AttendeeLiveTest do
 
   alias Quorum.Sessions
 
+  # Posting opens a ten-second window before anything is written. Most tests are
+  # about what happens after it, so they send the question straight through.
+  defp ask(view, params) do
+    view |> form("#ask-form") |> render_submit(params)
+    view |> element("button", "Send it now") |> render_click()
+  end
+
   test "an unknown code sends the student back to the join screen", %{conn: conn} do
     assert {:error, {:live_redirect, %{to: "/join?code=ZZZZZ"}}} = live(conn, ~p"/r/zzzzz")
   end
@@ -24,7 +31,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
     room = room()
     {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
 
-    html = view |> form("form", %{"body" => "What is a supervision tree?"}) |> render_submit()
+    html = ask(view, %{"body" => "What is a supervision tree?"})
 
     assert html =~ "What is a supervision tree?"
     assert html =~ "Posted to the queue."
@@ -58,7 +65,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
     room = room()
     {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
 
-    view |> form("form", %{"body" => "Can I take this back?"}) |> render_submit()
+    ask(view, %{"body" => "Can I take this back?"})
     assert render(view) =~ "Your question"
 
     html = view |> element("button", "Retract it") |> render_click()
@@ -141,13 +148,124 @@ defmodule QuorumWeb.AttendeeLiveTest do
     assert render(view) =~ "Asked from the back row"
   end
 
+  describe "the window before a question is written" do
+    test "posting counts down instead of writing, and says what the window is for", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
+
+      html = view |> form("#ask-form") |> render_submit(%{"body" => "Am I sure about this?"})
+
+      assert html =~ "Am I sure about this?"
+      assert html =~ "Take it back if someone&#39;s already asked it"
+      assert html =~ "Cancel (10)"
+      assert Sessions.list_questions(room.id) == []
+    end
+
+    test "the composer is out of the way while it counts", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
+
+      html = view |> form("#ask-form") |> render_submit(%{"body" => "Counting"})
+
+      refute html =~ "Post question"
+      refute has_element?(view, "#ask-form")
+    end
+
+    test "cancelling writes nothing at all, and hands the text back", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
+      view |> form("#ask-form") |> render_submit(%{"body" => "On second thoughts"})
+
+      html = view |> element("button", "Cancel (10)") |> render_click()
+
+      assert html =~ "Called back. Nobody saw it."
+      assert html =~ "On second thoughts"
+      assert has_element?(view, "#ask-form")
+      assert Sessions.list_questions(room.id) == []
+    end
+
+    test "the count falls as the window runs", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
+      view |> form("#ask-form") |> render_submit(%{"body" => "Tick tock"})
+
+      send(view.pid, :tick)
+      assert render(view) =~ "Cancel (9)"
+
+      send(view.pid, :tick)
+      assert render(view) =~ "Cancel (8)"
+
+      assert Sessions.list_questions(room.id) == []
+    end
+
+    test "the last tick writes it", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
+      view |> form("#ask-form") |> render_submit(%{"body" => "Through it goes"})
+
+      for _ <- 1..10, do: send(view.pid, :tick)
+
+      html = render(view)
+      assert html =~ "Posted to the queue."
+      assert [%{body: "Through it goes"}] = Sessions.list_questions(room.id)
+    end
+
+    test "send it now skips the wait", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
+      view |> form("#ask-form") |> render_submit(%{"body" => "No, I'm sure"})
+
+      html = view |> element("button", "Send it now") |> render_click()
+
+      assert html =~ "Posted to the queue."
+      assert [%{body: "No, I'm sure"}] = Sessions.list_questions(room.id)
+    end
+
+    test "a cancelled question never counted against the allowance", %{conn: conn} do
+      room = room()
+      Sessions.update_settings(room, %{questions_per_student: 1})
+
+      {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
+      view |> form("#ask-form") |> render_submit(%{"body" => "Nearly asked"})
+      view |> element("button", "Cancel (10)") |> render_click()
+
+      html = ask(view, %{"body" => "Asked instead"})
+
+      assert html =~ "Posted to the queue."
+      assert [%{body: "Asked instead"}] = Sessions.list_questions(room.id)
+    end
+
+    test "a session that closes mid-window keeps the question out, and says so", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
+      view |> form("#ask-form") |> render_submit(%{"body" => "Too late"})
+
+      Sessions.close_room(room)
+
+      html = render(view)
+      assert html =~ "The session closed before your question went in."
+      refute html =~ "Cancel ("
+      assert Sessions.list_questions(room.id) == []
+    end
+
+    test "a held word still holds the question at the end of the window", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
+
+      html = ask(view, %{"body" => "What the fuck was that"})
+
+      assert html =~ "Sent to your presenter for review."
+      assert [%{status: :pending}] = Sessions.list_questions(room.id)
+    end
+  end
+
   describe "what the room's limits do to the composer" do
     test "a question past the room's limit is refused, and the length is named", %{conn: conn} do
       room = room()
       Sessions.update_settings(room, %{question_max_length: 140})
 
       {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
-      html = view |> form("#ask-form") |> render_submit(%{"body" => String.duplicate("a", 141)})
+      html = ask(view, %{"body" => String.duplicate("a", 141)})
 
       assert html =~ "longer than 140 characters"
       assert Sessions.list_questions(room.id) == []
@@ -158,9 +276,9 @@ defmodule QuorumWeb.AttendeeLiveTest do
       Sessions.update_settings(room, %{questions_per_student: 1})
 
       {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
-      view |> form("#ask-form") |> render_submit(%{"body" => "My one question"})
+      ask(view, %{"body" => "My one question"})
 
-      html = view |> form("#ask-form") |> render_submit(%{"body" => "A second one"})
+      html = ask(view, %{"body" => "A second one"})
 
       assert html =~ "already have a question waiting"
       assert length(Sessions.list_questions(room.id)) == 1
@@ -173,10 +291,10 @@ defmodule QuorumWeb.AttendeeLiveTest do
       {:ok, view, html} = live(conn, ~p"/r/#{room.join_code}")
       assert html =~ "2 questions left."
 
-      html = view |> form("#ask-form") |> render_submit(%{"body" => "One"})
+      html = ask(view, %{"body" => "One"})
       assert html =~ "One question left."
 
-      html = view |> form("#ask-form") |> render_submit(%{"body" => "Two"})
+      html = ask(view, %{"body" => "Two"})
       assert html =~ "used your questions for now"
     end
 
@@ -193,7 +311,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
       Sessions.update_settings(room, %{allow_display_name?: false})
 
       {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
-      view |> form("#ask-form") |> render_submit(%{"body" => "Anonymous one", "name" => "Amara"})
+      ask(view, %{"body" => "Anonymous one", "name" => "Amara"})
 
       assert [%{display_name: nil}] = Sessions.list_questions(room.id)
       refute render(view) =~ "Amara"
@@ -215,7 +333,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
 
     test "posting says it went for review, not to the queue", %{conn: conn, room: room} do
       {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
-      html = view |> form("#ask-form") |> render_submit(%{"body" => "Held question"})
+      html = ask(view, %{"body" => "Held question"})
 
       assert html =~ "Sent to your presenter for review."
       refute html =~ "Posted to the queue."
@@ -223,7 +341,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
 
     test "the asker sees their own held question waiting", %{conn: conn, room: room} do
       {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
-      html = view |> form("#ask-form") |> render_submit(%{"body" => "Held question"})
+      html = ask(view, %{"body" => "Held question"})
 
       assert html =~ "Waiting for your presenter"
       assert html =~ "Held question"
@@ -241,7 +359,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
 
     test "the asker can retract it while it waits", %{conn: conn, room: room} do
       {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
-      view |> form("#ask-form") |> render_submit(%{"body" => "Held question"})
+      ask(view, %{"body" => "Held question"})
 
       html = view |> element("button", "Retract") |> render_click()
 
@@ -251,7 +369,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
 
     test "once approved it joins the queue for everyone", %{conn: conn, room: room} do
       {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
-      view |> form("#ask-form") |> render_submit(%{"body" => "Held question"})
+      ask(view, %{"body" => "Held question"})
 
       [question] = Sessions.list_questions(room.id)
       Sessions.approve(question)

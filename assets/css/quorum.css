@@ -37,6 +37,25 @@
 
 .q-row { display: flex; gap: 14px; align-items: flex-start; }
 .q-row--pinned { border: 1px solid var(--q-accent); border-radius: var(--q-radius-input); padding: 12px; }
+/* The window between pressing Post and the question being written. */
+
+.q-undo { background: var(--q-surface-sunken); border: 1px solid var(--q-hairline); border-radius: var(--q-radius-card); padding: 18px; }
+.q-undo-track { height: 6px; border-radius: 999px; background: var(--q-disabled-surface); overflow: hidden; }
+/* The duration is set inline from the server's own window, so the bar and the
+   count can't disagree. The 10s here is a fallback, not a second source of
+   truth: without it the shorthand would leave the duration at 0s and the bar
+   would be gone before it was seen. */
+.q-undo-bar { display: block; height: 100%; width: 100%; background: var(--q-accent); transform-origin: left center; animation: q-burn 10s linear forwards; }
+.q-undo-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 14px; }
+
+@keyframes q-burn { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* The count in the button carries the same information, so a still bar loses
+   nothing for anyone who has asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .q-undo-bar { animation: none; }
+}
+
 /* A question only its own asker can see, while the presenter decides on it. */
 .q-row--waiting { border: 1px dashed var(--q-control-border); border-radius: var(--q-radius-input); padding: 14px; align-items: center; background: var(--q-surface-sunken); }
 

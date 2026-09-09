@@ -3,10 +3,21 @@ defmodule QuorumWeb.AttendeeLive do
   The student's phone-first feed: post a question, upvote, and watch the ranking.
   The list reorders live, but the row a student is reading or voting on is held in
   place with a resort nudge rather than freezing the whole list.
+
+  A posted question waits ten seconds before it's written, counting down where
+  the composer was. That window is for the student who spots the same question
+  already in the list, notices a typo, or decides they'd rather not have asked.
+  Nothing they cancel is ever written, so there's nothing to retract and nobody
+  saw it.
   """
   use QuorumWeb, :live_view
 
   alias Quorum.Sessions
+
+  @undo_seconds 10
+
+  @doc "How long a student has to call a question back before it's written."
+  def undo_seconds, do: @undo_seconds
 
   @impl true
   def mount(%{"code" => code}, session, socket) do
@@ -29,6 +40,9 @@ defmodule QuorumWeb.AttendeeLive do
             pinned_id: nil,
             display_ids: [],
             status: nil,
+            pending: nil,
+            tick: nil,
+            undo_left: nil,
             page_title: room.name
           )
           |> load()
@@ -41,6 +55,19 @@ defmodule QuorumWeb.AttendeeLive do
   end
 
   @impl true
+  def handle_info(:tick, %{assigns: %{pending: nil}} = socket), do: {:noreply, socket}
+
+  def handle_info(:tick, %{assigns: %{undo_left: left}} = socket) when left <= 1,
+    do: {:noreply, post_pending(socket)}
+
+  def handle_info(:tick, socket) do
+    {:noreply,
+     assign(socket,
+       undo_left: socket.assigns.undo_left - 1,
+       tick: Process.send_after(self(), :tick, 1000)
+     )}
+  end
+
   def handle_info(_message, socket), do: {:noreply, load(socket)}
 
   @impl true
@@ -60,35 +87,34 @@ defmodule QuorumWeb.AttendeeLive do
       attrs = %{body: body, submitter_token: socket.assigns.token}
       attrs = if name == "", do: attrs, else: Map.put(attrs, :display_name, name)
 
-      case Sessions.ask(socket.assigns.room.id, attrs) do
-        {:ok, %{status: :pending}} ->
-          socket =
-            assign(socket,
-              show_name: false,
-              draft: "",
-              status: "Sent to your presenter for review."
-            )
-
-          {:noreply, load(socket)}
-
-        {:ok, _question} ->
-          socket = assign(socket, show_name: false, draft: "", status: "Posted to the queue.")
-          {:noreply, load(socket)}
-
-        {:error, :too_long} ->
-          {:noreply,
-           assign(socket,
-             status: "That's longer than #{socket.assigns.room.question_max_length} characters."
-           )}
-
-        {:error, :too_many} ->
-          {:noreply, assign(socket, status: allowance_message(socket.assigns.room))}
-
-        {:error, _} ->
-          {:noreply, assign(socket, status: "That question couldn't be posted. Try again.")}
-      end
+      {:noreply,
+       socket
+       |> assign(
+         pending: attrs,
+         undo_left: @undo_seconds,
+         show_name: false,
+         draft: "",
+         status: nil,
+         tick: Process.send_after(self(), :tick, 1000)
+       )}
     end
   end
+
+  # The student called it back inside the window, so nothing was ever written.
+  # The text goes back in the composer: cancelling is usually a rewrite.
+  def handle_event("cancel_ask", _params, socket) do
+    {:noreply,
+     socket
+     |> cancel_tick()
+     |> assign(
+       pending: nil,
+       draft: socket.assigns.pending[:body] || "",
+       status: "Called back. Nobody saw it."
+     )}
+  end
+
+  def handle_event("send_now", _params, socket),
+    do: {:noreply, socket |> cancel_tick() |> post_pending()}
 
   def handle_event("toggle_vote", %{"id" => id}, socket) do
     if MapSet.member?(socket.assigns.voted, id) do
@@ -138,7 +164,67 @@ defmodule QuorumWeb.AttendeeLive do
       display_ids: display_ids,
       moved: moved_count(display_ids, sorted_ids)
     )
+    |> drop_pending_if_closed()
   end
+
+  # A session that ends mid-window takes the question with it. Saying so beats
+  # counting down against a room that can no longer take it.
+  defp drop_pending_if_closed(%{assigns: %{pending: nil}} = socket), do: socket
+
+  defp drop_pending_if_closed(%{assigns: %{room: %{status: :closed}}} = socket) do
+    socket
+    |> cancel_tick()
+    |> assign(
+      pending: nil,
+      undo_left: nil,
+      status: "The session closed before your question went in."
+    )
+  end
+
+  defp drop_pending_if_closed(socket), do: socket
+
+  defp cancel_tick(socket) do
+    if ref = socket.assigns[:tick], do: Process.cancel_timer(ref)
+    assign(socket, tick: nil)
+  end
+
+  # The window has run out, or the student asked to send it now. Everything the
+  # room's own limits have to say is applied here, at the moment of the write.
+  defp post_pending(%{assigns: %{pending: nil}} = socket), do: socket
+
+  defp post_pending(socket) do
+    attrs = socket.assigns.pending
+    socket = assign(socket, pending: nil, tick: nil, undo_left: nil)
+
+    case Sessions.ask(socket.assigns.room.id, attrs) do
+      {:ok, %{status: :pending}} ->
+        socket |> assign(status: "Sent to your presenter for review.") |> load()
+
+      {:ok, _question} ->
+        socket |> assign(status: "Posted to the queue.") |> load()
+
+      {:error, :closed} ->
+        held_back(socket, attrs, "The session closed before this went in.")
+
+      {:error, :too_long} ->
+        held_back(
+          socket,
+          attrs,
+          "That's longer than #{socket.assigns.room.question_max_length} characters."
+        )
+
+      {:error, :too_many} ->
+        held_back(socket, attrs, allowance_message(socket.assigns.room))
+
+      {:error, _} ->
+        held_back(socket, attrs, "That question couldn't be posted. Try again.")
+    end
+  end
+
+  # A refusal at the end of the window would otherwise lose what they typed, so
+  # the text goes back in the composer with the reason beside it.
+  defp held_back(socket, attrs, message),
+    do: assign(socket, draft: attrs[:body] || "", status: message)
 
   # Keep the order the reader is looking at, appending anything new at the end.
   defp reconcile(display_ids, sorted_ids) do
@@ -209,10 +295,40 @@ defmodule QuorumWeb.AttendeeLive do
               This session is closed
             </div>
             <p class="q-meta">Students can still read. Nobody can post or vote.</p>
+            <p class="q-status">{@status}</p>
           </div>
         </section>
       <% else %>
-        <section style="padding:22px;">
+        <section :if={@pending} style="padding:22px;" id="undo-window">
+          <div class="q-undo">
+            <p class="q-question" style="margin:0 0 4px;">{@pending[:body]}</p>
+            <p class="q-meta" style="margin:0 0 14px;">
+              Going in shortly. Take it back if someone's already asked it.
+            </p>
+
+            <div
+              class="q-undo-track"
+              role="progressbar"
+              aria-valuemin="0"
+              aria-valuemax={undo_seconds()}
+              aria-valuenow={@undo_left}
+              aria-label="Seconds until this question is posted"
+            >
+              <span class="q-undo-bar" style={"animation-duration:#{undo_seconds()}s;"}></span>
+            </div>
+
+            <div class="q-undo-actions">
+              <button type="button" class="q-button q-button--destructive" phx-click="cancel_ask">
+                Cancel ({@undo_left})
+              </button>
+              <button type="button" class="q-button--link" phx-click="send_now">
+                Send it now
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section :if={!@pending} style="padding:22px;">
           <p style="font:400 16px/1.45 var(--q-font-serif);margin:0 0 14px;">
             Ask the presenter anything, or vote anonymously for a question you want answered.
           </p>

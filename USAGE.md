@@ -112,14 +112,14 @@ Every control applies as you change it. There is no save button, and the line be
 | Questions | What a student may post |
 | Moderation | Whether questions wait for you before the room sees them |
 | Readings and AI | The approved reading list, and whether students are pointed at it |
-| Projection | Not drawn yet |
+| Projection | What the screen at the front puts on the wall |
 | Appearance | The projection's colours |
-
-The undrawn tab says what will go in it and that nothing is missing from your room meanwhile, rather than showing an empty pane.
 
 **Questions** sets the longest a question may be (140, 280, 500, or 1000 characters), how many a student can have waiting at once, and whether students may sign what they post. The composer follows all three. Answered and hidden questions stop counting against their asker, so a student who's been answered can post again. Turning signing off posts every question anonymously, including any name an old page still sends.
 
 The same tab decides what happens to the questions when the session ends. **Keep this room's questions** is on, because a term of them is the record of what didn't land: which weeks drew nothing, which drew the same question forty times, what belongs in the next tutorial. Turning it off deletes every question in the room, and its votes, the moment you close the session, with no undo.
+
+**Projection** sets what the screen at the front shows. Question size runs from Small, for a seminar room or a question you'd rather not have wrapping, through Standard, which is readable from the back of a full hall, to Largest. Under the question you can show or hide who asked and how many voted; with both off there's no line at all. Around it, the join code can stay in a rail beside a spotlighted question for anyone arriving late, and the connected and asked counts can come off the bottom. Colours are on the Appearance tab. Every change reaches the projection live, so you can leave it running while you set it.
 
 **Moderation** decides what reaches the room. Four things can hold a question, and any one of them is enough:
 
@@ -130,7 +130,9 @@ The same tab decides what happens to the questions when the session ends. **Keep
 | Hold anything with a link | The question carries a web address or a bare domain |
 | Held words | The question uses a word you've put on the room's list |
 
-Every one of them holds rather than refuses, so the worst a mistake costs an asker is a wait. Held words match whole words, so "ass" doesn't catch "class". The link check ignores file names, so a question about Node.js goes straight through.
+A room starts with a list of twenty held words, profanity and insults, so it isn't ungated on day one. It's a starting point, not a policy: remove them one at a time, or all at once.
+
+Every one of them holds rather than refuses, so the worst a mistake costs an asker is a wait. That's what lets the list stay blunt: a question citing Dr. Dick Rittmann's paper gets held, you glance at it, you approve it. Held words match whole words, so "ass" doesn't catch "class". The link check ignores file names, so a question about Node.js goes straight through.
 
 Holding a student's first question reads trust per room, because students have no accounts here: the only history a room can see is what that browser has had approved in it. Approve one of someone's questions and the rest go through.
 
@@ -147,6 +149,8 @@ A held question is invisible to the room and to the projection. Its own asker se
 ### Student feed
 
 Students post a question, optionally with a name, and upvote anything already asked. A vote holds that row in place while they read, with a **Let it move** control and a count of how many questions have risen above it, so the list never reorders under a thumb.
+
+Pressing **Post question** doesn't write it yet. The composer is replaced by the question, a bar that burns down over ten seconds, and a **Cancel** button counting the seconds off. That window is for the student who spots the same question already in the list, catches a typo, or thinks better of it. Cancelling writes nothing at all: the text goes back in the composer, and nobody saw it. **Send it now** skips the wait.
 
 Students can retract their own questions. A question they upvoted reads "Voted" in words, not colour alone.
 

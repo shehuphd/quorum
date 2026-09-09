@@ -43,5 +43,10 @@ All notable changes to Quorum are recorded here, dated per release.
 - Questions outlive the session by default, because a term of them is the record of what didn't land. A room can be set to delete them, with their votes, the moment the session closes.
 - Retracting a question that anyone had upvoted used to fail on a foreign key. Votes now go with the question they're about.
 - A question can only reach the projection if the room can already see it. The check moved to the domain, so holding a question back means the whole hall, not just the queue.
+- A posted question waits ten seconds before it's written, counting down where the composer was, with a bar that burns to nothing. Cancelling writes nothing at all and hands the text back, so there's no question to retract and nobody saw it.
+- A room starts with twenty held words, profanity and insults, so it isn't ungated on day one. Every word comes off, one at a time or all at once.
+- A question can no longer be posted to a session that has closed, whatever a stale page thinks.
+- The Projection tab: how large the question draws, whether the wall names who asked and how many voted, whether the join code stays beside a question, and whether the counts show along the bottom. Every one of them changes the wall live.
+- All six settings tabs are drawn.
 - Every page is checked at 375px, 768px, 1280px, and 1600px, and none of them scrolls sideways.
 - LiveView test suite over all five screens, covering ranking, voting, spotlight, search, the close dialog, keyboard shortcuts, settings and readings, and live arrival of questions.

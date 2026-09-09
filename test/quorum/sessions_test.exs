@@ -610,8 +610,15 @@ defmodule Quorum.SessionsTest do
       %{room: room}
     end
 
+    test "a new room starts with the default list, so it isn't ungated on day one" do
+      room = open_room()
+      assert room.held_words == Sessions.default_held_words()
+      assert length(room.held_words) == 20
+    end
+
     test "a word is stored lowercase", %{room: room} do
-      assert room.held_words == ["grade"]
+      assert "grade" in room.held_words
+      refute "Grade" in room.held_words
     end
 
     test "the same word twice is one entry", %{room: room} do
@@ -633,6 +640,7 @@ defmodule Quorum.SessionsTest do
     end
 
     test "it matches whole words, so an innocent word containing it is left alone", %{room: room} do
+      {:ok, room} = Sessions.update_settings(room, %{held_words: []})
       {:ok, room} = Sessions.add_held_word(room, "ass")
 
       assert {:ok, %{status: :visible}} =
@@ -647,10 +655,25 @@ defmodule Quorum.SessionsTest do
 
     test "a removed word stops holding", %{room: room} do
       {:ok, room} = Sessions.remove_held_word(room, "grade")
-      assert room.held_words == []
+      refute "grade" in room.held_words
 
       assert {:ok, %{status: :visible}} =
                Sessions.ask(room.id, %{body: "What about my grade?", submitter_token: "a"})
+    end
+
+    test "the default list holds what it says it holds", %{room: room} do
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "What the fuck was that", submitter_token: "a"})
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "This is a STUPID question", submitter_token: "b"})
+    end
+
+    test "emptying the list turns the trigger off entirely", %{room: room} do
+      {:ok, room} = Sessions.update_settings(room, %{held_words: []})
+
+      assert {:ok, %{status: :visible}} =
+               Sessions.ask(room.id, %{body: "What the fuck was that", submitter_token: "a"})
     end
   end
 end
