@@ -29,7 +29,7 @@ defmodule QuorumWeb.StandingPagesTest do
     test "privacy says what is stored and marks itself a draft", %{conn: conn} do
       html = conn |> get(~p"/privacy") |> html_response(200)
 
-      assert html =~ "Draft."
+      assert html =~ "This is a working draft."
       assert html =~ "no name, no email, and no account"
       assert html =~ "_quorum_key"
       assert html =~ "no analytics cookies"

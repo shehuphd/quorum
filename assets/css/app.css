@@ -148,6 +148,13 @@ a.q-button {
   }
 }
 
+/* Selected text. The browser default is a dark fill that swallows the ink,
+   so this is a light accent tint the body colour still reads on at 13.8:1. */
+::selection {
+  background: #cde7de;
+  color: var(--q-ink);
+}
+
 /* Labels that belong to screen readers but would be redundant on screen. */
 .q-sr-only {
   position: absolute;
