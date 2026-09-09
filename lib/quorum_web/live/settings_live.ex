@@ -6,9 +6,9 @@ defmodule QuorumWeb.SettingsLive do
   screens. A change sets the indicator to "Saving", does the work, and settles on
   "All changes saved", so the header always says where the room stands.
 
-  Three tabs are drawn and three are named but not drawn yet. The rail carries
-  all six either way, so the shape of the settings never changes underneath
-  someone as panes are added.
+  Five tabs are drawn and one, Projection, is named but not drawn yet. The rail
+  carries all six either way, so the shape of the settings never changes
+  underneath someone as panes are added.
   """
   use QuorumWeb, :live_view
 
@@ -24,7 +24,7 @@ defmodule QuorumWeb.SettingsLive do
     {"appearance", "Appearance"}
   ]
 
-  @built ~w(room resources appearance)
+  @built ~w(room questions moderation resources appearance)
   @slugs Enum.map(@tabs, &elem(&1, 0))
 
   @impl true
@@ -43,7 +43,8 @@ defmodule QuorumWeb.SettingsLive do
            search: "",
            confirm_delete: false,
            delete_typed: "",
-           reading_error: nil
+           reading_error: nil,
+           word_error: nil
          )
          |> load()}
 
@@ -93,6 +94,36 @@ defmodule QuorumWeb.SettingsLive do
 
   def handle_event("reset_resources", _params, socket),
     do: {:noreply, start_save(socket, %{readings_pointer?: false})}
+
+  def handle_event("reset_questions", _params, socket),
+    do: {:noreply, start_save(socket, Sessions.question_defaults())}
+
+  def handle_event("reset_moderation", _params, socket),
+    do:
+      {:noreply, socket |> assign(word_error: nil) |> start_save(Sessions.moderation_defaults())}
+
+  ## Held words
+
+  def handle_event("add_word", params, socket) do
+    case Sessions.add_held_word(socket.assigns.room, Map.get(params, "word", "")) do
+      {:ok, room} ->
+        {:noreply, socket |> assign(room: room, word_error: nil, status: :saved) |> load()}
+
+      {:error, :blank} ->
+        {:noreply, assign(socket, word_error: "Type a word to hold.")}
+
+      {:error, :duplicate} ->
+        {:noreply, assign(socket, word_error: "That word is already on the list.")}
+
+      {:error, _} ->
+        {:noreply, assign(socket, word_error: "That word couldn't be added.")}
+    end
+  end
+
+  def handle_event("remove_word", %{"word" => word}, socket) do
+    {:ok, room} = Sessions.remove_held_word(socket.assigns.room, word)
+    {:noreply, socket |> assign(room: room, word_error: nil, status: :saved) |> load()}
+  end
 
   ## Readings
 
@@ -177,7 +208,8 @@ defmodule QuorumWeb.SettingsLive do
   defp attrs(params) do
     params
     |> Map.take(~w(name auto_close_at projection_light_from projection_light_to
-                   projection_dark_from projection_dark_to projection_angle))
+                   projection_dark_from projection_dark_to projection_angle
+                   question_max_length questions_per_student))
     |> Enum.reject(fn {_k, v} -> v == nil end)
     |> Map.new(fn {k, v} -> {String.to_existing_atom(k), normalise(k, v)} end)
   end
@@ -191,14 +223,18 @@ defmodule QuorumWeb.SettingsLive do
     end
   end
 
-  defp normalise("projection_angle", value) do
-    case Integer.parse(to_string(value)) do
-      {n, _} -> n
-      _ -> 60
-    end
-  end
+  defp normalise("projection_angle", value), do: whole(value, 60)
+  defp normalise("question_max_length", value), do: whole(value, 500)
+  defp normalise("questions_per_student", value), do: whole(value, 0)
 
   defp normalise(_key, value), do: value
+
+  defp whole(value, fallback) do
+    case Integer.parse(to_string(value)) do
+      {n, _} -> n
+      _ -> fallback
+    end
+  end
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: String.trim(value)
@@ -214,7 +250,9 @@ defmodule QuorumWeb.SettingsLive do
         term -> Enum.filter(readings, &matches?(&1, term))
       end
 
-    assign(socket, room: room, readings: readings, shown: shown)
+    %{held: held} = room_id |> Sessions.list_questions() |> Sessions.partition()
+
+    assign(socket, room: room, readings: readings, shown: shown, held: length(held))
   end
 
   defp matches?(reading, term) do
@@ -240,6 +278,15 @@ defmodule QuorumWeb.SettingsLive do
 
   defp local_input(at),
     do: at |> DateTime.truncate(:second) |> DateTime.to_iso8601() |> String.slice(0, 16)
+
+  defp allowance_note(0),
+    do: "A student can post as many as they like. Answered questions never count against anyone."
+
+  defp allowance_note(1),
+    do: "A student posts again once you've answered or hidden the one they have waiting."
+
+  defp allowance_note(n),
+    do: "A student posts again once you've answered or hidden one of the #{n} they have waiting."
 
   # The reserved-height tally under an instant-search field.
   defp tally("", _shown, _total), do: ""
@@ -311,6 +358,10 @@ defmodule QuorumWeb.SettingsLive do
           <%= case @tab do %>
             <% "room" -> %>
               <.room_pane room={@room} confirm_delete={@confirm_delete} delete_typed={@delete_typed} />
+            <% "questions" -> %>
+              <.questions_pane room={@room} />
+            <% "moderation" -> %>
+              <.moderation_pane room={@room} held={@held} error={@word_error} />
             <% "resources" -> %>
               <.resources_pane
                 room={@room}
@@ -449,6 +500,166 @@ defmodule QuorumWeb.SettingsLive do
         </p>
       </div>
     </div>
+    """
+  end
+
+  attr :room, :map, required: true
+
+  defp questions_pane(assigns) do
+    ~H"""
+    <section class="q-pane">
+      <h2>Questions</h2>
+
+      <form id="question-limits-form" phx-change="save" class="q-field">
+        <label class="q-label" for="question_max_length">Longest question</label>
+        <select id="question_max_length" name="question_max_length" class="q-input">
+          <option
+            :for={n <- [140, 280, 500, 1000]}
+            value={n}
+            selected={@room.question_max_length == n}
+          >
+            {n} characters
+          </option>
+        </select>
+        <p class="q-meta">
+          The composer counts down to this, and a longer question is refused rather than cut short.
+        </p>
+      </form>
+
+      <form id="question-allowance-form" phx-change="save" class="q-field">
+        <label class="q-label" for="questions_per_student">Questions waiting per student</label>
+        <select id="questions_per_student" name="questions_per_student" class="q-input">
+          <option value="0" selected={@room.questions_per_student == 0}>No limit</option>
+          <option :for={n <- 1..5} value={n} selected={@room.questions_per_student == n}>
+            {n} at a time
+          </option>
+        </select>
+        <p class="q-meta">
+          {allowance_note(@room.questions_per_student)}
+        </p>
+      </form>
+
+      <hr class="q-divider" style="margin:8px 0;" />
+
+      <div class="q-field">
+        <div class="q-switch-row">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={to_string(@room.allow_display_name?)}
+            class={["q-switch", @room.allow_display_name? && "q-switch--on"]}
+            phx-click="toggle"
+            phx-value-field="allow_display_name?"
+          >
+            <span class="q-switch-knob"></span>
+          </button>
+          <span class="q-label">
+            Let students sign a question, {if @room.allow_display_name?, do: "on", else: "off"}
+          </span>
+        </div>
+        <p class="q-meta">
+          Signing is the student's choice either way. Turning this off drops the name field and
+          posts every question anonymously, including any name a stale page still sends.
+        </p>
+      </div>
+
+      <div style="margin-top:8px;">
+        <button type="button" class="q-button--link" phx-click="reset_questions">
+          Reset this tab
+        </button>
+      </div>
+    </section>
+    """
+  end
+
+  attr :room, :map, required: true
+  attr :held, :integer, required: true
+  attr :error, :string, default: nil
+
+  defp moderation_pane(assigns) do
+    ~H"""
+    <section class="q-pane">
+      <h2>Moderation</h2>
+
+      <div class="q-field">
+        <div class="q-switch-row">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={to_string(@room.hold_for_review?)}
+            class={["q-switch", @room.hold_for_review? && "q-switch--on"]}
+            phx-click="toggle"
+            phx-value-field="hold_for_review?"
+          >
+            <span class="q-switch-knob"></span>
+          </button>
+          <span class="q-label">
+            Hold every question for review, {if @room.hold_for_review?, do: "on", else: "off"}
+          </span>
+        </div>
+        <p class="q-meta">
+          Off, a question reaches the room as soon as it's posted and you can hide it from the
+          console. On, nothing reaches the room until you approve it, and the asker sees their own
+          question waiting so they don't post it twice.
+        </p>
+      </div>
+
+      <p :if={@held > 0} class="q-meta">
+        <.link navigate={~p"/host/#{@room.host_token}"} class="q-button--link">
+          {@held} {if @held == 1, do: "question is", else: "questions are"} waiting for review
+        </.link>
+        on the console.
+      </p>
+
+      <hr class="q-divider" style="margin:8px 0;" />
+
+      <h3>Hold anything using these words</h3>
+      <p class="q-meta" style="margin-top:0;">
+        A question using one of these waits for you even when the switch above is off. It's held,
+        never refused, so a word used innocently costs the asker a wait and nothing more.
+      </p>
+
+      <form id="add-word-form" phx-submit="add_word" class="q-word-form">
+        <div>
+          <label class="q-sr-only" for="word">Word to hold</label>
+          <input
+            id="word"
+            name="word"
+            class="q-input"
+            maxlength="40"
+            autocomplete="off"
+            placeholder="A word or name"
+          />
+        </div>
+        <button type="submit" class="q-button">Add word</button>
+      </form>
+      <p class="q-status" style={@error && "color:var(--q-destructive);"}>{@error}</p>
+
+      <p :if={@room.held_words == []} class="q-meta">
+        No words held. Add one above, or leave the list empty and use the switch when you need it.
+      </p>
+
+      <ul :if={@room.held_words != []} class="q-word-list">
+        <li :for={word <- @room.held_words}>
+          <span class="q-label">{word}</span>
+          <button
+            type="button"
+            class="q-button q-button--destructive"
+            phx-click="remove_word"
+            phx-value-word={word}
+            aria-label={"Stop holding #{word}"}
+          >
+            Remove
+          </button>
+        </li>
+      </ul>
+
+      <div style="margin-top:8px;">
+        <button type="button" class="q-button--link" phx-click="reset_moderation">
+          Reset this tab
+        </button>
+      </div>
+    </section>
     """
   end
 
@@ -698,16 +909,6 @@ defmodule QuorumWeb.SettingsLive do
     </section>
     """
   end
-
-  defp undrawn_copy("questions"),
-    do:
-      "Limits on what students can post, and how long a question stays open, will live here. " <>
-        "Today every open room takes questions with no limit."
-
-  defp undrawn_copy("moderation"),
-    do:
-      "Holding questions for review before the room sees them will live here. " <>
-        "Today questions appear as soon as they're posted, and you can hide one from the console."
 
   defp undrawn_copy("projection"),
     do:

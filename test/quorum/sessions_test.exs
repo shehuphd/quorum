@@ -6,6 +6,7 @@ defmodule Quorum.SessionsTest do
   use Quorum.DataCase, async: false
 
   require Ash.Query
+  alias Quorum.Sessions
   alias Quorum.Sessions.{Question, Room, Vote}
 
   defp open_room(name \\ "Test Room") do
@@ -69,17 +70,26 @@ defmodule Quorum.SessionsTest do
                |> Ash.create()
     end
 
-    test "rejects a body past the length limit", %{room: room} do
-      too_long = String.duplicate("a", 501)
-
+    test "rejects a body past the resource's ceiling, whatever a room allows", %{room: room} do
       assert {:error, _} =
                Question
                |> Ash.Changeset.for_create(:ask, %{
                  room_id: room.id,
                  submitter_token: "s",
-                 body: too_long
+                 body: String.duplicate("a", 1001)
                })
                |> Ash.create()
+    end
+
+    test "rejects a body past the room's own limit, and names why", %{room: room} do
+      assert {:error, :too_long} =
+               Sessions.ask(room.id, %{submitter_token: "s", body: String.duplicate("a", 501)})
+
+      # The same body posts once the room allows it.
+      Sessions.update_settings(room, %{question_max_length: 1000})
+
+      assert {:ok, _} =
+               Sessions.ask(room.id, %{submitter_token: "s", body: String.duplicate("a", 501)})
     end
 
     test "requires a room", %{room: _room} do
@@ -228,6 +238,193 @@ defmodule Quorum.SessionsTest do
 
       reloaded = Ash.get!(Quorum.Sessions.Room, room.id)
       assert is_nil(reloaded.spotlight_question_id)
+    end
+  end
+
+  describe "how many a student may have waiting" do
+    setup do
+      room = open_room()
+      {:ok, room} = Sessions.update_settings(room, %{questions_per_student: 2})
+      %{room: room}
+    end
+
+    test "refuses the one past the allowance, and names why", %{room: room} do
+      assert {:ok, _} = Sessions.ask(room.id, %{body: "one", submitter_token: "amara"})
+      assert {:ok, _} = Sessions.ask(room.id, %{body: "two", submitter_token: "amara"})
+
+      assert {:error, :too_many} =
+               Sessions.ask(room.id, %{body: "three", submitter_token: "amara"})
+    end
+
+    test "counts each student separately", %{room: room} do
+      Sessions.ask(room.id, %{body: "one", submitter_token: "amara"})
+      Sessions.ask(room.id, %{body: "two", submitter_token: "amara"})
+
+      assert {:ok, _} = Sessions.ask(room.id, %{body: "mine", submitter_token: "ben"})
+    end
+
+    test "an answered question stops counting against its asker", %{room: room} do
+      {:ok, first} = Sessions.ask(room.id, %{body: "one", submitter_token: "amara"})
+      Sessions.ask(room.id, %{body: "two", submitter_token: "amara"})
+
+      assert {:error, :too_many} =
+               Sessions.ask(room.id, %{body: "three", submitter_token: "amara"})
+
+      Sessions.answer(first)
+      assert {:ok, _} = Sessions.ask(room.id, %{body: "three", submitter_token: "amara"})
+    end
+
+    test "a held question counts, so holding isn't a way around the limit", %{room: room} do
+      Sessions.update_settings(room, %{hold_for_review?: true})
+      {:ok, room} = Sessions.get_room(room.id)
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "one", submitter_token: "amara"})
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "two", submitter_token: "amara"})
+
+      assert {:error, :too_many} =
+               Sessions.ask(room.id, %{body: "three", submitter_token: "amara"})
+    end
+
+    test "no limit is the default, and lets a student keep going" do
+      room = open_room("Unlimited")
+
+      for n <- 1..8 do
+        assert {:ok, _} = Sessions.ask(room.id, %{body: "q#{n}", submitter_token: "amara"})
+      end
+
+      assert Sessions.questions_left(room, "amara") == nil
+    end
+
+    test "reports what a student has left", %{room: room} do
+      assert Sessions.questions_left(room, "amara") == 2
+      Sessions.ask(room.id, %{body: "one", submitter_token: "amara"})
+      assert Sessions.questions_left(room, "amara") == 1
+    end
+  end
+
+  describe "signing a question" do
+    test "a name is kept when the room allows it" do
+      room = open_room()
+
+      assert {:ok, %{display_name: "Amara"}} =
+               Sessions.ask(room.id, %{body: "hi", submitter_token: "a", display_name: "Amara"})
+    end
+
+    test "a name is dropped when the room doesn't, however it was sent" do
+      room = open_room()
+      {:ok, room} = Sessions.update_settings(room, %{allow_display_name?: false})
+
+      assert {:ok, %{display_name: nil}} =
+               Sessions.ask(room.id, %{body: "hi", submitter_token: "a", display_name: "Amara"})
+    end
+  end
+
+  describe "holding questions for review" do
+    test "off, a question goes straight to the room" do
+      room = open_room()
+
+      assert {:ok, %{status: :visible}} =
+               Sessions.ask(room.id, %{body: "hi", submitter_token: "a"})
+    end
+
+    test "on, every question is held" do
+      room = open_room()
+      {:ok, room} = Sessions.update_settings(room, %{hold_for_review?: true})
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "hi", submitter_token: "a"})
+    end
+
+    test "a held question is in neither the queue nor the answered list" do
+      room = open_room()
+      Sessions.update_settings(room, %{hold_for_review?: true})
+      Sessions.ask(room.id, %{body: "held", submitter_token: "a"})
+
+      %{visible: visible, held: held, answered: answered} =
+        room.id |> Sessions.list_questions() |> Sessions.partition()
+
+      assert visible == []
+      assert answered == []
+      assert [%{body: "held"}] = held
+    end
+
+    test "approving puts it in the queue, refusing hides it" do
+      room = open_room()
+      Sessions.update_settings(room, %{hold_for_review?: true})
+      {:ok, yes} = Sessions.ask(room.id, %{body: "yes", submitter_token: "a"})
+      {:ok, no} = Sessions.ask(room.id, %{body: "no", submitter_token: "b"})
+
+      Sessions.approve(yes)
+      Sessions.reject(no)
+
+      %{visible: visible, held: held} =
+        room.id |> Sessions.list_questions() |> Sessions.partition()
+
+      assert [%{body: "yes"}] = visible
+      assert held == []
+      assert {:ok, %{status: :hidden}} = Sessions.get_question(no.id)
+    end
+
+    test "a status can't be posted straight past the queue by a crafted caller" do
+      room = open_room()
+      Sessions.update_settings(room, %{hold_for_review?: true})
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "sneaky", submitter_token: "a", status: :visible})
+    end
+  end
+
+  describe "words that hold a question" do
+    setup do
+      room = open_room()
+      {:ok, room} = Sessions.add_held_word(room, "Grade")
+      %{room: room}
+    end
+
+    test "a word is stored lowercase", %{room: room} do
+      assert room.held_words == ["grade"]
+    end
+
+    test "the same word twice is one entry", %{room: room} do
+      assert {:error, :duplicate} = Sessions.add_held_word(room, "GRADE")
+    end
+
+    test "a blank word is refused", %{room: room} do
+      assert {:error, :blank} = Sessions.add_held_word(room, "   ")
+    end
+
+    test "a question using the word is held, whatever case it's typed in", %{room: room} do
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "Will this be on the GRADE?", submitter_token: "a"})
+    end
+
+    test "a question that doesn't use it goes straight through", %{room: room} do
+      assert {:ok, %{status: :visible}} =
+               Sessions.ask(room.id, %{body: "What's the reading?", submitter_token: "a"})
+    end
+
+    test "it matches whole words, so an innocent word containing it is left alone", %{room: room} do
+      {:ok, room} = Sessions.add_held_word(room, "ass")
+
+      assert {:ok, %{status: :visible}} =
+               Sessions.ask(room.id, %{
+                 body: "Can you repeat the class outline?",
+                 submitter_token: "a"
+               })
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "Don't be an ass", submitter_token: "b"})
+    end
+
+    test "a removed word stops holding", %{room: room} do
+      {:ok, room} = Sessions.remove_held_word(room, "grade")
+      assert room.held_words == []
+
+      assert {:ok, %{status: :visible}} =
+               Sessions.ask(room.id, %{body: "What about my grade?", submitter_token: "a"})
     end
   end
 end

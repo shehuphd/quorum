@@ -6,7 +6,7 @@ Built with Elixir and Phoenix LiveView, so the interactive UI renders server-sid
 
 ## Development status
 
-The landing page, lecturer sign-in, and the five screens are built and driven by the live data layer: the join screen, the student feed, the lecturer's console, the projection, and the settings. Three of the six settings categories are drawn (the room itself, the reading list, and the projection's appearance); Questions, Moderation, and Projection say what will go in them. Single sign-on and the matching behind the reading pointer are designed but not built.
+The landing page, lecturer sign-in, and the five screens are built and driven by the live data layer: the join screen, the student feed, the lecturer's console, the projection, and the settings. Five of the six settings categories are drawn: the room itself, what students may post, moderation, the reading list, and the projection's appearance. Projection says what will go in it. Single sign-on and the matching behind the reading pointer are designed but not built.
 
 ## Local development
 

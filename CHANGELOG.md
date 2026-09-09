@@ -34,5 +34,9 @@ All notable changes to Quorum are recorded here, dated per release.
 - Deleting a room needs the session closed first and its name typed, and the server checks both rather than trusting the disabled button.
 - A search box no longer swallows its own keystrokes: LiveView listens for key events on the window, so stopping them at the input stopped the search from ever running. The console's question search had the same defect.
 - Touch targets: the site logo, the settings switches, the gradient slider, and the landing nav links all reach 44px. The landing page's sample readings are text rather than links, so they no longer sit in the tab order pointing at an unrelated section.
+- The Questions tab: how long a question may be, how many one student can have waiting at once, and whether students may sign what they post. The student's composer follows all three, and the server applies them whatever a stale page sends.
+- The Moderation tab: hold every question for review before the room sees it, or name words that hold a question on their own. A held word matches whole words, and holds rather than refuses, so a word used innocently costs the asker a wait and nothing more.
+- A held question is invisible to the room and to the projection, and visible to its own asker, who can retract it while it waits. The console grows a review queue with Approve and Refuse while anything is held.
+- A question can only reach the projection if the room can already see it. The check moved to the domain, so holding a question back means the whole hall, not just the queue.
 - Every page is checked at 375px, 768px, 1280px, and 1600px, and none of them scrolls sideways.
 - LiveView test suite over all five screens, covering ranking, voting, spotlight, search, the close dialog, keyboard shortcuts, settings and readings, and live arrival of questions.

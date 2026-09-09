@@ -22,6 +22,27 @@ defmodule Quorum.Sessions.Question do
     create :ask do
       description("A student posts a question to a room.")
       accept([:body, :display_name, :room_id, :submitter_token])
+
+      argument :held?, :boolean do
+        description("Whether the room's moderation settings hold this one for review.")
+        default(false)
+      end
+
+      # Status is never accepted from the client, only derived here, so no
+      # crafted request can post a question straight past a review queue.
+      change(fn changeset, _context ->
+        if Ash.Changeset.get_argument(changeset, :held?) do
+          Ash.Changeset.force_change_attribute(changeset, :status, :pending)
+        else
+          changeset
+        end
+      end)
+    end
+
+    update :approve do
+      description("Release a held question into the live queue.")
+      accept([])
+      change(set_attribute(:status, :visible))
     end
 
     update :answer do
@@ -47,7 +68,9 @@ defmodule Quorum.Sessions.Question do
     attribute :body, :string do
       allow_nil?(false)
       public?(true)
-      constraints(max_length: 500, min_length: 1)
+      # The ceiling. Each room's own limit lives on the room and is applied when
+      # the question is asked, so this only ever catches a bad caller.
+      constraints(max_length: 1000, min_length: 1)
     end
 
     # Optional; blank means anonymous to peers.
@@ -66,7 +89,7 @@ defmodule Quorum.Sessions.Question do
       allow_nil?(false)
       public?(true)
       default(:visible)
-      constraints(one_of: [:visible, :answered, :hidden])
+      constraints(one_of: [:pending, :visible, :answered, :hidden])
     end
 
     create_timestamp(:inserted_at)

@@ -12,7 +12,9 @@ Quorum is a live classroom engagement tool for university lectures. Students joi
 
 Five screens make up the product. The projection, the console, and the settings belong to the lecturer, behind a secret host token. The join screen and the student feed are public to anyone holding the five-character code.
 
-Settings are per-room rather than per-account, so they follow the host token like the rest of the lecturer's tools, and a room carries its own look and its own reading list.
+Settings are per-room rather than per-account, so they follow the host token like the rest of the lecturer's tools, and a room carries its own look, its own reading list, and its own rules about what students may post and what reaches the room.
+
+Moderation is post-hoc by default: a question appears and the lecturer can hide it. A room can switch to pre-publish, where a question is written with a `pending` status and reaches nobody but its own asker until the lecturer approves it. Because a held question exists as a row rather than being refused, the asker can see it waiting and retract it, and an approval is one status change rather than a re-post.
 
 Lecturer accounts are optional and sit beside the host token rather than replacing it: a room opened while signed in belongs to that lecturer and appears in their list, and every host link keeps working with or without an account. Students never have an account at all.
 
@@ -74,6 +76,11 @@ Settings ride the same path, which is what lets them do without a save button. C
 | Someone asks for link after link | A 30-second cooldown returns the same "check your email" screen and sends nothing, so the address can't be mailed repeatedly |
 | An address is probed to see who has an account | The screen after a request reads the same whether or not the address was known |
 | A lecturer's account is deleted | `rooms.owner_id` is nilified rather than cascading, so their rooms stay reachable by host link instead of disappearing |
+| A question is longer than the room allows, or the student is at their allowance | `Sessions.ask/2` refuses before the write and names which limit stopped it, so the composer says the length or the allowance rather than "couldn't be posted". These are per-room, so they can't be resource constraints |
+| A crafted request tries to post past a review queue | `status` is never accepted from the client. The `ask` action derives it from a `held?` argument the domain computes from the room's own settings |
+| A crafted request tries to project a held question | `Sessions.spotlight/2` refuses anything the room can't already see, so holding a question back means the hall and not only the queue |
+| A student's held question looks like it failed to post | The asker sees their own held question waiting, with a note that nobody else can see it yet, and can retract it from there. Other students see nothing |
+| A held word is used innocently | A held word holds the question rather than refusing it, and matches whole words, so "class" doesn't trip "ass". The cost of a false positive is a wait |
 | A room is deleted while it's still running | Deleting needs the session closed and the room's name typed, and the action checks both server-side rather than trusting the disabled button |
 | A room is deleted with readings on it | `readings.room_id` cascades, so the list goes with the room rather than outliving it |
 | A settings write fails | The status line stays on "Saving" rather than claiming a save that didn't happen, because it only reports saved once the write returns |

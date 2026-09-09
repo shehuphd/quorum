@@ -113,6 +113,9 @@ defmodule QuorumWeb.HostLive do
   def handle_event("select", %{"id" => id}, socket),
     do: {:noreply, assign(socket, selected_id: id)}
 
+  def handle_event("approve", %{"id" => id}, socket), do: {:noreply, review(socket, id, :approve)}
+  def handle_event("reject", %{"id" => id}, socket), do: {:noreply, review(socket, id, :reject)}
+
   # Escape cancels whatever is open, and the queue shortcuts stay quiet while one is.
   def handle_event("key", %{"key" => "Escape"}, socket),
     do: {:noreply, assign(socket, confirming_close: false, renaming: false)}
@@ -169,7 +172,7 @@ defmodule QuorumWeb.HostLive do
     room_id = socket.assigns.room.id
     {:ok, room} = Sessions.get_room(room_id)
     questions = Sessions.list_questions(room_id)
-    %{visible: visible, answered: answered} = Sessions.partition(questions)
+    %{visible: visible, held: held, answered: answered} = Sessions.partition(questions)
 
     waiting =
       case String.trim(socket.assigns.search) do
@@ -189,11 +192,24 @@ defmodule QuorumWeb.HostLive do
       spotlight: room.spotlight_question,
       waiting: waiting,
       visible_count: length(visible),
+      held: held,
       answered: answered,
       question_count: length(visible) + length(answered),
       connected: connected,
       selected_id: selected
     )
+  end
+
+  # A held question is only ever acted on from this room, so check it belongs
+  # here before touching it.
+  defp review(socket, id, verdict) do
+    with {:ok, question} <- Sessions.get_question(id),
+         true <- question.room_id == socket.assigns.room.id,
+         :pending <- question.status do
+      apply(Sessions, verdict, [question])
+    end
+
+    load(socket)
   end
 
   defp keep_selected(nil, [first | _]), do: first
@@ -395,6 +411,43 @@ defmodule QuorumWeb.HostLive do
             </section>
             <p class="q-status" aria-live="polite">{@status}</p>
           <% end %>
+
+          <section :if={@held != []} class="q-review">
+            <div class="q-review-head">
+              <h2>
+                {length(@held)} {if length(@held) == 1, do: "question", else: "questions"} waiting for you
+              </h2>
+              <p class="q-meta" style="margin:4px 0 0;">
+                Nobody in the room can see these. Only their askers know they exist.
+              </p>
+            </div>
+            <div :for={question <- @held} class="q-queue-row">
+              <div style="flex:1;min-width:0;">
+                <p class="q-question">{question.body}</p>
+                <p class="q-meta" style="margin:6px 0 0;">
+                  {asker(question)}, {clock(question.inserted_at)}
+                </p>
+              </div>
+              <div class="q-queue-actions">
+                <button
+                  type="button"
+                  class="q-button"
+                  phx-click="approve"
+                  phx-value-id={question.id}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  class="q-button q-button--destructive"
+                  phx-click="reject"
+                  phx-value-id={question.id}
+                >
+                  Refuse
+                </button>
+              </div>
+            </div>
+          </section>
 
           <div :if={@question_count > 0}>
             <label class="q-sr-only" for="search">Search questions</label>

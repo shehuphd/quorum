@@ -298,4 +298,108 @@ defmodule QuorumWeb.HostLiveTest do
 
     assert html =~ ~s(href="/host/#{room.host_token}/settings/room")
   end
+
+  describe "the review queue" do
+    setup do
+      room = room()
+      Sessions.update_settings(room, %{hold_for_review?: true})
+      %{room: room}
+    end
+
+    test "no review section at all while nothing is held", %{conn: conn} do
+      room = room()
+
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
+
+      refute html =~ "waiting for you"
+    end
+
+    test "held questions are listed, counted, and marked private", %{conn: conn, room: room} do
+      Sessions.ask(room.id, %{body: "First held", submitter_token: "a"})
+      Sessions.ask(room.id, %{body: "Second held", submitter_token: "b"})
+
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
+
+      assert html =~ "2 questions waiting for you"
+      assert html =~ "First held"
+      assert html =~ "Second held"
+      assert html =~ "Nobody in the room can see these."
+    end
+
+    test "one held question reads in the singular", %{conn: conn, room: room} do
+      Sessions.ask(room.id, %{body: "Only one", submitter_token: "a"})
+
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
+
+      assert html =~ "1 question waiting for you"
+    end
+
+    test "approving moves it into the ranked queue", %{conn: conn, room: room} do
+      Sessions.ask(room.id, %{body: "Let me through", submitter_token: "a"})
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
+      html = view |> element("button", "Approve") |> render_click()
+
+      refute html =~ "waiting for you"
+      assert html =~ "Let me through"
+
+      %{visible: visible} = room.id |> Sessions.list_questions() |> Sessions.partition()
+      assert [%{body: "Let me through"}] = visible
+    end
+
+    test "refusing hides it from both lists", %{conn: conn, room: room} do
+      Sessions.ask(room.id, %{body: "Not this one", submitter_token: "a"})
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
+      html = view |> element("button", "Refuse") |> render_click()
+
+      refute html =~ "Not this one"
+
+      %{visible: visible, held: held} =
+        room.id |> Sessions.list_questions() |> Sessions.partition()
+
+      assert visible == []
+      assert held == []
+    end
+
+    test "a held question from another room can't be approved from here", %{
+      conn: conn,
+      room: room
+    } do
+      other = room("Someone else's lecture")
+      Sessions.update_settings(other, %{hold_for_review?: true})
+      {:ok, theirs} = Sessions.ask(other.id, %{body: "Theirs", submitter_token: "a"})
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
+      render_click(view, "approve", %{"id" => theirs.id})
+
+      assert {:ok, %{status: :pending}} = Sessions.get_question(theirs.id)
+    end
+
+    test "a held question can't be put on the projection", %{conn: conn, room: room} do
+      {:ok, held} = Sessions.ask(room.id, %{body: "Not for the hall", submitter_token: "a"})
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
+      render_click(view, "spotlight", %{"id" => held.id})
+
+      assert {:ok, %{spotlight_question_id: nil}} = Sessions.get_room(room.id)
+
+      # Approving it makes it projectable, so the guard is about status, not the id.
+      Sessions.approve(held)
+      {:ok, room} = Sessions.get_room(room.id)
+      assert {:ok, _} = Sessions.spotlight(room, held.id)
+    end
+
+    test "a question arriving while the console is open shows up to be reviewed", %{
+      conn: conn,
+      room: room
+    } do
+      {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}")
+      refute html =~ "Arrived mid-lecture"
+
+      Sessions.ask(room.id, %{body: "Arrived mid-lecture", submitter_token: "a"})
+
+      assert render(view) =~ "Arrived mid-lecture"
+    end
+  end
 end

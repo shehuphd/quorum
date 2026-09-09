@@ -109,13 +109,19 @@ Every control applies as you change it. There is no save button, and the line be
 | Tab | What it does |
 |---|---|
 | Room | The room's name, when it closes itself, the join code, and deleting the room |
-| Questions | Not drawn yet |
-| Moderation | Not drawn yet |
+| Questions | What a student may post |
+| Moderation | Whether questions wait for you before the room sees them |
 | Readings and AI | The approved reading list, and whether students are pointed at it |
 | Projection | Not drawn yet |
 | Appearance | The projection's colours |
 
-The three undrawn tabs say what will go in them and that nothing is missing from your room meanwhile, rather than showing an empty pane.
+The undrawn tab says what will go in it and that nothing is missing from your room meanwhile, rather than showing an empty pane.
+
+**Questions** sets the longest a question may be (140, 280, 500, or 1000 characters), how many a student can have waiting at once, and whether students may sign what they post. The composer follows all three. Answered and hidden questions stop counting against their asker, so a student who's been answered can post again. Turning signing off posts every question anonymously, including any name an old page still sends.
+
+**Moderation** decides what reaches the room. With **Hold every question for review** on, nothing appears until you approve it. You can also name words that hold a question on their own, whatever that switch says. A held word matches whole words, so "ass" doesn't catch "class", and it holds rather than refuses, so a word used innocently costs the asker a wait.
+
+A held question is invisible to the room and to the projection. Its own asker sees it waiting, and can retract it, so nobody posts the same question twice thinking the first one failed. While anything is held, the console carries a review queue above the ranked queue, with **Approve** to send a question to the room and **Refuse** to hide it. A refused question is hidden rather than deleted, so you can restore it.
 
 **Appearance** sets the two gradients the projection uses, one for a lit hall and one for a dark one, the angle between them, and whether the gradient drifts. A preview stands beside the controls, and one link puts the whole tab back to its defaults. Drift stops on its own for anyone who has asked for reduced motion.
 
@@ -129,12 +135,14 @@ Students post a question, optionally with a name, and upvote anything already as
 
 Students can retract their own questions. A question they upvoted reads "Voted" in words, not colour alone.
 
+When the room holds questions for review, a student's own held question appears under "Waiting for your lecturer" with a note that nobody else can see it yet. They can retract it from there.
+
 ## The domain
 
 The `Quorum.Sessions` domain exposes four resources through Ash actions:
 
 - `Room`: `open` a room (returns a join code and a host token), then `close` it. `spotlight` and `clear_spotlight` drive the projection. `settings` applies one settings change. `demo?` marks the room the landing page points at.
-- `Question`: `ask` in a room, then `answer`, `hide`, or `restore`.
+- `Question`: `ask` in a room, then `approve`, `answer`, `hide`, or `restore`. A question the room's moderation holds is written with status `:pending` and reaches nobody but its asker until it's approved.
 - `Vote`: `cast` an upvote (idempotent per browser); destroy a vote to unvote.
 - `Reading`: `add` an item to a room's approved list, then `edit` or destroy it.
 

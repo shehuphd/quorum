@@ -61,9 +61,28 @@ defmodule QuorumWeb.AttendeeLive do
       attrs = if name == "", do: attrs, else: Map.put(attrs, :display_name, name)
 
       case Sessions.ask(socket.assigns.room.id, attrs) do
+        {:ok, %{status: :pending}} ->
+          socket =
+            assign(socket,
+              show_name: false,
+              draft: "",
+              status: "Sent to your lecturer for review."
+            )
+
+          {:noreply, load(socket)}
+
         {:ok, _question} ->
           socket = assign(socket, show_name: false, draft: "", status: "Posted to the queue.")
           {:noreply, load(socket)}
+
+        {:error, :too_long} ->
+          {:noreply,
+           assign(socket,
+             status: "That's longer than #{socket.assigns.room.question_max_length} characters."
+           )}
+
+        {:error, :too_many} ->
+          {:noreply, assign(socket, status: allowance_message(socket.assigns.room))}
 
         {:error, _} ->
           {:noreply, assign(socket, status: "That question couldn't be posted. Try again.")}
@@ -98,9 +117,10 @@ defmodule QuorumWeb.AttendeeLive do
   defp load(socket) do
     room_id = socket.assigns.room.id
     {:ok, room} = Sessions.get_room(room_id)
+    token = socket.assigns.token
     questions = Sessions.list_questions(room_id)
-    %{visible: visible, answered: answered} = Sessions.partition(questions)
-    voted = Sessions.voted_question_ids(room_id, socket.assigns.token)
+    %{visible: visible, held: held, answered: answered} = Sessions.partition(questions)
+    voted = Sessions.voted_question_ids(room_id, token)
 
     sorted_ids = Enum.map(visible, & &1.id)
     display_ids = reconcile(socket.assigns.display_ids, sorted_ids)
@@ -109,6 +129,10 @@ defmodule QuorumWeb.AttendeeLive do
       room: room,
       visible: visible,
       answered: answered,
+      # A held question is invisible to the room, but its own asker sees it
+      # waiting, so they don't take the silence for a failure and post again.
+      waiting: Enum.filter(held, &mine?(&1, token)),
+      left: Sessions.questions_left(room, token),
       by_id: Map.new(visible, &{&1.id, &1}),
       voted: voted,
       display_ids: display_ids,
@@ -145,6 +169,17 @@ defmodule QuorumWeb.AttendeeLive do
 
   defp votes(1), do: "vote"
   defp votes(_), do: "votes"
+
+  # How many this student can still post, counting only what's waiting on them.
+  defp remaining(0), do: "You've used your questions for now. Retracting one frees it up."
+  defp remaining(1), do: "One question left."
+  defp remaining(n), do: "#{n} questions left."
+
+  defp allowance_message(%{questions_per_student: 1}),
+    do: "You already have a question waiting. Retract it, or wait for it to be answered."
+
+  defp allowance_message(%{questions_per_student: n}),
+    do: "You already have #{n} questions waiting. Retract one, or wait for one to be answered."
 
   defp vote_label(true, count), do: "Voted, #{count} #{votes(count)}. Press to remove your vote"
   defp vote_label(false, count), do: "Upvote, #{count} #{votes(count)}"
@@ -188,25 +223,66 @@ defmodule QuorumWeb.AttendeeLive do
               name="body"
               class="q-textarea"
               rows="3"
-              maxlength="500"
+              maxlength={@room.question_max_length}
               placeholder="What would you like explained?"
               phx-debounce="400"
             >{@draft}</textarea>
-            <div :if={@show_name} style="margin-top:10px;">
+            <div
+              :if={@show_name and @room.allow_display_name?}
+              style="margin-top:10px;"
+            >
               <label class="q-sr-only" for="name">Your name</label>
               <input id="name" name="name" class="q-input" maxlength="60" placeholder="Your name" />
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:12px;">
-              <button :if={!@show_name} type="button" class="q-button--link" phx-click="toggle_name">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:12px;flex-wrap:wrap;">
+              <button
+                :if={!@show_name and @room.allow_display_name?}
+                type="button"
+                class="q-button--link"
+                phx-click="toggle_name"
+              >
                 Add your name
               </button>
-              <span :if={@show_name} class="q-meta">Shown on this question only.</span>
+              <span :if={@show_name and @room.allow_display_name?} class="q-meta">
+                Shown on this question only.
+              </span>
+              <span :if={!@room.allow_display_name?} class="q-meta">
+                Every question here is anonymous.
+              </span>
               <button type="submit" class="q-button">Post question</button>
             </div>
           </form>
+          <p :if={@room.hold_for_review?} class="q-meta">
+            Your lecturer reads each question before the room sees it.
+          </p>
+          <p :if={@left} class="q-meta">
+            {remaining(@left)}
+          </p>
           <p class="q-status">{@status}</p>
         </section>
       <% end %>
+
+      <section :if={@waiting != []} style="padding:0 22px 4px;">
+        <div class="q-label" style="margin-bottom:8px;">
+          Waiting for your lecturer
+        </div>
+        <div :for={question <- @waiting} class="q-row q-row--waiting">
+          <div style="min-width:0;flex:1;">
+            <p class="q-question">{question.body}</p>
+            <p class="q-meta" style="margin:6px 0 0;">
+              Nobody else can see this yet. Your lecturer decides whether it reaches the room.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="q-button q-button--secondary"
+            phx-click="retract"
+            phx-value-id={question.id}
+          >
+            Retract
+          </button>
+        </div>
+      </section>
 
       <div
         :if={@moved > 0}

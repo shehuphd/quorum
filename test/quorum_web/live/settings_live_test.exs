@@ -45,10 +45,10 @@ defmodule QuorumWeb.SettingsLiveTest do
     test "a tab that isn't drawn says so rather than looking broken", %{conn: conn} do
       room = room()
 
-      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/projection")
 
       assert html =~ "Not drawn yet"
-      assert html =~ "Holding questions for review"
+      assert html =~ "What the projection shows"
       assert html =~ "Nothing is missing"
     end
 
@@ -152,6 +152,169 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert {:ok, reset} = Sessions.get_room(room.id)
       assert reset.projection_dark_to == "#313131"
       assert reset.projection_angle == 60
+    end
+  end
+
+  describe "questions" do
+    test "the length limit saves and reaches the student's composer", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/questions")
+
+      view |> form("#question-limits-form") |> render_change(%{"question_max_length" => "140"})
+      settle(view)
+
+      assert {:ok, saved} = Sessions.get_room(room.id)
+      assert saved.question_max_length == 140
+
+      {:ok, _view, feed} = live(conn, ~p"/r/#{room.join_code}")
+      assert feed =~ ~s(maxlength="140")
+    end
+
+    test "the allowance saves and the note follows it", %{conn: conn} do
+      room = room()
+      {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/questions")
+
+      assert html =~ "as many as they like"
+
+      view |> form("#question-allowance-form") |> render_change(%{"questions_per_student" => "1"})
+
+      assert settle(view) =~ "the one they have waiting"
+      assert {:ok, %{questions_per_student: 1}} = Sessions.get_room(room.id)
+    end
+
+    test "turning off signing drops the name field from the feed", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/questions")
+
+      view |> element(~s([phx-value-field="allow_display_name?"])) |> render_click()
+
+      assert settle(view) =~ "Let students sign a question, off"
+
+      {:ok, _view, feed} = live(conn, ~p"/r/#{room.join_code}")
+      refute feed =~ "Add your name"
+      assert feed =~ "Every question here is anonymous."
+    end
+
+    test "reset this tab puts the limits back", %{conn: conn} do
+      room = room()
+
+      Sessions.update_settings(room, %{
+        question_max_length: 140,
+        questions_per_student: 3,
+        allow_display_name?: false
+      })
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/questions")
+      view |> element("button", "Reset this tab") |> render_click()
+      settle(view)
+
+      assert {:ok, reset} = Sessions.get_room(room.id)
+      assert reset.question_max_length == 500
+      assert reset.questions_per_student == 0
+      assert reset.allow_display_name?
+    end
+  end
+
+  describe "moderation" do
+    test "the hold switch names its state and takes effect on the next question", %{conn: conn} do
+      room = room()
+      {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      assert html =~ "Hold every question for review, off"
+
+      view |> element(~s([phx-value-field="hold_for_review?"])) |> render_click()
+
+      assert settle(view) =~ "Hold every question for review, on"
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "held one", submitter_token: "a"})
+    end
+
+    test "the empty word list says what to do instead", %{conn: conn} do
+      room = room()
+
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      assert html =~ "No words held."
+      assert html =~ "use the switch when you need it"
+    end
+
+    test "a word is added, listed, and holds a question", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      html = view |> form("#add-word-form") |> render_submit(%{"word" => "Grade"})
+
+      # Stored lowercase, so the list shows what actually matches.
+      assert html =~ "grade"
+
+      assert {:ok, %{status: :pending}} =
+               Sessions.ask(room.id, %{body: "What about my grade?", submitter_token: "a"})
+    end
+
+    test "the same word twice is refused, and says so", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      view |> form("#add-word-form") |> render_submit(%{"word" => "grade"})
+      html = view |> form("#add-word-form") |> render_submit(%{"word" => "GRADE"})
+
+      assert html =~ "That word is already on the list."
+      assert {:ok, %{held_words: ["grade"]}} = Sessions.get_room(room.id)
+    end
+
+    test "a blank word is refused", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      html = view |> form("#add-word-form") |> render_submit(%{"word" => "   "})
+
+      assert html =~ "Type a word to hold."
+      assert {:ok, %{held_words: []}} = Sessions.get_room(room.id)
+    end
+
+    test "a word is removed", %{conn: conn} do
+      room = room()
+      {:ok, room} = Sessions.add_held_word(room, "grade")
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+      html = view |> element("button", "Remove") |> render_click()
+
+      refute html =~ ">grade<"
+      assert {:ok, %{held_words: []}} = Sessions.get_room(room.id)
+    end
+
+    test "the pane counts what's waiting and links to the console", %{conn: conn} do
+      room = room()
+      Sessions.update_settings(room, %{hold_for_review?: true})
+      Sessions.ask(room.id, %{body: "waiting", submitter_token: "a"})
+
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      assert html =~ "1 question is"
+      assert html =~ ~s(href="/host/#{room.host_token}")
+    end
+
+    test "nothing waiting means no count at all", %{conn: conn} do
+      room = room()
+
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      refute html =~ "waiting for review"
+    end
+
+    test "reset this tab clears the switch and the list", %{conn: conn} do
+      room = room()
+      {:ok, room} = Sessions.add_held_word(room, "grade")
+      Sessions.update_settings(room, %{hold_for_review?: true})
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+      view |> element("button", "Reset this tab") |> render_click()
+      settle(view)
+
+      assert {:ok, reset} = Sessions.get_room(room.id)
+      refute reset.hold_for_review?
+      assert reset.held_words == []
     end
   end
 

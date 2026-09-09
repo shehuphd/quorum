@@ -53,7 +53,12 @@ defmodule Quorum.Sessions.Room do
         :projection_dark_to,
         :projection_angle,
         :projection_drift?,
-        :readings_pointer?
+        :readings_pointer?,
+        :question_max_length,
+        :questions_per_student,
+        :allow_display_name?,
+        :hold_for_review?,
+        :held_words
       ])
     end
 
@@ -161,6 +166,46 @@ defmodule Quorum.Sessions.Room do
       allow_nil?(false)
       public?(true)
       default(false)
+    end
+
+    # What a student may post. The ceiling is the Question resource's own 1000;
+    # this is the operative limit, and the composer counts down to it.
+    attribute :question_max_length, :integer do
+      allow_nil?(false)
+      public?(true)
+      default(500)
+      constraints(min: 140, max: 1000)
+    end
+
+    # How many questions one browser can have waiting at once. Zero is no limit.
+    attribute :questions_per_student, :integer do
+      allow_nil?(false)
+      public?(true)
+      default(0)
+      constraints(min: 0, max: 20)
+    end
+
+    # Off means every question is anonymous, whether or not a name was typed.
+    attribute :allow_display_name?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(true)
+    end
+
+    # Moderation. Off is post-hoc: a question appears, and the lecturer can hide
+    # it. On holds every question until the lecturer approves it.
+    attribute :hold_for_review?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(false)
+    end
+
+    # Words that hold a question for review on their own, whatever the toggle
+    # above says. Stored lowercase; matched whole-word.
+    attribute :held_words, {:array, :string} do
+      allow_nil?(false)
+      public?(true)
+      default([])
     end
 
     # A demo room is the one the landing page points at, so anyone can look at
