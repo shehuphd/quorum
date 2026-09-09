@@ -3,9 +3,8 @@ defmodule QuorumWeb.Shell do
   The site header and footer that wrap every full page.
 
   Nav entries appear only when the page behind them exists, so the header never
-  offers a link that goes nowhere. Readings, Settings, and the footer's Privacy,
-  Accessibility, and Contact entries are drawn on the design board and go in
-  here when their pages do.
+  offers a link that goes nowhere. Readings and Settings are drawn on the design
+  board and go in here when their pages do.
   """
   use QuorumWeb, :html
 
@@ -51,7 +50,11 @@ defmodule QuorumWeb.Shell do
     ~H"""
     <footer class="q-shell-footer">
       <Brand.logo size={19} />
-      <p class="q-meta">Built with Elixir and Phoenix LiveView.</p>
+      <nav class="q-shell-nav" aria-label="Site">
+        <.link navigate={~p"/privacy"}>Privacy</.link>
+        <.link navigate={~p"/accessibility"}>Accessibility</.link>
+        <.link navigate={~p"/contact"}>Contact</.link>
+      </nav>
     </footer>
     """
   end

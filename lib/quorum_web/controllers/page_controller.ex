@@ -1,18 +1,99 @@
 defmodule QuorumWeb.PageController do
   @moduledoc """
-  The landing page. It reads the demo room without seeding one, so a visit never
-  writes; the demo links seed on click instead. Until a demo room exists the
-  hero shows the sample code from the design, which the join screen answers for.
+  The landing page and the three standing pages behind the footer.
+
+  The landing page reads the demo room without seeding one, so a visit never
+  writes; the demo links seed on click instead.
   """
   use QuorumWeb, :controller
 
+  alias Quorum.Contact
   alias Quorum.Sessions
   alias Quorum.Sessions.Demo
+  alias QuorumWeb.LandingExamples
 
   @sample %{code: "K7QM4", posted: 12, answered: 1, connected: 38, live?: false}
+  @cooldown_seconds 60
+  @cooldown_key "contact_sent_at"
 
   def home(conn, _params) do
-    render(conn, :home, demo: demo())
+    render(conn, :home,
+      demo: demo(),
+      example: LandingExamples.sample(),
+      example_age: LandingExamples.random_age()
+    )
+  end
+
+  def privacy(conn, _params), do: render(conn, :privacy, page_title: "Privacy")
+
+  def accessibility(conn, _params), do: render(conn, :accessibility, page_title: "Accessibility")
+
+  def contact(conn, _params) do
+    render(conn, :contact,
+      page_title: "Contact",
+      params: %{},
+      errors: [],
+      sent: false
+    )
+  end
+
+  def contact_submit(conn, params) do
+    cond do
+      # A bot filling every field trips the honeypot. Report success so it
+      # learns nothing, and send nothing.
+      params |> Map.get("website", "") |> String.trim() != "" ->
+        render_sent(conn)
+
+      seconds_remaining(conn) > 0 ->
+        render(conn, :contact,
+          page_title: "Contact",
+          params: params,
+          errors: [message: "You just sent one. Give it a minute before sending another."],
+          sent: false
+        )
+
+      true ->
+        submit(conn, params)
+    end
+  end
+
+  defp submit(conn, params) do
+    case Contact.validate(params) do
+      {:ok, message} ->
+        case Contact.deliver(message) do
+          {:ok, _} ->
+            conn
+            |> put_session(@cooldown_key, System.system_time(:second))
+            |> render_sent()
+
+          _ ->
+            render(conn, :contact,
+              page_title: "Contact",
+              params: params,
+              errors: [message: "That didn't send. Try again, or email us directly."],
+              sent: false
+            )
+        end
+
+      {:error, errors} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> render(:contact, page_title: "Contact", params: params, errors: errors, sent: false)
+    end
+  end
+
+  defp render_sent(conn),
+    do: render(conn, :contact, page_title: "Contact", params: %{}, errors: [], sent: true)
+
+  defp seconds_remaining(conn) do
+    case get_session(conn, @cooldown_key) do
+      nil ->
+        0
+
+      at ->
+        elapsed = System.system_time(:second) - at
+        if elapsed >= @cooldown_seconds, do: 0, else: @cooldown_seconds - elapsed
+    end
   end
 
   defp demo do

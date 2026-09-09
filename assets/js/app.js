@@ -110,3 +110,54 @@ window.addEventListener("quorum:copy", (event) => {
   field.select()
   try { document.execCommand("copy"); done() } finally { field.remove() }
 })
+
+// Cycle the landing page's example feed card through its samples, with a fresh
+// asker and age each time. Auto-updating content is motion, so a viewer who
+// asked for reduced motion keeps the one the server rendered.
+;(() => {
+  const card = document.getElementById("q-example")
+  if (!card) return
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+
+  let examples
+  try { examples = JSON.parse(card.dataset.examples || "[]") } catch { return }
+  if (!Array.isArray(examples) || examples.length < 2) return
+
+  const votes = card.querySelector('[data-example="votes"]')
+  const body = card.querySelector('[data-example="body"]')
+  const meta = card.querySelector('[data-example="meta"]')
+  if (!votes || !body || !meta) return
+
+  const ago = () => {
+    const s = 30 + Math.floor(Math.random() * 871) // 30s to 15min
+    if (s < 60) return `${s} seconds ago`
+    if (s < 120) return "1 minute ago"
+    return `${Math.floor(s / 60)} minutes ago`
+  }
+
+  let i = Math.floor(Math.random() * examples.length)
+  const step = () => {
+    i = (i + 1) % examples.length
+    const next = examples[i]
+    card.style.opacity = "0"
+    setTimeout(() => {
+      votes.textContent = next.votes
+      body.textContent = next.body
+      meta.textContent = `${next.name || "Anonymous"}, ${ago()}`
+      card.style.opacity = "1"
+    }, 220)
+  }
+
+  card.style.transition = "opacity 220ms ease"
+  let timer = setInterval(step, parseInt(card.dataset.rotateMs || "5000", 10))
+
+  // Stop while the tab is hidden, so a backgrounded page isn't doing work.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      clearInterval(timer)
+    } else {
+      clearInterval(timer)
+      timer = setInterval(step, parseInt(card.dataset.rotateMs || "5000", 10))
+    }
+  })
+})()

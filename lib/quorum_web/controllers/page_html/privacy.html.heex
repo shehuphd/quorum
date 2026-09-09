@@ -1,0 +1,69 @@
+<div class="q-page">
+  <QuorumWeb.Shell.header current_user={@conn.assigns[:current_user]} />
+
+  <main class="q-prose">
+    <p class="q-draft">
+      Draft. This describes what the code does today and hasn't been through legal review, so
+      don't rely on it as a published policy yet.
+    </p>
+
+    <h1>Privacy</h1>
+    <p class="q-prose-lead">
+      Students don't have accounts and aren't asked for anything that identifies them. Lecturers
+      give an email address and nothing else.
+    </p>
+
+    <h2>If you're a student</h2>
+    <p>
+      Joining a lecture needs no name, no email, and no account. Your browser is given one random
+      token, kept in a cookie, and that token does two things: it stops the same browser voting
+      twice on a question, and it lets you retract a question you posted. It isn't linked to you,
+      and it tells us nothing about who you are.
+    </p>
+    <p>
+      What's stored is the text of the questions you post, the votes you cast, and a display name
+      only if you choose to type one. Your lecturer sees the questions and the vote counts. They
+      don't see which browser cast which vote.
+    </p>
+
+    <h2>If you're a lecturer</h2>
+    <p>
+      Signing in stores your email address and the single-use links sent to it. Those links expire
+      after {Quorum.Accounts.link_ttl_minutes()} minutes and are spent the first time they're used.
+      Rooms you open while signed in are linked to your account so you can find them again.
+    </p>
+
+    <h2>Cookies</h2>
+    <p>
+      One cookie, <code>_quorum_key</code>, holding the session. It carries the random browser
+      token described above, and your user id once you sign in. There are no advertising cookies
+      and no analytics cookies.
+    </p>
+
+    <h2>Third parties</h2>
+    <p>
+      There are none in the page. No analytics, no tag managers, no embedded trackers. Typefaces
+      are served from Quorum's own servers rather than a font CDN, so opening a page makes no
+      request to anyone else.
+    </p>
+
+    <h2>Email</h2>
+    <p>
+      Quorum sends two kinds of message: a sign-in link to a lecturer who asked for one, and the
+      contact form's message to us. Nothing else, and no marketing.
+    </p>
+
+    <h2>Still to decide</h2>
+    <p>
+      A retention schedule (how long rooms, questions, and votes are kept), the named data
+      controller, and the governing jurisdiction. These belong in the published version and are
+      open questions today rather than settled ones.
+    </p>
+
+    <p class="q-prose-cta">
+      Questions about any of this? <.link navigate={~p"/contact"} class="q-button--link">Contact us</.link>.
+    </p>
+  </main>
+
+  <QuorumWeb.Shell.footer />
+</div>

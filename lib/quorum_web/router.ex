@@ -20,6 +20,10 @@ defmodule QuorumWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/privacy", PageController, :privacy
+    get "/accessibility", PageController, :accessibility
+    get "/contact", PageController, :contact
+    post "/contact", PageController, :contact_submit
     get "/start", RoomController, :create
     get "/demo", DemoController, :student
     get "/demo/host", DemoController, :host

@@ -55,4 +55,29 @@ defmodule QuorumWeb.PageControllerTest do
     assert html =~ "Nine questions posted, one answered."
     refute html =~ "K7QM4"
   end
+
+  test "the feed card renders one example and ships the rest for rotation", %{conn: conn} do
+    html = conn |> get(~p"/") |> html_response(200)
+
+    assert html =~ ~s(id="q-example")
+    assert html =~ "data-examples="
+    assert html =~ ~s(data-example="votes")
+    assert html =~ ~s(data-example="body")
+    assert html =~ ~s(data-example="meta")
+
+    # The rendered one comes from the same list the client cycles through.
+    bodies = Enum.map(QuorumWeb.LandingExamples.all(), & &1.body)
+
+    assert Enum.any?(
+             bodies,
+             &(html =~ Phoenix.HTML.html_escape(&1) |> Phoenix.HTML.safe_to_string())
+           )
+  end
+
+  test "the footer keeps the same side margins as the rest of the page", %{conn: conn} do
+    html = conn |> get(~p"/") |> html_response(200)
+
+    # Sharing q-l-shell is what keeps the footer's edges lined up with the bands.
+    assert html =~ ~s(class="q-l-shell q-l-footer")
+  end
 end

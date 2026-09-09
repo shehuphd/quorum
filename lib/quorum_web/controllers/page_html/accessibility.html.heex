@@ -1,0 +1,79 @@
+<div class="q-page">
+  <QuorumWeb.Shell.header current_user={@conn.assigns[:current_user]} />
+
+  <main class="q-prose">
+    <p class="q-draft">
+      Draft. This is a statement of what's built and what isn't, not the result of a formal audit.
+    </p>
+
+    <h1>Accessibility</h1>
+    <p class="q-prose-lead">
+      Quorum aims at WCAG 2.2 AA. An inaccessible tool in a lecture hall shuts someone out of the
+      class itself, so this is built in as each screen is built rather than added afterwards.
+    </p>
+
+    <h2>What's in place</h2>
+    <ul>
+      <li>Every action is reachable from the keyboard, and the focus ring is always visible.</li>
+      <li>
+        The lecturer's console carries its own keyboard map on screen: <strong>J</strong>
+        and <strong>K</strong>
+        move through the queue, <strong>Enter</strong>
+        spotlights, <strong>A</strong>
+        marks answered, <strong>H</strong>
+        hides. The projection uses <strong>L</strong>, <strong>D</strong>, and <strong>Q</strong>.
+      </li>
+      <li>
+        Colour is never the only signal. A question you voted on says "Voted" in words, an answered
+        one says "Voting closed", and the spotlighted row says "On the projection now".
+      </li>
+      <li>
+        Every control is at least 44 by 44 pixels, including text links that act as buttons.
+      </li>
+      <li>
+        Every colour pairing in the palette has been measured, and all of them clear 4.5:1,
+        including against the lightest end of the projection's gradient.
+      </li>
+      <li>
+        Custom controls carry the semantics of what they imitate, so the vote control is a button with a label that reads its count and its state.
+      </li>
+      <li>
+        The projection's background drift stops for anyone who has asked for reduced motion.
+      </li>
+      <li>
+        Every page works from a 375 pixel phone up, no page scrolls sideways, and browser zoom
+        scales the whole layout.
+      </li>
+    </ul>
+
+    <h2>Known gaps</h2>
+    <ul>
+      <li>No independent audit has been done. The claims above are from our own testing.</li>
+      <li>
+        Screen reader testing has covered the structure and labels, not yet a full pass with each major reader.
+      </li>
+      <li>
+        Single sign-on isn't available yet, so a lecturer whose institution requires it can't use their usual route in.
+      </li>
+      <li>
+        There's no captioning or transcript feature, because Quorum handles text questions rather than audio.
+      </li>
+      <li>
+        Type is set in pixels, so it follows browser zoom but not a raised default font size in
+        the browser's own settings. Moving to relative units is on the list.
+      </li>
+    </ul>
+
+    <h2>Found a barrier?</h2>
+    <p>
+      Tell us and we'll fix it. Say which screen, what you were trying to do, and what got in the
+      way. Reports about a barrier are treated as bugs, not feature requests.
+    </p>
+
+    <p class="q-prose-cta">
+      <.link navigate={~p"/contact"} class="q-button">Report an accessibility problem</.link>
+    </p>
+  </main>
+
+  <QuorumWeb.Shell.footer />
+</div>

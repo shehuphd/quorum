@@ -1,6 +1,6 @@
 # Quorum manifest
 
-Last updated: 2026-09-09 20:50:00 UTC
+Last updated: 2026-09-09 21:40:00 UTC
 
 Map of every source file: what it defines and what it touches. The Ash resources
 are grouped under the `Quorum.Sessions` domain; the LiveViews are the four live
@@ -35,11 +35,13 @@ screens, and the landing page is a plain controller.
 | `lib/quorum_web/live/attendee_live.ex` | `/r/:code`. The student's phone-first feed: compose a question, upvote, retract your own. Holds a voted row in place while the reader reads it and offers a resort with a count of what rose above. Keeps an unsent draft on the server so a reconnect restores it. |
 | `lib/quorum_web/live/host_live.ex` | `/host/:host_token`. The lecturer's console as a full page: site shell, room bar with rename and the live counts, the joining panel (large while the room is empty, a strip once questions arrive), ranked queue, and a rail carrying what's on the projection, the pre-lecture checklist, and the keyboard map. Keyboard: **J**, **K**, **Enter**, **A**, **H**, Escape. |
 | `lib/quorum_web/live/projection_live.ex` | `/host/:host_token/project`. The screen at the front of the hall. Joining owns the screen until a question is spotlighted, then shrinks to a 268px rail. Keyboard: **L**, **D**, **Q**. Renders the QR code server-side. |
-| `lib/quorum_web/controllers/page_controller.ex`, `page_html.ex`, `page_html/home.html.heex` | `/`. The landing page: hero with a code field and Start a room, the demo band, how it works, the reading-pointer illustration, the capability columns, and the closing call to action. Reads the demo room without seeding, so a visit never writes. `page_html.ex` carries `word/1`, `count/3`, and `qr/2`. |
+| `lib/quorum_web/controllers/page_controller.ex`, `page_html.ex`, `page_html/*` | `/`, `/privacy`, `/accessibility`, `/contact`. The landing page plus the three standing pages the footer links to. The contact form is guarded by a honeypot and a per-session cooldown. |
+| (landing template) | `/`. The landing page: hero with a code field and Start a room, the demo band, how it works, the reading-pointer illustration, the capability columns, and the closing call to action. Reads the demo room without seeding, so a visit never writes. `page_html.ex` carries `word/1`, `count/3`, and `qr/2`. |
 | `lib/quorum_web/controllers/room_controller.ex` | `GET /start` opens a room, owned by the lecturer when one is signed in, and redirects to its console. `GET /rooms` lists a lecturer's own. |
 | `lib/quorum_web/controllers/session_controller.ex`, `session_html.ex`, `session_html/*` | `/sign-in`, `/sign-in/sent`, `/sign-in/:token`, `/sign-out`. Magic-link sign-in for lecturers. The check-your-email screen reads the same whether or not the address was known, so it can't be used to find out who has an account. |
 | `lib/quorum_web/controllers/demo_controller.ex` | `/demo`, `/demo/host`, `/demo/project`. Three doors into the seeded demo lecture, one per role. Finds or seeds the room, then redirects, so the landing page's links survive a reseed. |
-| `lib/quorum_web/controllers/page_controller.ex`, `page_html.ex`, `page_html/home.html.heex` | The landing page: join a lecture, or start a room. |
+| `lib/quorum_web/controllers/page_controller.ex`, `page_html.ex`, `page_html/*` | `/`, `/privacy`, `/accessibility`, `/contact`. The landing page plus the three standing pages the footer links to. The contact form is guarded by a honeypot and a per-session cooldown. |
+| (landing template) | The landing page: join a lecture, or start a room. |
 
 ## Web: supporting modules
 
@@ -47,6 +49,8 @@ screens, and the landing page is a plain controller.
 |---|---|
 | `lib/quorum_web/brand.ex` | The Quorum logo as an HTML component, in light and on-dark variants. HTML rather than an SVG file, because an SVG loaded through `<img>` cannot resolve the page's webfonts. |
 | `lib/quorum_web/browser_token.ex` | Plug that gives each browser an opaque session token. That token is what makes a vote idempotent and lets a student retract their own question, with no sign-up. |
+| `lib/quorum_web/landing_examples.ex` | The twenty sample questions the landing page's feed card cycles through, half named and half anonymous, plus the phrasing for an age between 30 seconds and 15 minutes. |
+| `lib/quorum/contact.ex` | The contact form's validation and delivery. Mail goes from Quorum's own address with the sender on `reply-to`, so it doesn't fail SPF or DKIM at the receiving end. |
 | `lib/quorum_web/shell.ex` | The site header and footer. Nav entries render only when the page behind them exists, so the header never offers a link that goes nowhere. |
 | `lib/quorum_web/current_user.ex` | Plug putting the signed-in lecturer on the connection, and the session helpers behind it. Only the user id is stored, so a stale cookie for a deleted account resolves to nil. |
 | `lib/quorum_web/presence.ex` | `Phoenix.Presence` over `Quorum.PubSub`. Counts the students connected to a room for the console and the projection. |

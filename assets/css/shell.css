@@ -344,3 +344,98 @@
     flex-wrap: wrap;
   }
 }
+
+/* Standing pages: privacy, accessibility, contact. One readable column. */
+
+.q-prose {
+  flex: 1;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 44px 32px 56px;
+  box-sizing: border-box;
+}
+.q-prose h1 {
+  font: 700 38px var(--q-font-sans);
+  letter-spacing: -0.01em;
+  margin: 0 0 14px;
+}
+.q-prose h2 {
+  font: 600 20px var(--q-font-sans);
+  margin: 34px 0 10px;
+}
+.q-prose p,
+.q-prose li {
+  font: 400 16px/1.6 var(--q-font-sans);
+  color: var(--q-ink-secondary);
+}
+.q-prose p {
+  margin: 0 0 14px;
+}
+.q-prose ul {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+.q-prose li {
+  margin-bottom: 7px;
+}
+.q-prose code {
+  font-size: 0.92em;
+  background: var(--q-surface-sunken);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.q-prose-lead {
+  font-size: 18px !important;
+  color: var(--q-ink) !important;
+  margin-bottom: 22px !important;
+}
+.q-prose-cta {
+  margin-top: 32px;
+}
+
+/* A page that states its own status rather than implying it's finished. */
+.q-draft {
+  background: var(--q-surface-sunken);
+  border-radius: var(--q-radius-card);
+  padding: 14px 16px;
+  margin: 0 0 28px !important;
+  font-size: 14px !important;
+}
+
+/* Forms outside a LiveView */
+
+.q-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 520px;
+}
+.q-form .q-label {
+  display: block;
+  margin-bottom: 8px;
+}
+.q-field-error {
+  font: 500 13px var(--q-font-sans);
+  color: var(--q-destructive);
+  margin: 6px 0 0 !important;
+}
+
+/* The honeypot has to be reachable by a bot reading the DOM and invisible to
+   everyone else, so it's moved off-screen rather than display:none. */
+.q-honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .q-prose {
+    padding: 32px 22px 44px;
+  }
+  .q-prose h1 {
+    font-size: 30px;
+  }
+}

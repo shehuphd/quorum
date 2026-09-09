@@ -53,18 +53,31 @@
           </div>
         </div>
 
-        <div class="q-l-feed-card">
+        <div
+          class="q-l-feed-card"
+          id="q-example"
+          data-rotate-ms="5000"
+          data-examples={Jason.encode!(QuorumWeb.LandingExamples.all())}
+        >
           <div class="q-l-feed-vote">
             <svg width="13" height="10" viewBox="0 0 15 12" aria-hidden="true">
               <path d="M7.5 1 L14 11 L1 11 Z" fill="currentColor" />
             </svg>
-            <span style="font:700 14px var(--q-font-sans);margin-top:2px;">31</span>
+            <span style="font:700 14px var(--q-font-sans);margin-top:2px;" data-example="votes">
+              {@example.votes}
+            </span>
           </div>
-          <div>
-            <p class="q-question" style="font-size:13px;line-height:1.4;margin:0;">
-              If a system reports being conscious, what would count as evidence that it isn't?
+          <div style="min-width:0;">
+            <p
+              class="q-question"
+              style="font-size:13px;line-height:1.4;margin:0;"
+              data-example="body"
+            >
+              {@example.body}
             </p>
-            <p class="q-meta" style="margin:6px 0 0;">Anonymous, 4 minutes ago</p>
+            <p class="q-meta" style="margin:6px 0 0;" data-example="meta">
+              {QuorumWeb.LandingExamples.asker(@example.name)}, {@example_age}
+            </p>
           </div>
         </div>
       </div>
@@ -98,7 +111,7 @@
   <div class="q-l-shell">
     <section class="q-l-section">
       <h2>How it works</h2>
-      <div class="q-l-cols" style="margin-top:34px;">
+      <div class="q-l-cols" style="margin-top:44px;">
         <div>
           <h3>Project the code</h3>
           <p>Open a room and project a QR code on-screen for quick, easy access.</p>
@@ -186,7 +199,9 @@
 
 <footer class="q-l-shell q-l-footer">
   <QuorumWeb.Brand.logo size={20} />
-  <p class="q-meta" style="margin:0;">
-    Built with Elixir and Phoenix LiveView.
-  </p>
+  <nav class="q-shell-nav" aria-label="Site">
+    <.link navigate={~p"/privacy"}>Privacy</.link>
+    <.link navigate={~p"/accessibility"}>Accessibility</.link>
+    <.link navigate={~p"/contact"}>Contact</.link>
+  </nav>
 </footer>

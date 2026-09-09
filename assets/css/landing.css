@@ -52,9 +52,9 @@
 .q-l-hero {
   display: grid;
   grid-template-columns: 1.05fr 1fr;
-  gap: 56px;
+  gap: 72px;
   align-items: center;
-  padding: 64px 0 76px;
+  padding: 84px 0 96px;
 }
 .q-l-hero h1 {
   font: 700 54px/1.08 var(--q-font-sans);
@@ -151,9 +151,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 28px;
   flex-wrap: wrap;
-  padding: 22px 0;
+  padding: 30px 0;
 }
 .q-l-demo-actions {
   display: flex;
@@ -164,12 +164,12 @@
 /* Content sections */
 
 .q-l-section {
-  padding: 56px 0;
+  padding: 76px 0;
 }
 .q-l-section h2 {
   font: 700 32px/1.15 var(--q-font-sans);
   letter-spacing: -0.01em;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
 }
 .q-l-section p {
   font: 400 16px/1.55 var(--q-font-sans);
@@ -181,7 +181,7 @@
 .q-l-cols {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 40px;
+  gap: 52px;
 }
 .q-l-cols--two {
   grid-template-columns: repeat(2, 1fr);
@@ -207,7 +207,7 @@
 .q-l-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 56px;
+  gap: 72px;
   align-items: center;
 }
 
@@ -235,9 +235,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 28px;
   flex-wrap: wrap;
-  padding: 52px 0;
+  padding: 68px 0;
 }
 .q-l-cta-actions {
   display: flex;
@@ -250,7 +250,10 @@
   justify-content: space-between;
   gap: 24px;
   flex-wrap: wrap;
-  padding: 28px 0;
+  /* Keep .q-l-shell's horizontal padding, so the footer lines up with every
+     other band rather than jutting 32px further out on each side. */
+  padding-top: 30px;
+  padding-bottom: 30px;
 }
 
 @media (max-width: 900px) {
@@ -263,7 +266,13 @@
     gap: 40px;
   }
   .q-l-hero {
-    padding: 40px 0 56px;
+    padding: 44px 0 60px;
+  }
+  .q-l-section {
+    padding: 52px 0;
+  }
+  .q-l-cta {
+    padding: 46px 0;
   }
   .q-l-hero h1 {
     font-size: 38px;
