@@ -6,7 +6,7 @@ Built with Elixir and Phoenix LiveView, so the interactive UI renders server-sid
 
 ## Development status
 
-The landing page and the four core screens are built and driven by the live data layer: the join screen, the student feed, the lecturer's console, and the projection. The AI resource pointer, the settings panes, and the moderation queue are designed but not built.
+The landing page, lecturer sign-in, and the four core screens are built and driven by the live data layer: the join screen, the student feed, the lecturer's console, and the projection. Single sign-on, the AI resource pointer, reading lists, and the settings panes are designed but not built.
 
 ## Local development
 
@@ -33,6 +33,8 @@ mix phx.server  # start the app on http://localhost:4000
 The quickest look is the demo lecture. From the landing page, the demo band opens the same seeded room in any of three roles, or go straight to `/demo`, `/demo/host`, or `/demo/project`.
 
 For a room of your own, `/start` opens one and redirects to the lecturer's console at a secret host URL, which links to the projection screen for the projector. Students go to `/join` and type the five-character code, or scan the QR code on the projection.
+
+Lecturers can sign in at `/sign-in` to keep a list of their rooms. Sign-in is a single-use email link; in development the email goes to the local mailbox at `/dev/mailbox` rather than out to the internet, so the whole loop works with no mail provider. A room still opens without an account, and its host link keeps working either way.
 
 [USAGE.md](USAGE.md) covers each screen and its keyboard shortcuts.
 

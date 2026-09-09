@@ -81,3 +81,32 @@ if (process.env.NODE_ENV === "development") {
   })
 }
 
+// Copy a string to the clipboard from a phx-click JS.dispatch, and let the
+// LiveView say so. Falls back to a hidden textarea where the async clipboard
+// API is unavailable (an insecure origin, or an older browser).
+window.addEventListener("quorum:copy", (event) => {
+  const text = event.detail && event.detail.text
+  if (!text) return
+
+  const done = () => {
+    const target = event.target.closest("[phx-click]") || event.target
+    const view = target.closest("[data-phx-main], [data-phx-session]")
+    if (window.liveSocket && view) {
+      window.liveSocket.execJS(target, JSON.stringify([["push", {event: "copied"}]]))
+    }
+  }
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done).catch(() => {})
+    return
+  }
+
+  const field = document.createElement("textarea")
+  field.value = text
+  field.setAttribute("readonly", "")
+  field.style.position = "fixed"
+  field.style.opacity = "0"
+  document.body.appendChild(field)
+  field.select()
+  try { document.execCommand("copy"); done() } finally { field.remove() }
+})

@@ -11,7 +11,7 @@ config :spark, formatter: ["Ash.Resource": [section_order: [:postgres]]]
 
 config :quorum,
   ecto_repos: [Quorum.Repo],
-  ash_domains: [Quorum.Sessions],
+  ash_domains: [Quorum.Sessions, Quorum.Accounts],
   generators: [timestamp_type: :utc_datetime]
 
 # Ash counts string length by unicode codepoints, matching how SQL data layers

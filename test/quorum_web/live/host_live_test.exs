@@ -9,7 +9,7 @@ defmodule QuorumWeb.HostLiveTest do
   test "a host token that matches nothing says so instead of crashing", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/host/not-a-token")
 
-    assert html =~ "That host link doesn&#39;t match a room."
+    assert html =~ "That host link doesn&#39;t match a room"
   end
 
   test "the queue is ranked by votes", %{conn: conn} do
@@ -30,7 +30,7 @@ defmodule QuorumWeb.HostLiveTest do
     question = question(room, "What is a linked process?")
 
     {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}")
-    assert html =~ "Nothing is on the projection."
+    assert html =~ "Nothing spotlighted"
 
     view
     |> element(~s(button[phx-click="spotlight"][phx-value-id="#{question.id}"]))
@@ -39,7 +39,7 @@ defmodule QuorumWeb.HostLiveTest do
     html = render(view)
 
     assert html =~ "On the projection now"
-    refute html =~ "Nothing is on the projection."
+    refute html =~ "Nothing spotlighted"
     assert {:ok, %{spotlight_question_id: id}} = Sessions.get_room(room.id)
     assert id == question.id
   end
@@ -52,7 +52,7 @@ defmodule QuorumWeb.HostLiveTest do
     {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
     view |> element("button", "Clear the spotlight") |> render_click()
 
-    assert render(view) =~ "Nothing is on the projection."
+    assert render(view) =~ "Nothing spotlighted"
   end
 
   test "marking answered moves the question out of the queue, and reopening returns it", %{
@@ -86,7 +86,9 @@ defmodule QuorumWeb.HostLiveTest do
     html = render(view)
 
     refute html =~ "Off topic entirely"
-    assert html =~ "Waiting, 0"
+    # The room is empty again, so the joining panel takes the space back.
+    assert html =~ "No questions yet"
+    assert html =~ "Students join at quorum.app/join with"
   end
 
   test "search filters the queue and reports the tally", %{conn: conn} do
@@ -194,10 +196,88 @@ defmodule QuorumWeb.HostLiveTest do
   test "a question asked by a student appears in the queue live", %{conn: conn} do
     room = room()
     {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}")
-    assert html =~ "No questions waiting."
+    assert html =~ "No questions yet"
 
     question(room, "Just arrived from the back row")
 
     assert render(view) =~ "Just arrived from the back row"
+  end
+
+  test "an empty room gives the join code the space, with both code actions", %{conn: conn} do
+    room = room()
+
+    {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
+
+    assert html =~ "Students join at quorum.app/join with"
+    assert html =~ room.join_code
+    assert html =~ "Copy student link"
+    assert html =~ "New code"
+    assert html =~ "Nobody has joined yet."
+    # The rail carries the keyboard map, per the accessibility rule.
+    assert html =~ "Before you start"
+    assert html =~ "Keyboard"
+  end
+
+  test "the join panel shrinks to a strip once a question arrives", %{conn: conn} do
+    room = room()
+    {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
+
+    question(room, "First of the lecture")
+    html = render(view)
+
+    assert html =~ "Still joining at quorum.app/join"
+    refute html =~ "Students join at quorum.app/join with"
+    assert html =~ "Search questions"
+  end
+
+  test "renaming the room keeps its code and host link", %{conn: conn} do
+    room = room()
+    {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
+
+    view |> element("button", "Rename") |> render_click()
+
+    html =
+      view
+      |> form("form[phx-submit='rename']", %{"name" => "PHIL 210, lecture 7"})
+      |> render_submit()
+
+    assert html =~ "PHIL 210, lecture 7"
+    assert {:ok, renamed} = Sessions.get_room(room.id)
+    assert renamed.name == "PHIL 210, lecture 7"
+    assert renamed.join_code == room.join_code
+    assert renamed.host_token == room.host_token
+  end
+
+  test "a blank rename keeps the old name", %{conn: conn} do
+    room = room()
+    {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
+
+    view |> element("button", "Rename") |> render_click()
+    view |> form("form[phx-submit='rename']", %{"name" => "   "}) |> render_submit()
+
+    assert {:ok, kept} = Sessions.get_room(room.id)
+    assert kept.name == room.name
+  end
+
+  test "a new code replaces the old one and says the old one stops working", %{conn: conn} do
+    room = room()
+    {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
+
+    html = view |> element("button", "New code") |> render_click()
+
+    assert html =~ "New code. The old one stops working now."
+    assert {:ok, reissued} = Sessions.get_room(room.id)
+    refute reissued.join_code == room.join_code
+    assert Sessions.get_room_by_code(room.join_code) == {:ok, nil}
+  end
+
+  test "the reading list control is disabled and says what turns it on", %{conn: conn} do
+    room = room()
+
+    {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
+
+    assert html =~ "Attach a reading list"
+    assert html =~ ~s(disabled="disabled")
+    assert html =~ "Turns on once reading lists ship."
   end
 end

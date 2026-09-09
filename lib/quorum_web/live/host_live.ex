@@ -1,15 +1,19 @@
 defmodule QuorumWeb.HostLive do
   @moduledoc """
-  The lecturer's console: the ranked queue with spotlight, answer, and hide, a
-  live view of what's on the projection, and keyboard shortcuts for driving it
-  without the mouse.
+  The lecturer's console, as a full page: the site shell, the room bar, the
+  joining panel, the ranked queue, and a rail carrying what's on the projection
+  and the keyboard map.
+
+  The joining panel owns the space while the room is empty and shrinks to a strip
+  once questions arrive, on the same split-priority principle as the projection.
   """
   use QuorumWeb, :live_view
 
   alias Quorum.Sessions
+  alias QuorumWeb.CurrentUser
 
   @impl true
-  def mount(%{"host_token" => token}, _session, socket) do
+  def mount(%{"host_token" => token}, session, socket) do
     case Sessions.get_room_by_host_token(token) do
       {:ok, %{} = room} ->
         if connected?(socket), do: Sessions.subscribe(room.id)
@@ -17,10 +21,13 @@ defmodule QuorumWeb.HostLive do
         socket =
           socket
           |> assign(
+            current_user: CurrentUser.from_session(session),
             room: room,
             search: "",
             selected_id: nil,
             confirming_close: false,
+            renaming: false,
+            status: nil,
             page_title: room.name
           )
           |> load()
@@ -28,7 +35,7 @@ defmodule QuorumWeb.HostLive do
         {:ok, socket}
 
       _ ->
-        {:ok, assign(socket, room: nil, page_title: "Host")}
+        {:ok, assign(socket, room: nil, current_user: nil, page_title: "Host")}
     end
   end
 
@@ -54,6 +61,39 @@ defmodule QuorumWeb.HostLive do
   def handle_event("hide", %{"id" => id}, socket), do: act(socket, id, &Sessions.hide/1)
   def handle_event("restore", %{"id" => id}, socket), do: act(socket, id, &Sessions.restore/1)
 
+  def handle_event("start_rename", _params, socket),
+    do: {:noreply, assign(socket, renaming: true)}
+
+  def handle_event("cancel_rename", _params, socket),
+    do: {:noreply, assign(socket, renaming: false)}
+
+  def handle_event("rename", %{"name" => name}, socket) do
+    case String.trim(name) do
+      "" ->
+        {:noreply, assign(socket, renaming: false)}
+
+      name ->
+        Sessions.rename_room(socket.assigns.room, name)
+        {:noreply, socket |> assign(renaming: false, page_title: name) |> load()}
+    end
+  end
+
+  def handle_event("new_code", _params, socket) do
+    case Sessions.new_join_code(socket.assigns.room) do
+      {:ok, room} ->
+        {:noreply,
+         socket
+         |> assign(room: room, status: "New code. The old one stops working now.")
+         |> load()}
+
+      _ ->
+        {:noreply, assign(socket, status: "Couldn't issue a new code. Try again.")}
+    end
+  end
+
+  def handle_event("copied", _params, socket),
+    do: {:noreply, assign(socket, status: "Student link copied.")}
+
   def handle_event("confirm_close", _params, socket),
     do: {:noreply, assign(socket, confirming_close: true)}
 
@@ -68,11 +108,14 @@ defmodule QuorumWeb.HostLive do
   def handle_event("select", %{"id" => id}, socket),
     do: {:noreply, assign(socket, selected_id: id)}
 
-  # Escape cancels the dialog, and the queue shortcuts stay quiet while it's open.
+  # Escape cancels whatever is open, and the queue shortcuts stay quiet while one is.
   def handle_event("key", %{"key" => "Escape"}, socket),
-    do: {:noreply, assign(socket, confirming_close: false)}
+    do: {:noreply, assign(socket, confirming_close: false, renaming: false)}
 
   def handle_event("key", _params, %{assigns: %{confirming_close: true}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("key", _params, %{assigns: %{renaming: true}} = socket),
     do: {:noreply, socket}
 
   def handle_event("key", %{"key" => key}, socket) do
@@ -169,18 +212,49 @@ defmodule QuorumWeb.HostLive do
   defp votes(1), do: "vote"
   defp votes(_), do: "votes"
 
+  defp qr(code, width),
+    do: ~p"/r/#{code}" |> url() |> EQRCode.encode() |> EQRCode.svg(width: width)
+
+  defp student_url(code), do: url(~p"/r/#{code}")
+
   # The tally under the search field keeps its height when the field is empty.
   defp tally("", _shown, _total), do: ""
 
   defp tally(_term, shown, total),
     do: "Showing #{shown} of #{total} #{if total == 1, do: "question", else: "questions"}"
 
+  # What the room is seeing right now, in one sentence.
+  defp projection_line(nil),
+    do: "Nothing spotlighted, so the room sees the join code and the connected count."
+
+  defp projection_line(question),
+    do: "#{first_words(question.body)}, #{question.vote_count} #{votes(question.vote_count)}."
+
+  defp first_words(body) do
+    case String.split(body, ~r/\s+/) do
+      words when length(words) <= 8 -> body
+      words -> words |> Enum.take(8) |> Enum.join(" ") |> Kernel.<>("...")
+    end
+  end
+
   @impl true
   def render(%{room: nil} = assigns) do
     ~H"""
-    <main style="min-height:100dvh;display:flex;align-items:center;justify-content:center;">
-      <p class="q-meta" style="font-size:16px;">That host link doesn't match a room.</p>
-    </main>
+    <div class="q-page">
+      <QuorumWeb.Shell.header current_user={@current_user} />
+      <main style="flex:1;display:flex;align-items:center;justify-content:center;padding:32px;">
+        <div style="text-align:center;max-width:420px;">
+          <div class="q-label" style="font-size:18px;margin-bottom:6px;">
+            That host link doesn't match a room
+          </div>
+          <p class="q-meta" style="margin:0 0 18px;">
+            The link may be incomplete, or the room may have been deleted.
+          </p>
+          <.link href={~p"/start"} class="q-button">Open a room</.link>
+        </div>
+      </main>
+      <QuorumWeb.Shell.footer />
+    </div>
     """
   end
 
@@ -188,45 +262,121 @@ defmodule QuorumWeb.HostLive do
     ~H"""
     <div class="q-reconnecting">Reconnecting now. The queue is kept.</div>
 
-    <div phx-window-keyup="key" style="min-height:100dvh;">
-      <div style="max-width:1180px;margin:0 auto;">
-        <header style="padding:18px 28px;display:flex;justify-content:space-between;align-items:center;gap:22px;flex-wrap:wrap;">
-          <div>
-            <div class="q-label" style="font-size:18px;">{@room.name}</div>
-            <div class="q-meta">
-              Pick a question to answer. The room sees your pick on the projection.
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:28px;">
-            <div style="text-align:center;">
-              <div style="font:700 22px var(--q-font-sans);">{@connected}</div>
-              <div class="q-meta">connected</div>
-            </div>
-            <div style="text-align:center;">
-              <div style="font:700 22px var(--q-font-sans);">{@question_count}</div>
-              <div class="q-meta">questions</div>
-            </div>
-            <button
-              :if={@room.status == :open}
-              type="button"
-              class="q-button q-button--destructive"
-              phx-click="confirm_close"
-            >
-              Close session
-            </button>
-            <span
-              :if={@room.status == :closed}
-              class="q-meta"
-              style="color:var(--q-destructive);font-weight:600;"
-            >
-              Session closed
-            </span>
-          </div>
-        </header>
-        <hr class="q-divider" />
+    <div class="q-page" phx-window-keyup="key">
+      <QuorumWeb.Shell.header current_user={@current_user} />
 
-        <div style="display:flex;gap:28px;padding:22px 28px 40px;align-items:flex-start;">
-          <section style="flex:1;min-width:0;">
+      <div class="q-room-bar">
+        <div style="min-width:0;">
+          <div class="q-room-title">
+            <h1>{@room.name}</h1>
+            <button :if={!@renaming} type="button" class="q-button--link" phx-click="start_rename">
+              Rename
+            </button>
+          </div>
+          <form
+            :if={@renaming}
+            phx-submit="rename"
+            style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;"
+          >
+            <label class="q-sr-only" for="room-name">Room name</label>
+            <input
+              id="room-name"
+              name="name"
+              class="q-input"
+              value={@room.name}
+              maxlength="200"
+              style="max-width:320px;"
+              onkeyup="event.stopPropagation()"
+              onkeydown="event.stopPropagation()"
+              phx-mounted={JS.focus()}
+            />
+            <button type="submit" class="q-button">Save name</button>
+            <button type="button" class="q-button q-button--secondary" phx-click="cancel_rename">
+              Keep the old one
+            </button>
+          </form>
+          <p :if={!@renaming} class="q-meta" style="margin:6px 0 0;">
+            {if @question_count == 0,
+              do: "Nobody has joined yet. The projection is showing the code.",
+              else: "Pick a question to answer. The room sees your pick on the projection."}
+          </p>
+        </div>
+
+        <div class="q-room-actions">
+          <div class="q-room-stat"><b>{@connected}</b><span>connected</span></div>
+          <div class="q-room-stat"><b>{@question_count}</b><span>questions</span></div>
+          <a
+            href={~p"/host/#{@room.host_token}/project"}
+            target="_blank"
+            rel="noopener"
+            class="q-button"
+          >
+            Open projection
+          </a>
+          <button
+            :if={@room.status == :open}
+            type="button"
+            class="q-button q-button--destructive"
+            phx-click="confirm_close"
+          >
+            Close session
+          </button>
+          <span
+            :if={@room.status == :closed}
+            class="q-meta"
+            style="color:var(--q-destructive);font-weight:600;"
+          >
+            Session closed
+          </span>
+        </div>
+      </div>
+
+      <div class="q-console">
+        <main class="q-console-main">
+          <%= if @question_count == 0 do %>
+            <section class="q-join-panel">
+              <div class="q-join-qr">{raw(qr(@room.join_code, 150))}</div>
+              <div style="min-width:0;">
+                <p class="q-meta" style="font-size:15px;margin:0;">
+                  Students join at quorum.app/join with
+                </p>
+                <p class="q-code">{@room.join_code}</p>
+                <div class="q-join-actions">
+                  <button
+                    type="button"
+                    class="q-button q-button--secondary"
+                    phx-click={
+                      JS.dispatch("quorum:copy", detail: %{text: student_url(@room.join_code)})
+                    }
+                  >
+                    Copy student link
+                  </button>
+                  <button type="button" class="q-button q-button--secondary" phx-click="new_code">
+                    New code
+                  </button>
+                </div>
+                <p class="q-status" aria-live="polite">{@status}</p>
+              </div>
+            </section>
+          <% else %>
+            <section class="q-join-strip">
+              <div class="q-join-qr">{raw(qr(@room.join_code, 46))}</div>
+              <div style="flex:1;min-width:0;">
+                <p class="q-meta" style="margin:0;">Still joining at quorum.app/join</p>
+                <p class="q-code">{@room.join_code}</p>
+              </div>
+              <button
+                type="button"
+                class="q-button q-button--secondary"
+                phx-click={JS.dispatch("quorum:copy", detail: %{text: student_url(@room.join_code)})}
+              >
+                Copy student link
+              </button>
+            </section>
+            <p class="q-status" aria-live="polite">{@status}</p>
+          <% end %>
+
+          <div :if={@question_count > 0}>
             <label class="q-sr-only" for="search">Search questions</label>
             <input
               id="search"
@@ -242,29 +392,39 @@ defmodule QuorumWeb.HostLive do
             <p class="q-status" aria-live="polite">
               {tally(@search, length(@waiting), @visible_count)}
             </p>
+          </div>
 
-            <div class="q-label" style="margin:10px 0 12px;">Waiting, {length(@waiting)}</div>
+          <div :if={@question_count == 0} class="q-panel">
+            <div class="q-label" style="font-size:17px;margin-bottom:6px;">No questions yet</div>
+            <p class="q-meta" style="margin:0;">
+              Questions appear here the moment a student posts one, sorted by votes. Search and the
+              answered list turn up with the first one.
+            </p>
+          </div>
 
-            <div :if={@waiting == []} class="q-meta" style="padding:12px 0 22px;">
-              {if String.trim(@search) == "",
-                do: "No questions waiting.",
-                else: "No questions match that search."}
-            </div>
+          <div :if={@question_count > 0}>
+            <div class="q-label" style="margin-bottom:12px;">Waiting, {length(@waiting)}</div>
 
-            <div
-              :for={q <- @waiting}
-              phx-click="select"
-              phx-value-id={q.id}
-              class="q-surface"
-              style={row_style(spotlighted?(@spotlight, q.id), q.id == @selected_id)}
-            >
-              <div style="display:flex;gap:18px;align-items:flex-start;">
-                <div style="text-align:center;min-width:44px;flex:none;">
-                  <div style="font:700 26px var(--q-font-sans);">{q.vote_count}</div>
-                  <div class="q-meta">{votes(q.vote_count)}</div>
+            <p :if={@waiting == []} class="q-meta" style="padding:4px 0 12px;">
+              No questions match that search.
+            </p>
+
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div
+                :for={q <- @waiting}
+                phx-click="select"
+                phx-value-id={q.id}
+                class={[
+                  "q-queue-row",
+                  spotlighted?(@spotlight, q.id) && "q-queue-row--spotlit",
+                  q.id == @selected_id && !spotlighted?(@spotlight, q.id) && "q-queue-row--selected"
+                ]}
+              >
+                <div class="q-queue-votes">
+                  <b>{q.vote_count}</b><span>{votes(q.vote_count)}</span>
                 </div>
                 <div style="flex:1;min-width:0;">
-                  <p class="q-question" style="font-size:17px;">{q.body}</p>
+                  <p class="q-question" style="margin:0;">{q.body}</p>
                   <div
                     :if={spotlighted?(@spotlight, q.id)}
                     class="q-status q-status--saved"
@@ -276,7 +436,7 @@ defmodule QuorumWeb.HostLive do
                     {asker(q)}, {clock(q.inserted_at)}
                   </div>
                 </div>
-                <div style="display:grid;grid-auto-flow:column;gap:10px;flex:none;align-items:start;">
+                <div class="q-queue-actions">
                   <button
                     :if={!spotlighted?(@spotlight, q.id)}
                     type="button"
@@ -305,18 +465,16 @@ defmodule QuorumWeb.HostLive do
                 </div>
               </div>
             </div>
+          </div>
 
-            <div :if={@answered != []} style="margin-top:22px;">
-              <div class="q-label" style="margin-bottom:12px;">Answered, {length(@answered)}</div>
-              <div
-                :for={q <- @answered}
-                class="q-surface"
-                style="padding:16px 18px;margin-bottom:12px;display:flex;gap:18px;align-items:center;"
-              >
-                <div style="font:700 22px var(--q-font-sans);min-width:44px;text-align:center;color:var(--q-ink-muted);flex:none;">
-                  {q.vote_count}
+          <div :if={@answered != []}>
+            <div class="q-label" style="margin-bottom:12px;">Answered, {length(@answered)}</div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div :for={q <- @answered} class="q-queue-row">
+                <div class="q-queue-votes" style="color:var(--q-ink-muted);">
+                  <b>{q.vote_count}</b>
                 </div>
-                <p class="q-question" style="flex:1;min-width:0;font-size:17px;">{q.body}</p>
+                <p class="q-question" style="flex:1;min-width:0;margin:0;">{q.body}</p>
                 <span class="q-meta" style="flex:none;">Answered {clock(q.updated_at)}</span>
                 <button
                   type="button"
@@ -329,58 +487,75 @@ defmodule QuorumWeb.HostLive do
                 </button>
               </div>
             </div>
-          </section>
+          </div>
 
-          <aside class="q-surface" style="width:320px;flex:none;padding:20px;">
-            <div class="q-label" style="margin-bottom:10px;">On the projection now</div>
-            <%= if @spotlight do %>
-              <p class="q-question" style="font-size:17px;">{@spotlight.body}</p>
-              <div class="q-meta" style="margin:8px 0 14px;">
-                {asker(@spotlight)}, {@spotlight.vote_count} {votes(@spotlight.vote_count)}
+          <section class="q-panel q-panel--split">
+            <div style="min-width:0;">
+              <div class="q-label" style="font-size:17px;margin-bottom:6px;">
+                Attach a reading list
               </div>
-              <button type="button" class="q-button q-button--secondary" phx-click="clear_spotlight">
-                Clear the spotlight
-              </button>
-            <% else %>
-              <p class="q-meta" style="margin-bottom:14px;">
-                Nothing is on the projection. Spotlight a question to show it.
+              <p class="q-meta" style="margin:0;">
+                Point students at approved readings while they wait for you.
               </p>
-            <% end %>
+            </div>
+            <div>
+              <button type="button" class="q-button q-button--secondary" disabled="disabled">
+                Choose a list
+              </button>
+              <p class="q-meta" style="margin:6px 0 0;max-width:26ch;">
+                Turns on once reading lists ship.
+              </p>
+            </div>
+          </section>
+        </main>
 
-            <hr class="q-divider" style="margin:22px 0;" />
-
-            <div class="q-label" style="margin-bottom:6px;">Projection screen</div>
-            <p class="q-meta" style="margin-bottom:12px;">
-              Open it on the projector, then leave this window open.
+        <aside class="q-console-rail">
+          <div class="q-rail-block">
+            <h2>On the projection now</h2>
+            <p>
+              {projection_line(@spotlight)}
+              <span :if={@spotlight}>Press <strong>Q</strong> on the projection to clear it.</span>
             </p>
-            <a
-              href={~p"/host/#{@room.host_token}/project"}
-              target="_blank"
-              rel="noopener"
+            <button
+              :if={@spotlight}
+              type="button"
               class="q-button q-button--secondary"
+              style="margin-top:12px;"
+              phx-click="clear_spotlight"
             >
-              Open projection view
-            </a>
+              Clear the spotlight
+            </button>
+          </div>
 
-            <hr class="q-divider" style="margin:22px 0;" />
+          <div class="q-rail-block">
+            <h2>Before you start</h2>
+            <div class="q-rail-lines">
+              <div>Put the projection on the screen behind you.</div>
+              <div>Say the code out loud once.</div>
+              <div>Take the top questions at a pause.</div>
+            </div>
+          </div>
 
-            <div class="q-label" style="margin-bottom:8px;">Keyboard</div>
-            <div class="q-meta" style="line-height:1.7;">
+          <div class="q-rail-block">
+            <h2>Keyboard</h2>
+            <div class="q-rail-lines">
               <div><strong>J</strong> and <strong>K</strong> move down and up the queue</div>
               <div><strong>Enter</strong> spotlights the selected question</div>
               <div><strong>A</strong> marks it answered</div>
               <div><strong>H</strong> hides it from students</div>
             </div>
-          </aside>
-        </div>
+          </div>
+        </aside>
       </div>
+
+      <QuorumWeb.Shell.footer />
 
       <div
         :if={@confirming_close}
         role="dialog"
         aria-modal="true"
         aria-labelledby="close-dialog-title"
-        style="position:fixed;inset:0;background:rgba(20,23,26,0.45);display:flex;align-items:center;justify-content:center;padding:22px;"
+        style="position:fixed;inset:0;background:rgba(20,23,26,0.45);display:flex;align-items:center;justify-content:center;padding:22px;z-index:40;"
       >
         <div
           class="q-surface"
@@ -392,7 +567,7 @@ defmodule QuorumWeb.HostLive do
           <p class="q-meta" style="margin-bottom:20px;">
             Students won't be able to post or vote after this. Answered questions stay visible.
           </p>
-          <div style="display:flex;justify-content:flex-end;gap:12px;">
+          <div style="display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap;">
             <button
               type="button"
               class="q-button q-button--secondary"
@@ -409,18 +584,5 @@ defmodule QuorumWeb.HostLive do
       </div>
     </div>
     """
-  end
-
-  defp row_style(spotlighted?, selected?) do
-    base = "display:block;padding:16px 18px;margin-bottom:12px;cursor:pointer;"
-
-    accent =
-      cond do
-        spotlighted? -> "border-color:var(--q-accent);background:var(--q-accent-tint);"
-        selected? -> "box-shadow:0 0 0 2px var(--q-accent);"
-        true -> ""
-      end
-
-    base <> accent
   end
 end

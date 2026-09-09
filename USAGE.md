@@ -1,6 +1,6 @@
 # Quorum usage
 
-Last updated: 2026-09-09 19:45:00 UTC
+Last updated: 2026-09-09 20:50:00 UTC
 
 Quorum runs one lecture at a time as a room. A lecturer opens the room, projects it, and answers the questions students rank from their seats.
 
@@ -50,6 +50,8 @@ That prints the demo lecture's join code and its three links, seeding the room i
 | Screen | Route | Who opens it |
 |---|---|---|
 | Landing | `/` | Anyone |
+| Sign in | `/sign-in` | Lecturers, optional |
+| Your rooms | `/rooms` | Signed-in lecturers |
 | Demo lecture | `/demo`, `/demo/host`, `/demo/project` | Anyone, in any of the three roles |
 | Join | `/join` | Students without the QR code |
 | Student feed | `/r/:code` | Students, usually by scanning |
@@ -58,7 +60,17 @@ That prints the demo lecture's join code and its three links, seeding the room i
 
 `GET /start` opens a new room and redirects to its console. The host token in that URL is the only credential, so treat the console link as private and project only the `/project` page.
 
+### Signing in
+
+Sign-in is for lecturers, and it's optional: `/start` opens a room without one, and the host link works either way. Signing in adds `/rooms`, a list of the rooms you opened.
+
+Enter a work email at `/sign-in` and Quorum sends a single-use link that expires in 15 minutes. Asking again within 30 seconds sends nothing, and the screen says how long is left. In development the email goes to the local mailbox at `/dev/mailbox` instead of out to the internet.
+
+Single sign-on appears on the page but is disabled, with microcopy saying what turns it on: an institution's provider being connected.
+
 ### Host console
+
+The room bar carries the room's name with a Rename control, the live counts, Open projection, and Close session. While nobody has posted, the joining panel takes the space with the QR code, the join code, Copy student link, and New code. New code issues a fresh one and the old code stops working, for a code shown to the wrong room. Once a question arrives the panel shrinks to a strip and the queue takes over.
 
 The queue is ranked by votes, oldest first within a tie. Each row carries three controls: **Spotlight** puts the question on the projection, **Mark answered** moves it to the answered list and closes voting on it, and **Hide** takes it off both lists. Answered questions can be reopened.
 

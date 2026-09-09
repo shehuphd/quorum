@@ -1,0 +1,39 @@
+<div class="q-page">
+  <QuorumWeb.Shell.header variant={:guest} />
+
+  <div class="q-signin">
+    <section class="q-signin-brand">
+      <QuorumWeb.Brand.logo on_dark size={24} />
+      <h2>Open a room and answer the top questions.</h2>
+      <p>Create a room and augment your lectures today.</p>
+    </section>
+
+    <section class="q-signin-form">
+      <div class="q-signin-form-inner">
+        <h1>Check your email</h1>
+        <p class="q-signin-lead">
+          A sign-in link is on its way to <strong>{@email}</strong>. It expires in {Quorum.Accounts.link_ttl_minutes()} minutes.
+        </p>
+
+        <form action={~p"/sign-in"} method="post">
+          <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+          <input type="hidden" name="email" value={@email} />
+          <button type="submit" class="q-button q-button--secondary">Send it again</button>
+        </form>
+        <p class="q-meta" style="margin:8px 0 0;">
+          <span :if={@cooldown > 0}>
+            You can ask for a new link in <strong>{@cooldown} seconds</strong>.
+          </span>
+          <span :if={@cooldown == 0}>You can ask for a new link now.</span>
+        </p>
+
+        <hr class="q-signin-rule" />
+        <p class="q-meta" style="margin:0;">
+          Wrong address? <.link navigate={~p"/sign-in"} class="q-button--link">Use a different one</.link>.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <QuorumWeb.Shell.footer />
+</div>

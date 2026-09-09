@@ -22,4 +22,8 @@ All notable changes to Quorum are recorded here, dated per release.
 - `mix quorum.demo` opens or reseeds that lecture and prints its links.
 - The projection's QR card is framed with a hairline in a lit hall, where white on near-white has no edge of its own.
 - **L** and **D** each toggle the hall light, rather than each setting one state.
+- Lecturer accounts and magic-link sign-in at `/sign-in`, with single-use links, a fifteen-minute expiry, and a thirty-second cooldown between requests. Single sign-on is drawn but disabled until an institution's provider is connected.
+- `/rooms` lists a lecturer's own rooms. A room opened while signed in belongs to them; `/host/:host_token` keeps working as before, with or without an account.
+- The host console is a full page: site shell, room bar with rename and a fresh join code, the joining panel that shrinks to a strip once questions arrive, and a rail carrying the projection state, the pre-lecture checklist, and the keyboard map.
+- Every page is checked at 375px, 768px, and 1280px, and none of them scrolls sideways.
 - LiveView test suite over all four screens, covering ranking, voting, spotlight, search, the close dialog, keyboard shortcuts, and live arrival of questions.

@@ -1,0 +1,45 @@
+<div class="q-page">
+  <QuorumWeb.Shell.header current_user={@current_user} />
+
+  <div class="q-room-bar">
+    <div class="q-room-title">
+      <h1>Your rooms</h1>
+    </div>
+    <div class="q-room-actions">
+      <.link href={~p"/start"} class="q-button">Open a room</.link>
+    </div>
+  </div>
+
+  <main style="flex:1;padding:8px 32px 40px;border-top:1px solid var(--q-hairline);">
+    <div style="max-width:900px;margin:24px auto 0;display:flex;flex-direction:column;gap:14px;">
+      <div :if={@rooms == []} class="q-panel" style="text-align:center;padding:34px;">
+        <div class="q-label" style="font-size:17px;margin-bottom:6px;">No rooms yet</div>
+        <p class="q-meta" style="margin:0 0 18px;">
+          Open one and project its code to take questions from the hall.
+        </p>
+        <.link href={~p"/start"} class="q-button">Open a room</.link>
+      </div>
+
+      <div :for={room <- @rooms} class="q-panel q-panel--split">
+        <div style="min-width:0;">
+          <div class="q-label" style="font-size:17px;">{room.name}</div>
+          <p class="q-meta" style="margin:4px 0 0;">
+            Code {room.join_code}, {room.question_count} {if room.question_count == 1,
+              do: "question",
+              else: "questions"}, {if room.status == :open, do: "open", else: "closed"}
+          </p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <.link navigate={~p"/host/#{room.host_token}"} class="q-button q-button--secondary">
+            Open console
+          </.link>
+          <.link href={~p"/host/#{room.host_token}/project"} class="q-button q-button--secondary">
+            Projection
+          </.link>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <QuorumWeb.Shell.footer />
+</div>

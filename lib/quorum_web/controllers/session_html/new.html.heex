@@ -1,0 +1,65 @@
+<div class="q-page">
+  <QuorumWeb.Shell.header variant={:guest} />
+
+  <div class="q-signin">
+    <section class="q-signin-brand">
+      <QuorumWeb.Brand.logo on_dark size={24} />
+      <h2>Open a room and answer the top questions.</h2>
+      <p>Create a room and augment your lectures today.</p>
+    </section>
+
+    <section class="q-signin-form">
+      <div class="q-signin-form-inner">
+        <h1>Sign in</h1>
+        <p class="q-signin-lead">Use your university account or get a link via email.</p>
+
+        <button
+          type="button"
+          class="q-button"
+          style="width:100%;"
+          disabled="disabled"
+          aria-describedby="sso-note"
+        >
+          Continue with your university account
+        </button>
+        <p id="sso-note" class="q-meta" style="margin:8px 0 0;">
+          Single sign-on turns on once your institution's provider is connected. Use the email link
+          below in the meantime.
+        </p>
+
+        <div class="q-or">or</div>
+
+        <form action={~p"/sign-in"} method="post">
+          <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+          <label class="q-label" for="email" style="display:block;margin-bottom:8px;">Work email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            class="q-input"
+            value={@email}
+            required
+            autocomplete="email"
+            placeholder="a.adeyemi@university.ac.uk"
+          />
+          <p :if={@error} class="q-status" style="color:var(--q-destructive);">{@error}</p>
+          <button type="submit" class="q-button q-button--secondary" style="margin-top:12px;">
+            Email me a sign-in link
+          </button>
+          <p class="q-meta" style="margin:8px 0 0;">
+            Single-use link, and it expires after {Quorum.Accounts.link_ttl_minutes()} minutes.
+          </p>
+        </form>
+
+        <hr class="q-signin-rule" />
+        <p class="q-meta" style="margin:0;">
+          Students:
+          <.link navigate={~p"/join"} class="q-button--link">Join a lecture with a code</.link>
+          instead.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <QuorumWeb.Shell.footer />
+</div>

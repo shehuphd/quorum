@@ -5,6 +5,7 @@ defmodule QuorumWeb.Router do
     plug :accepts, ["html"]
     plug :fetch_session
     plug QuorumWeb.BrowserToken
+    plug QuorumWeb.CurrentUser
     plug :fetch_live_flash
     plug :put_root_layout, html: {QuorumWeb.Layouts, :root}
     plug :protect_from_forgery
@@ -23,6 +24,14 @@ defmodule QuorumWeb.Router do
     get "/demo", DemoController, :student
     get "/demo/host", DemoController, :host
     get "/demo/project", DemoController, :project
+
+    get "/sign-in", SessionController, :new
+    post "/sign-in", SessionController, :create
+    get "/sign-in/sent", SessionController, :sent
+    get "/sign-in/:token", SessionController, :claim
+    delete "/sign-out", SessionController, :delete
+
+    get "/rooms", RoomController, :index
     live "/join", JoinLive, :index
     live "/r/:code", AttendeeLive, :show
     live "/host/:host_token", HostLive, :show

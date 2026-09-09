@@ -12,13 +12,15 @@ Quorum is a live classroom engagement tool for university lectures. Students joi
 
 Four screens make up the product. The projection and the console belong to the lecturer, behind a secret host token. The join screen and the student feed are public to anyone holding the five-character code.
 
+Lecturer accounts are optional and sit beside the host token rather than replacing it: a room opened while signed in belongs to that lecturer and appears in their list, and every host link keeps working with or without an account. Students never have an account at all.
+
 A landing page at `/` fronts all of it, and a seeded demo lecture behind `/demo`, `/demo/host`, and `/demo/project` opens the same room in each of the three roles, so the product can be looked at without a lecture to run.
 
 ### Technical stack
 
 - Elixir on the BEAM (Erlang VM)
 - Phoenix web framework, with LiveView for all four screens and a plain controller for the landing page
-- Ash for the domain layer, resources grouped under `Quorum.Sessions`
+- Ash for the domain layer, resources grouped under `Quorum.Sessions` and `Quorum.Accounts`
 - Ecto with PostgreSQL for persistence, through `Quorum.Repo` (an `AshPostgres.Repo`)
 - Phoenix.PubSub (`Quorum.PubSub`) for live updates, driven by an Ash notifier
 - Phoenix.Presence for the connected-student count
@@ -63,11 +65,18 @@ The lecturer's actions take the same path. Spotlighting a question writes the pi
 | PubSub message missed, or a viewer joins late | The broadcast names the room, not a delta, so a reload reconstructs the correct state; a missed message costs at most one stale render until the next change |
 | Websocket drops | LiveView reconnects and remounts; the student's unsent draft is held in the LiveView's own assigns and comes back with it |
 | The demo room is closed or missing | `Demo.ensure_room/0` seeds a new one on the next visit, so `/demo` never reaches a dead link. The landing page reads without seeding, so a page view never writes |
+| A sign-in link is clicked twice | The first click spends it; the second says the link has been used, told apart from one that never existed because spent tokens are kept rather than deleted |
+| A sign-in link is clicked after 15 minutes | It's refused as expired, with a control to ask for another |
+| Someone asks for link after link | A 30-second cooldown returns the same "check your email" screen and sends nothing, so the address can't be mailed repeatedly |
+| An address is probed to see who has an account | The screen after a request reads the same whether or not the address was known |
+| A lecturer's account is deleted | `rooms.owner_id` is nilified rather than cascading, so their rooms stay reachable by host link instead of disappearing |
 | Database unreachable | Ash returns a transport error from the action; nothing is silently swallowed |
 
 ### Observability
 
 - Ecto logs every query with timings in dev, so the SQL a run issued is visible without adding print statements
 - The ExUnit suite drives every resource action against a live database, and the LiveView suite drives all four screens through `Phoenix.LiveViewTest`, asserting the rendered outcome rather than internal state
+- Sign-in emails land in the local mailbox at `/dev/mailbox` in development, so the link is readable without a mail provider
+- Every page is measured at 375px, 768px, and 1280px, asserting `scrollWidth <= clientWidth`, rather than eyeballed
 - `Phoenix.LiveDashboard` is mounted for process, memory, and query inspection
 - Telemetry handlers that record each handler's decision arrive when there are decisions to record; today every screen's state is one reload of the same query, which the query log already shows

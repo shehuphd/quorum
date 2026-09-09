@@ -19,6 +19,8 @@ defmodule Quorum.Sessions.Room do
     references do
       # If a spotlighted question is deleted, the projection just goes dark.
       reference :spotlight_question, on_delete: :nilify
+      # A room outlives the lecturer's account; its host_token still opens it.
+      reference :owner, on_delete: :nilify
     end
   end
 
@@ -28,13 +30,24 @@ defmodule Quorum.Sessions.Room do
 
     create :open do
       description("Open a new room. The caller keeps the returned host_token.")
-      accept([:name, :auto_close_at, :demo?])
+      accept([:name, :auto_close_at, :demo?, :owner_id])
     end
 
     update :close do
       description("Close the room to new questions and votes.")
       accept([])
       change(set_attribute(:status, :closed))
+    end
+
+    update :rename do
+      description("Change the room's name. The join code and host token are untouched.")
+      accept([:name])
+    end
+
+    update :new_code do
+      description("Issue a fresh join code, so a code shown to the wrong room stops working.")
+      accept([])
+      change(set_attribute(:join_code, &Quorum.Sessions.Codes.join_code/0))
     end
 
     update :spotlight do
@@ -97,6 +110,13 @@ defmodule Quorum.Sessions.Room do
 
   relationships do
     has_many :questions, Quorum.Sessions.Question
+
+    # The lecturer who opened it, when they were signed in. Rooms opened from
+    # /start without an account have no owner and are reached by host_token only.
+    belongs_to :owner, Quorum.Accounts.User do
+      allow_nil?(true)
+      attribute_writable?(true)
+    end
 
     # The question currently on the projection, if any.
     belongs_to :spotlight_question, Quorum.Sessions.Question do

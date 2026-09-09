@@ -1,0 +1,21 @@
+<div class="q-page">
+  <QuorumWeb.Shell.header variant={:guest} />
+
+  <div class="q-signin">
+    <section class="q-signin-brand">
+      <QuorumWeb.Brand.logo on_dark size={24} />
+      <h2>Open a room and answer the top questions.</h2>
+      <p>Create a room and augment your lectures today.</p>
+    </section>
+
+    <section class="q-signin-form">
+      <div class="q-signin-form-inner">
+        <h1>{title(@reason)}</h1>
+        <p class="q-signin-lead">{explain(@reason)}</p>
+        <.link navigate={~p"/sign-in"} class="q-button">Ask for a new link</.link>
+      </div>
+    </section>
+  </div>
+
+  <QuorumWeb.Shell.footer />
+</div>
