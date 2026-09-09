@@ -1,6 +1,6 @@
 defmodule Quorum.Sessions.Room do
   @moduledoc """
-  A live session: one lecture, all-hands, or stream. Students join it by its
+  One live session: a class, an all-hands, or a stream. Students join it by its
   `join_code` (also encoded in the projected QR); whoever holds the `host_token`
   gets the host view.
   """
@@ -19,7 +19,7 @@ defmodule Quorum.Sessions.Room do
     references do
       # If a spotlighted question is deleted, the projection just goes dark.
       reference :spotlight_question, on_delete: :nilify
-      # A room outlives the lecturer's account; its host_token still opens it.
+      # A room outlives the presenter's account; its host_token still opens it.
       reference :owner, on_delete: :nilify
     end
   end
@@ -195,9 +195,9 @@ defmodule Quorum.Sessions.Room do
       default(true)
     end
 
-    # Questions outlive the lecture by default. A term of them is what tells a
-    # lecturer which material didn't land, so they're the record the room is
-    # for. A lecturer who'd rather not keep them turns this off, and closing
+    # Questions outlive the session by default. A term of them is what tells a
+    # presenter which material didn't land, so they're the record the room is
+    # for. A presenter who'd rather not keep them turns this off, and closing
     # the session takes them.
     attribute :keep_questions?, :boolean do
       allow_nil?(false)
@@ -205,8 +205,8 @@ defmodule Quorum.Sessions.Room do
       default(true)
     end
 
-    # Moderation. Off is post-hoc: a question appears, and the lecturer can hide
-    # it. On holds every question until the lecturer approves it.
+    # Moderation. Off is post-hoc: a question appears, and the presenter can hide
+    # it. On holds every question until the presenter approves it.
     attribute :hold_for_review?, :boolean do
       allow_nil?(false)
       public?(true)
@@ -239,7 +239,7 @@ defmodule Quorum.Sessions.Room do
     end
 
     # A demo room is the one the landing page points at, so anyone can look at
-    # the product without opening a lecture of their own.
+    # the product without opening a session of their own.
     attribute :demo?, :boolean do
       allow_nil?(false)
       public?(true)
@@ -254,7 +254,7 @@ defmodule Quorum.Sessions.Room do
     has_many :questions, Quorum.Sessions.Question
     has_many :readings, Quorum.Sessions.Reading
 
-    # The lecturer who opened it, when they were signed in. Rooms opened from
+    # The presenter who opened it, when they were signed in. Rooms opened from
     # /start without an account have no owner and are reached by host_token only.
     belongs_to :owner, Quorum.Accounts.User do
       allow_nil?(true)

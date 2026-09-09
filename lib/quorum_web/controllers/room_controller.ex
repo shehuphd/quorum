@@ -1,8 +1,8 @@
 defmodule QuorumWeb.RoomController do
   @moduledoc """
-  Opening a room, and the list of a lecturer's own.
+  Opening a room, and the list of a presenter's own.
 
-  A room opened while signed in belongs to that lecturer and shows up in their
+  A room opened while signed in belongs to that presenter and shows up in their
   list. One opened without an account has no owner and is reached only by the
   host link, which is what `/start` has always done.
   """
@@ -12,7 +12,7 @@ defmodule QuorumWeb.RoomController do
 
   def create(conn, params) do
     name = params |> Map.get("name", "") |> String.trim()
-    name = if name == "", do: "New lecture", else: name
+    name = if name == "", do: "New session", else: name
     owner = conn.assigns[:current_user]
 
     case Sessions.open_room(name, owner_id: owner && owner.id) do

@@ -39,7 +39,7 @@ defmodule QuorumWeb.Shell do
       </nav>
 
       <div :if={@variant == :guest} class="q-shell-nav">
-        <span class="q-shell-aside">Joining a lecture as a student?</span>
+        <span class="q-shell-aside">Joining a session as a student?</span>
         <.link navigate={~p"/join"} class="q-button q-button--secondary">Enter a code</.link>
       </div>
     </header>

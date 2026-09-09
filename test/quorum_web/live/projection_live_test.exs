@@ -107,11 +107,11 @@ defmodule QuorumWeb.ProjectionLiveTest do
     {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/project")
     assert html =~ "No questions yet"
 
-    question(room, "First of the lecture")
+    question(room, "First of the session")
 
     assert squish(render(view)) =~ "<strong>1</strong> question asked"
 
-    question(room, "Second of the lecture")
+    question(room, "Second of the session")
 
     assert squish(render(view)) =~ "<strong>2</strong> questions asked"
   end

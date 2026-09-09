@@ -7,7 +7,7 @@ defmodule QuorumWeb.JoinLiveTest do
   test "shows the code field with a visible label", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/join")
 
-    assert html =~ "Join the lecture"
+    assert html =~ "Join the session"
     assert html =~ ~s(for="code")
     assert html =~ ~s(id="code")
   end
@@ -23,7 +23,7 @@ defmodule QuorumWeb.JoinLiveTest do
 
     html = view |> form("form", %{"code" => "ZZZZZ"}) |> render_submit()
 
-    assert html =~ "No lecture uses the code ZZZZZ."
+    assert html =~ "No session uses the code ZZZZZ."
   end
 
   test "a known code navigates to that room, however it was typed", %{conn: conn} do

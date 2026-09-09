@@ -5,7 +5,7 @@ defmodule Quorum.AccountsTest do
   alias Quorum.Accounts.LoginToken
 
   describe "requesting a link" do
-    test "registers a lecturer the first time and reuses them after" do
+    test "registers a presenter the first time and reuses them after" do
       {:ok, first, _} = Accounts.request_link("a.adeyemi@university.ac.uk")
       expire_cooldown(first)
       {:ok, again, _} = Accounts.request_link("a.adeyemi@university.ac.uk")
@@ -46,7 +46,7 @@ defmodule Quorum.AccountsTest do
   end
 
   describe "claiming a link" do
-    test "signs the lecturer in, once" do
+    test "signs the presenter in, once" do
       {:ok, user, token} = Accounts.request_link("a.adeyemi@university.ac.uk")
 
       assert {:ok, claimed} = Accounts.claim_link(token.token)
@@ -75,7 +75,7 @@ defmodule Quorum.AccountsTest do
       assert used
     end
 
-    test "one lecturer's link never signs in another" do
+    test "one presenter's link never signs in another" do
       {:ok, _mine, mine} = Accounts.request_link("a.adeyemi@university.ac.uk")
       {:ok, theirs_user, _} = Accounts.request_link("b.okafor@university.ac.uk")
 
@@ -94,7 +94,7 @@ defmodule Quorum.AccountsTest do
     end
   end
 
-  # Push a lecturer's links back past the cooldown window. The resource has no
+  # Push a presenter's links back past the cooldown window. The resource has no
   # action for rewriting a timestamp, and shouldn't, so the test writes the
   # column directly rather than widening the production surface.
   defp expire_cooldown(user) do

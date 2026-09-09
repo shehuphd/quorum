@@ -4,7 +4,7 @@
       <QuorumWeb.Brand.logo size={24} />
       <div class="q-l-nav-links">
         <a href="#how-it-works">How it works</a>
-        <a href="#for-lecturers">For lecturers</a>
+        <a href="#for-presenters">For presenters</a>
         <.link href={~p"/start"} class="q-button q-button--ink">Start a room</.link>
       </div>
     </nav>
@@ -15,9 +15,9 @@
   <div class="q-l-shell">
     <section class="q-l-hero">
       <div>
-        <h1>Take live questions during lectures.</h1>
+        <h1>Take live questions from the room.</h1>
         <p class="q-l-hero-sub">
-          Project a code, have students post and vote from their seats, and answer the top questions.
+          Project a code, have your audience post and vote from their seats, and answer the top questions.
         </p>
 
         <div class="q-l-code-card">
@@ -33,7 +33,7 @@
               spellcheck="false"
               placeholder={@demo.code}
             />
-            <button type="submit" class="q-button">Join a lecture</button>
+            <button type="submit" class="q-button">Join a session</button>
           </form>
           <p class="q-meta">No account. You remain anonymous unless you choose otherwise.</p>
         </div>
@@ -98,7 +98,7 @@
       </div>
       <div class="q-l-demo-actions">
         <.link href={~p"/demo"} class="q-button">Join as a student</.link>
-        <.link href={~p"/demo/host"} class="q-button q-button--secondary">Join as a lecturer</.link>
+        <.link href={~p"/demo/host"} class="q-button q-button--secondary">Join as a presenter</.link>
         <.link href={~p"/demo/project"} class="q-button q-button--secondary">
           Open the projection
         </.link>
@@ -157,7 +157,7 @@
   </div>
 </div>
 
-<div class="q-l-band" id="for-lecturers">
+<div class="q-l-band" id="for-presenters">
   <div class="q-l-shell">
     <section class="q-l-section">
       <div class="q-l-cols q-l-cols--two">
@@ -174,7 +174,7 @@
           <ul>
             <li>No student accounts, roster upload, or install needed.</li>
             <li>Close rooms at a set time or keep them open longer.</li>
-            <li>Questions and answers remain readable afterwards.</li>
+            <li>Questions are kept after the session, so a term of them reads back.</li>
           </ul>
         </div>
       </div>
@@ -191,7 +191,7 @@
       </div>
       <div class="q-l-cta-actions">
         <.link href={~p"/start"} class="q-button">Start a room</.link>
-        <.link href={~p"/demo"} class="q-button q-button--secondary">See a demo lecture</.link>
+        <.link href={~p"/demo"} class="q-button q-button--secondary">See a demo session</.link>
       </div>
     </section>
   </div>

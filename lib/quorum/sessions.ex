@@ -2,7 +2,7 @@ defmodule Quorum.Sessions do
   @moduledoc """
   The live-session domain: rooms students join, the questions they post, and the
   votes that rank them. Audience-neutral by design, so the same resources serve
-  lectures now and other live audiences later.
+  university teaching now and any other live audience later.
 
   This module also holds the read and command helpers the LiveViews call, so the
   web layer never builds Ash changesets or queries by hand.
@@ -42,7 +42,7 @@ defmodule Quorum.Sessions do
     Room |> Ash.Changeset.for_create(:open, attrs) |> Ash.create()
   end
 
-  # A lecturer who moderates one lecture usually moderates the next, so a new
+  # A presenter who moderates one session usually moderates the next, so a new
   # room starts where their last preference left it. A room with no owner has
   # nowhere to have remembered one.
   defp moderates_by_default?(nil), do: false
@@ -58,7 +58,7 @@ defmodule Quorum.Sessions do
   Close a room to new questions and votes.
 
   The questions stay unless the room says otherwise. A term of them is what
-  tells a lecturer which material didn't land, so keeping them is the point of
+  tells a presenter which material didn't land, so keeping them is the point of
   the room rather than a default nobody chose. A room with `keep_questions?`
   off has them deleted here, with their votes, and there's no undo.
   """
@@ -106,7 +106,7 @@ defmodule Quorum.Sessions do
   def get_room_by_host_token(token) when is_binary(token),
     do: Room |> Ash.Query.filter(host_token == ^token) |> Ash.read_one()
 
-  @doc "Every room a lecturer owns, newest first."
+  @doc "Every room a presenter owns, newest first."
   def list_rooms(owner_id) do
     Room
     |> Ash.Query.filter(owner_id == ^owner_id)
@@ -216,7 +216,7 @@ defmodule Quorum.Sessions do
     do: waiting_count(room.id, token) >= room.questions_per_student
 
   # A student's own questions still in play. Answered and hidden ones don't count
-  # against them, so a busy lecture doesn't lock out someone who's been answered.
+  # against them, so a busy session doesn't lock out someone who's been answered.
   defp waiting_count(room_id, token) do
     Question
     |> Ash.Query.filter(
@@ -231,7 +231,7 @@ defmodule Quorum.Sessions do
   @doc """
   Why this room's moderation would hold this question, or `nil` to let it pass.
 
-  Four triggers, checked in the order a lecturer would explain them. Each one
+  Four triggers, checked in the order a presenter would explain them. Each one
   holds; none refuses, so the cost of a false positive is a wait.
 
     * `:room` the room holds everything
@@ -277,7 +277,7 @@ defmodule Quorum.Sessions do
     end)
   end
 
-  # Extensions that read as a domain but aren't one. A lecture on Node.js
+  # Extensions that read as a domain but aren't one. A session on Node.js
   # shouldn't hold every question that names it.
   @not_a_domain ~w(js ts py rb ex exs go rs md json html css sh yml yaml txt csv pdf png jpg)
 
@@ -347,7 +347,7 @@ defmodule Quorum.Sessions do
   @doc """
   Split a room's questions into the three lists a screen shows, each in its own
   order: the live queue ranked by votes then oldest first, held questions oldest
-  first so the lecturer works through them in the order they arrived, and
+  first so the presenter works through them in the order they arrived, and
   answered most-recently-answered first. Hidden questions appear in none of them.
   """
   def partition(questions) do

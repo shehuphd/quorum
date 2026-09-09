@@ -680,7 +680,7 @@ defmodule QuorumWeb.SettingsLive do
         </label>
         <p class="q-meta">
           Seeds a new room only. This one keeps whatever it says above, so changing it now doesn't
-          rewrite a lecture that's already running.
+          rewrite a session that's already running.
         </p>
       </div>
 

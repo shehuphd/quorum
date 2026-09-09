@@ -110,7 +110,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
 
   test "an answered question moves to the answered list with voting closed", %{conn: conn} do
     room = room()
-    question = question(room, "Already covered in the lecture")
+    question = question(room, "Already covered in the session")
     Sessions.answer(question)
 
     {:ok, _view, html} = live(conn, ~p"/r/#{room.join_code}")
@@ -207,7 +207,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
       %{room: room, conn: conn}
     end
 
-    test "the composer says the lecturer reads first", %{conn: conn, room: room} do
+    test "the composer says the presenter reads first", %{conn: conn, room: room} do
       {:ok, _view, html} = live(conn, ~p"/r/#{room.join_code}")
 
       assert html =~ "reads each question before the room sees it"
@@ -217,7 +217,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
       {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
       html = view |> form("#ask-form") |> render_submit(%{"body" => "Held question"})
 
-      assert html =~ "Sent to your lecturer for review."
+      assert html =~ "Sent to your presenter for review."
       refute html =~ "Posted to the queue."
     end
 
@@ -225,7 +225,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
       {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
       html = view |> form("#ask-form") |> render_submit(%{"body" => "Held question"})
 
-      assert html =~ "Waiting for your lecturer"
+      assert html =~ "Waiting for your presenter"
       assert html =~ "Held question"
       assert html =~ "Nobody else can see this yet."
     end
@@ -236,7 +236,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
       {:ok, _view, html} = live(conn, ~p"/r/#{room.join_code}")
 
       refute html =~ "Someone else's held one"
-      refute html =~ "Waiting for your lecturer"
+      refute html =~ "Waiting for your presenter"
     end
 
     test "the asker can retract it while it waits", %{conn: conn, room: room} do
@@ -257,7 +257,7 @@ defmodule QuorumWeb.AttendeeLiveTest do
       Sessions.approve(question)
 
       html = render(view)
-      refute html =~ "Waiting for your lecturer"
+      refute html =~ "Waiting for your presenter"
       assert html =~ "Held question"
     end
   end

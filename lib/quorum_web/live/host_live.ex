@@ -1,6 +1,6 @@
 defmodule QuorumWeb.HostLive do
   @moduledoc """
-  The lecturer's console, as a full page: the site shell, the room bar, the
+  The presenter's console, as a full page: the site shell, the room bar, the
   joining panel, the ranked queue, and a rail carrying what's on the projection
   and the keyboard map.
 

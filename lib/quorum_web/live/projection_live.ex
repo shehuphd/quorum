@@ -1,7 +1,7 @@
 defmodule QuorumWeb.ProjectionLive do
   @moduledoc """
   The screen at the front of the hall. Joining owns the screen while nothing is
-  spotlighted and shrinks to a rail once the lecturer picks a question. L and D
+  spotlighted and shrinks to a rail once the presenter picks a question. L and D
   each toggle the hall light, Q clears the spotlight.
   """
   use QuorumWeb, :live_view
@@ -25,7 +25,7 @@ defmodule QuorumWeb.ProjectionLive do
   def handle_info(_message, %{assigns: %{room: nil}} = socket), do: {:noreply, socket}
   def handle_info(_message, socket), do: {:noreply, load(socket, socket.assigns.room)}
 
-  # Either key flips the hall light, so a lecturer who reaches for the wrong one
+  # Either key flips the hall light, so a presenter who reaches for the wrong one
   # still gets the switch rather than nothing.
   @impl true
   def handle_event("key", %{"key" => key}, socket) when key in ["l", "L", "d", "D"],

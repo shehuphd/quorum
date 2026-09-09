@@ -1,6 +1,6 @@
 defmodule Quorum.Accounts do
   @moduledoc """
-  Lecturer accounts and the magic-link sign-in.
+  Presenter accounts and the magic-link sign-in.
 
   A link is the whole credential, so the rules live here rather than in a
   controller: fifteen minutes to live, single use, and a cooldown between
@@ -19,7 +19,7 @@ defmodule Quorum.Accounts do
 
   @cooldown_seconds 30
 
-  @doc "Seconds a lecturer waits before they can ask for another link."
+  @doc "Seconds a presenter waits before they can ask for another link."
   def cooldown_seconds, do: @cooldown_seconds
 
   @doc "Minutes a link stays valid."
@@ -31,7 +31,7 @@ defmodule Quorum.Accounts do
     do: User |> Ash.Query.filter(email == ^normalise(email)) |> Ash.read_one()
 
   @doc """
-  Issue a sign-in link for an email address, registering the lecturer if this is
+  Issue a sign-in link for an email address, registering the presenter if this is
   their first one.
 
   Returns `{:ok, user, token}`, `{:wait, seconds}` while a recent link is still
@@ -85,7 +85,7 @@ defmodule Quorum.Accounts do
     end
   end
 
-  @doc "How many seconds until this lecturer may request another link. Zero when they may now."
+  @doc "How many seconds until this presenter may request another link. Zero when they may now."
   def seconds_remaining(%User{} = user) do
     case last_issued_at(user) do
       nil ->
@@ -98,10 +98,10 @@ defmodule Quorum.Accounts do
   end
 
   @doc """
-  Set whether rooms this lecturer opens start by holding every question.
+  Set whether rooms this presenter opens start by holding every question.
 
   It seeds new rooms only. A room already running keeps whatever its own
-  Moderation tab says, so changing this never rewrites a lecture in progress.
+  Moderation tab says, so changing this never rewrites a session in progress.
   """
   def set_moderation_default(%User{} = user, hold?),
     do:
@@ -109,7 +109,7 @@ defmodule Quorum.Accounts do
       |> Ash.Changeset.for_update(:set_moderation_default, %{hold_for_review_default?: hold?})
       |> Ash.update()
 
-  @doc "What to call a lecturer on screen before they've set a name."
+  @doc "What to call a presenter on screen before they've set a name."
   def display_name(%User{name: name}) when is_binary(name) and name != "", do: name
   def display_name(%User{email: email}), do: email |> String.split("@") |> hd()
 

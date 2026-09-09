@@ -482,7 +482,7 @@ defmodule QuorumWeb.SettingsLiveTest do
 
     test "one room's readings never appear in another's", %{conn: conn} do
       mine = room()
-      theirs = room("Someone else's lecture")
+      theirs = room("Someone else's session")
       Sessions.add_reading(theirs.id, %{title: "Their reading"})
 
       {:ok, _view, html} = live(conn, ~p"/host/#{mine.host_token}/settings/resources")

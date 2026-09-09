@@ -1,6 +1,6 @@
 defmodule QuorumWeb.CurrentUser do
   @moduledoc """
-  Puts the signed-in lecturer on the connection as `:current_user`, or nil.
+  Puts the signed-in presenter on the connection as `:current_user`, or nil.
 
   Signing in stores only the user's id, so a stale cookie for a deleted account
   resolves to nil rather than to a stranger's session.
@@ -31,7 +31,7 @@ defmodule QuorumWeb.CurrentUser do
   @doc "End the session and drop everything in it."
   def sign_out(conn), do: configure_session(conn, drop: true)
 
-  @doc "The lecturer for a LiveView session map, or nil."
+  @doc "The presenter for a LiveView session map, or nil."
   def from_session(%{@session_key => id}) when is_binary(id) do
     case Accounts.get_user(id) do
       {:ok, user} -> user

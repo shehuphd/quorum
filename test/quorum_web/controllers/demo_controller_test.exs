@@ -4,7 +4,7 @@ defmodule QuorumWeb.DemoControllerTest do
   alias Quorum.Sessions
   alias Quorum.Sessions.Demo
 
-  test "the student door seeds a lecture on first use and opens its feed", %{conn: conn} do
+  test "the student door seeds a session on first use and opens its feed", %{conn: conn} do
     assert Demo.current() == nil
 
     conn = get(conn, ~p"/demo")
@@ -14,7 +14,7 @@ defmodule QuorumWeb.DemoControllerTest do
     assert redirected_to(conn) == "/r/#{room.join_code}"
   end
 
-  test "a seeded lecture has the questions and the one answer the band promises", %{conn: conn} do
+  test "a seeded session has the questions and the one answer the band promises", %{conn: conn} do
     get(conn, ~p"/demo")
 
     %{visible: visible, answered: answered} =
@@ -58,8 +58,8 @@ defmodule QuorumWeb.DemoControllerTest do
     assert Demo.current().id != first.id
   end
 
-  test "a demo room is flagged, so a lecturer's own room is never mistaken for it", %{conn: conn} do
-    {:ok, mine} = Sessions.open_room("My lecture")
+  test "a demo room is flagged, so a presenter's own room is never mistaken for it", %{conn: conn} do
+    {:ok, mine} = Sessions.open_room("My session")
     get(conn, ~p"/demo")
 
     refute mine.demo?

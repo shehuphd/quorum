@@ -8,21 +8,21 @@ This document describes how Quorum is built: its structure, the domain resources
 
 ### Shape
 
-Quorum is a live classroom engagement tool for university lectures. Students join a session by scanning a projected QR code, then submit and upvote questions from their seats; the lecturer answers the top-ranked ones and closes the session. The interactive UI renders server-side over websockets via Phoenix LiveView.
+Quorum is a live audience engagement tool. Its first use case is university teaching. Students join a session by scanning a projected QR code, then submit and upvote questions from their seats; the presenter answers the top-ranked ones and closes the session. The interactive UI renders server-side over websockets via Phoenix LiveView.
 
-Five screens make up the product. The projection, the console, and the settings belong to the lecturer, behind a secret host token. The join screen and the student feed are public to anyone holding the five-character code.
+Five screens make up the product. The projection, the console, and the settings belong to the presenter, behind a secret host token. The join screen and the student feed are public to anyone holding the five-character code.
 
-Settings are per-room rather than per-account, so they follow the host token like the rest of the lecturer's tools, and a room carries its own look, its own reading list, and its own rules about what students may post and what reaches the room.
+Settings are per-room rather than per-account, so they follow the host token like the rest of the presenter's tools, and a room carries its own look, its own reading list, and its own rules about what students may post and what reaches the room.
 
-Moderation is post-hoc by default: a question appears and the lecturer can hide it. A room can switch to pre-publish, where a question is written with a `pending` status and reaches nobody but its own asker until the lecturer approves it. Because a held question exists as a row rather than being refused, the asker can see it waiting and retract it, and an approval is one status change rather than a re-post.
+Moderation is post-hoc by default: a question appears and the presenter can hide it. A room can switch to pre-publish, where a question is written with a `pending` status and reaches nobody but its own asker until the presenter approves it. Because a held question exists as a row rather than being refused, the asker can see it waiting and retract it, and an approval is one status change rather than a re-post.
 
 Four triggers feed that one decision, resolved by `Sessions.hold_reason/3`: the room holds everything, the asker has had nothing approved in this room, the body uses a held word, or the body carries a link. Students have no accounts, so the second reads trust per room from what that browser has had approved in it. Every trigger holds and none refuses, which keeps the cost of a false positive to a wait and means the triggers can be blunt without being punitive.
 
 Questions outlive the session. A term of them is the record of which material didn't land, which is what a room is kept for rather than a default nobody chose, so retention is on unless a room turns it off. A room that does has its questions and votes deleted when the session closes.
 
-Lecturer accounts are optional and sit beside the host token rather than replacing it: a room opened while signed in belongs to that lecturer and appears in their list, and every host link keeps working with or without an account. Students never have an account at all.
+Presenter accounts are optional and sit beside the host token rather than replacing it: a room opened while signed in belongs to that presenter and appears in their list, and every host link keeps working with or without an account. Students never have an account at all.
 
-A landing page at `/` fronts all of it, and a seeded demo lecture behind `/demo`, `/demo/host`, and `/demo/project` opens the same room in each of the three roles, so the product can be looked at without a lecture to run.
+A landing page at `/` fronts all of it, and a seeded demo session behind `/demo`, `/demo/host`, and `/demo/project` opens the same room in each of the three roles, so the product can be looked at without a room of your own to run.
 
 ### Technical stack
 
@@ -41,11 +41,11 @@ A landing page at `/` fronts all of it, and a seeded demo lecture behind `/demo`
 
 #### Plain-English version
 
-A student posts a question to a room. Ash runs the room's `ask` action, which validates the body and writes a row through AshPostgres. Once the write commits, the room's notifier publishes one "this room changed" message on the room's PubSub topic. Every LiveView watching that room, on any device and in any process, receives it and re-reads the room's visible questions ordered by vote count. The lecturer's console, the projection, and every student's phone all redraw within the same round-trip, with no page refresh.
+A student posts a question to a room. Ash runs the room's `ask` action, which validates the body and writes a row through AshPostgres. Once the write commits, the room's notifier publishes one "this room changed" message on the room's PubSub topic. Every LiveView watching that room, on any device and in any process, receives it and re-reads the room's visible questions ordered by vote count. The presenter's console, the projection, and every student's phone all redraw within the same round-trip, with no page refresh.
 
 An upvote follows the same path: the `cast` action upserts a vote, so a repeat vote by the same browser changes nothing, and the same broadcast reloads every viewer. A vote is tied to an opaque token in the browser's session cookie, which is also what lets a student retract their own question. No sign-up, and no way for one student to see who asked what.
 
-The lecturer's actions take the same path. Spotlighting a question writes the pick onto the room, and the projection reloads and swaps its layout because it heard the same broadcast, not because the console told it to.
+The presenter's actions take the same path. Spotlighting a question writes the pick onto the room, and the projection reloads and swaps its layout because it heard the same broadcast, not because the console told it to.
 
 Settings ride the same path, which is what lets them do without a save button. Changing a colour writes it to the room, and the projection in the hall picks up the new gradient from the broadcast. The settings screen itself takes two renders: the change marks the pane saving and hands the write to the process, and the write's own render reports it saved. That ordering is what keeps the status honest, since it can only say "saved" after the write returned.
 
@@ -79,14 +79,14 @@ Settings ride the same path, which is what lets them do without a save button. C
 | A sign-in link is clicked after 15 minutes | It's refused as expired, with a control to ask for another |
 | Someone asks for link after link | A 30-second cooldown returns the same "check your email" screen and sends nothing, so the address can't be mailed repeatedly |
 | An address is probed to see who has an account | The screen after a request reads the same whether or not the address was known |
-| A lecturer's account is deleted | `rooms.owner_id` is nilified rather than cascading, so their rooms stay reachable by host link instead of disappearing |
+| A presenter's account is deleted | `rooms.owner_id` is nilified rather than cascading, so their rooms stay reachable by host link instead of disappearing |
 | A question is longer than the room allows, or the student is at their allowance | `Sessions.ask/2` refuses before the write and names which limit stopped it, so the composer says the length or the allowance rather than "couldn't be posted". These are per-room, so they can't be resource constraints |
 | A crafted request tries to post past a review queue | `status` is never accepted from the client. The `ask` action derives it from a `held?` argument the domain computes from the room's own settings |
 | A crafted request tries to project a held question | `Sessions.spotlight/2` refuses anything the room can't already see, so holding a question back means the hall and not only the queue |
 | A student's held question looks like it failed to post | The asker sees their own held question waiting, with a note that nobody else can see it yet, and can retract it from there. Other students see nothing |
 | A held word is used innocently | A held word holds the question rather than refusing it, and matches whole words, so "class" doesn't trip "ass". The cost of a false positive is a wait |
-| A question names a file, not a website | The link check reads a scheme, a `www` host, or a bare domain, and ignores a set of extensions that read as domains. A lecture on Node.js doesn't hold every question that names it |
-| A lecturer's default changes mid-term | The account preference seeds a room at the moment it's opened. A room already running keeps its own setting, so no lecture changes under the person giving it |
+| A question names a file, not a website | The link check reads a scheme, a `www` host, or a bare domain, and ignores a set of extensions that read as domains. A session on Node.js doesn't hold every question that names it |
+| A presenter's default changes mid-term | The account preference seeds a room at the moment it's opened. A room already running keeps its own setting, so no session changes under the person giving it |
 | A student retracts a question others upvoted | The votes foreign key cascades, so the votes go with the question. Before it did, one upvote made a question undeletable |
 | A room is set to discard its questions | They go when the session closes, with their votes, and the room itself survives so its link still opens. There's no undo, and the setting says so |
 | A room is deleted while it's still running | Deleting needs the session closed and the room's name typed, and the action checks both server-side rather than trusting the disabled button |

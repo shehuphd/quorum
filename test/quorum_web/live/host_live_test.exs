@@ -222,7 +222,7 @@ defmodule QuorumWeb.HostLiveTest do
     room = room()
     {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
 
-    question(room, "First of the lecture")
+    question(room, "First of the session")
     html = render(view)
 
     assert html =~ "Still joining at quorum.app/join"
@@ -366,7 +366,7 @@ defmodule QuorumWeb.HostLiveTest do
       conn: conn,
       room: room
     } do
-      other = room("Someone else's lecture")
+      other = room("Someone else's session")
       Sessions.update_settings(other, %{hold_for_review?: true})
       {:ok, theirs} = Sessions.ask(other.id, %{body: "Theirs", submitter_token: "a"})
 
@@ -395,11 +395,11 @@ defmodule QuorumWeb.HostLiveTest do
       room: room
     } do
       {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}")
-      refute html =~ "Arrived mid-lecture"
+      refute html =~ "Arrived mid-session"
 
-      Sessions.ask(room.id, %{body: "Arrived mid-lecture", submitter_token: "a"})
+      Sessions.ask(room.id, %{body: "Arrived mid-session", submitter_token: "a"})
 
-      assert render(view) =~ "Arrived mid-lecture"
+      assert render(view) =~ "Arrived mid-session"
     end
   end
 end

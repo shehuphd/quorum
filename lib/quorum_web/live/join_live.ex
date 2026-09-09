@@ -1,5 +1,5 @@
 defmodule QuorumWeb.JoinLive do
-  @moduledoc "Join a lecture by typing its code."
+  @moduledoc "Join a session by typing its code."
   use QuorumWeb, :live_view
 
   alias Quorum.Sessions
@@ -32,13 +32,13 @@ defmodule QuorumWeb.JoinLive do
       <div class="q-surface" style="width:100%;max-width:460px;padding:28px;">
         <div style="margin-bottom:22px;"><Brand.logo size={26} /></div>
 
-        <h1 style="font:700 28px/1.15 var(--q-font-sans);margin:0 0 10px;">Join the lecture</h1>
+        <h1 style="font:700 28px/1.15 var(--q-font-sans);margin:0 0 10px;">Join the session</h1>
         <p class="q-meta" style="font-size:15px;line-height:1.45;margin:0 0 22px;">
           Type the five-character code on the screen at the front. No sign-up needed.
         </p>
 
         <form id="join-form" phx-submit="join" phx-change="update" autocomplete="off">
-          <label class="q-label" for="code" style="display:block;margin-bottom:8px;">Lecture code</label>
+          <label class="q-label" for="code" style="display:block;margin-bottom:8px;">Session code</label>
           <input
             id="code"
             name="code"
@@ -51,7 +51,7 @@ defmodule QuorumWeb.JoinLive do
             class="q-input"
             style="text-align:center;text-transform:uppercase;letter-spacing:0.28em;font-size:28px;font-weight:600;min-height:64px;"
           />
-          <button type="submit" class="q-button" style="width:100%;margin-top:14px;">Join lecture</button>
+          <button type="submit" class="q-button" style="width:100%;margin-top:14px;">Join session</button>
         </form>
 
         <p
@@ -59,7 +59,7 @@ defmodule QuorumWeb.JoinLive do
           class="q-status"
           style="color:var(--q-destructive);margin-top:12px;"
         >
-          No lecture uses the code {@code}.
+          No session uses the code {@code}.
         </p>
         <p class="q-meta" style="margin-top:14px;">
           You remain anonymous unless you choose otherwise.

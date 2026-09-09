@@ -1,12 +1,12 @@
 # Quorum
 
-Quorum is a live classroom engagement tool for university lectures. The lecturer projects a QR code; students scan it to join the session in one tap, then post and upvote questions from their seats. The top questions rank live over a websocket with no page refresh, so quieter students take part instead of being cold-called. The lecturer answers questions and closes the session. Questions are anonymous to peers by default. The same primitives serve any live audience, so company all-hands and streamed talks remain options later.
+Quorum is a live audience engagement tool, built first for university teaching. The presenter projects a QR code; students scan it to join the session in one tap, then post and upvote questions from their seats. The top questions rank live over a websocket with no page refresh, so quieter students take part instead of being cold-called. The presenter answers questions and closes the session. Questions are anonymous to peers by default. The same primitives serve any live audience, so company all-hands and streamed talks remain options later.
 
 Built with Elixir and Phoenix LiveView, so the interactive UI renders server-side with almost no JavaScript.
 
 ## Development status
 
-The landing page, lecturer sign-in, and the five screens are built and driven by the live data layer: the join screen, the student feed, the lecturer's console, the projection, and the settings. Five of the six settings categories are drawn: the room itself, what students may post, moderation, the reading list, and the projection's appearance. Projection says what will go in it. Single sign-on and the matching behind the reading pointer are designed but not built.
+The landing page, presenter sign-in, and the five screens are built and driven by the live data layer: the join screen, the student feed, the presenter's console, the projection, and the settings. Five of the six settings categories are drawn: the room itself, what students may post, moderation, the reading list, and the projection's appearance. Projection says what will go in it. Single sign-on and the matching behind the reading pointer are designed but not built.
 
 ## Local development
 
@@ -30,11 +30,11 @@ mix phx.server  # start the app on http://localhost:4000
 
 ## Using it
 
-The quickest look is the demo lecture. From the landing page, the demo band opens the same seeded room in any of three roles, or go straight to `/demo`, `/demo/host`, or `/demo/project`.
+The quickest look is the demo session. From the landing page, the demo band opens the same seeded room in any of three roles, or go straight to `/demo`, `/demo/host`, or `/demo/project`.
 
-For a room of your own, `/start` opens one and redirects to the lecturer's console at a secret host URL, which links to the projection screen for the projector and to the room's settings. Students go to `/join` and type the five-character code, or scan the QR code on the projection.
+For a room of your own, `/start` opens one and redirects to the presenter's console at a secret host URL, which links to the projection screen for the projector and to the room's settings. Students go to `/join` and type the five-character code, or scan the QR code on the projection.
 
-Lecturers can sign in at `/sign-in` to keep a list of their rooms. Sign-in is a single-use email link; in development the email goes to the local mailbox at `/dev/mailbox` rather than out to the internet, so the whole loop works with no mail provider. A room still opens without an account, and its host link keeps working either way.
+Presenters can sign in at `/sign-in` to keep a list of their rooms. Sign-in is a single-use email link; in development the email goes to the local mailbox at `/dev/mailbox` rather than out to the internet, so the whole loop works with no mail provider. A room still opens without an account, and its host link keeps working either way.
 
 [USAGE.md](USAGE.md) covers each screen and its keyboard shortcuts.
 

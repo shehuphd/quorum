@@ -6,10 +6,10 @@ defmodule QuorumWeb.PageControllerTest do
   test "the hero carries both entry points, a labelled code field and Start a room", %{conn: conn} do
     html = conn |> get(~p"/") |> html_response(200)
 
-    assert html =~ "Take live questions during lectures."
+    assert html =~ "Take live questions from the room."
     assert html =~ ~s(for="code")
     assert html =~ ~s(id="code")
-    assert html =~ "Join a lecture"
+    assert html =~ "Join a session"
     assert html =~ "Start a room"
     assert html =~ "No account. You remain anonymous unless you choose otherwise."
   end
@@ -25,14 +25,14 @@ defmodule QuorumWeb.PageControllerTest do
     assert html =~ "While you wait, from your course reading list"
     assert html =~ "In the hall"
     assert html =~ "Setup"
-    assert html =~ "See a demo lecture"
+    assert html =~ "See a demo session"
   end
 
   test "the demo band offers all three roles", %{conn: conn} do
     html = conn |> get(~p"/") |> html_response(200)
 
     assert html =~ "Join as a student"
-    assert html =~ "Join as a lecturer"
+    assert html =~ "Join as a presenter"
     assert html =~ "Open the projection"
     assert html =~ ~s(href="/demo")
     assert html =~ ~s(href="/demo/host")

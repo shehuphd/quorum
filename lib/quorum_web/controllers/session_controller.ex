@@ -1,6 +1,6 @@
 defmodule QuorumWeb.SessionController do
   @moduledoc """
-  Magic-link sign-in for lecturers. Students never come through here.
+  Magic-link sign-in for presenters. Students never come through here.
 
   The "check your email" screen says the same thing whether or not the address
   was already known, so the page can't be used to find out who has an account.

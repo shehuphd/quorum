@@ -1,6 +1,6 @@
 defmodule Quorum.Sessions.Demo do
   @moduledoc """
-  The seeded lecture the landing page points at, so anyone can look at all three
+  The seeded session the landing page points at, so anyone can look at all three
   views without opening a room of their own. One demo room is kept open at a
   time; `ensure_room/0` returns it and seeds a new one only when none exists.
   """

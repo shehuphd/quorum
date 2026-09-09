@@ -66,7 +66,7 @@ defmodule QuorumWeb.AttendeeLive do
             assign(socket,
               show_name: false,
               draft: "",
-              status: "Sent to your lecturer for review."
+              status: "Sent to your presenter for review."
             )
 
           {:noreply, load(socket)}
@@ -214,7 +214,7 @@ defmodule QuorumWeb.AttendeeLive do
       <% else %>
         <section style="padding:22px;">
           <p style="font:400 16px/1.45 var(--q-font-serif);margin:0 0 14px;">
-            Ask the lecturer anything, or vote anonymously for a question you want answered.
+            Ask the presenter anything, or vote anonymously for a question you want answered.
           </p>
           <form id="ask-form" phx-submit="ask" phx-change="draft">
             <label class="q-sr-only" for="body">Your question</label>
@@ -253,7 +253,7 @@ defmodule QuorumWeb.AttendeeLive do
             </div>
           </form>
           <p :if={@room.hold_for_review?} class="q-meta">
-            Your lecturer reads each question before the room sees it.
+            Your presenter reads each question before the room sees it.
           </p>
           <p :if={@left} class="q-meta">
             {remaining(@left)}
@@ -264,13 +264,13 @@ defmodule QuorumWeb.AttendeeLive do
 
       <section :if={@waiting != []} style="padding:0 22px 4px;">
         <div class="q-label" style="margin-bottom:8px;">
-          Waiting for your lecturer
+          Waiting for your presenter
         </div>
         <div :for={question <- @waiting} class="q-row q-row--waiting">
           <div style="min-width:0;flex:1;">
             <p class="q-question">{question.body}</p>
             <p class="q-meta" style="margin:6px 0 0;">
-              Nobody else can see this yet. Your lecturer decides whether it reaches the room.
+              Nobody else can see this yet. Your presenter decides whether it reaches the room.
             </p>
           </div>
           <button

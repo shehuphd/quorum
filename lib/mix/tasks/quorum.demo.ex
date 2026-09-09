@@ -1,8 +1,8 @@
 defmodule Mix.Tasks.Quorum.Demo do
-  @shortdoc "Opens the demo lecture and prints its links"
+  @shortdoc "Opens the demo session and prints its links"
 
   @moduledoc """
-  Opens the seeded demo lecture the landing page points at, and prints the join
+  Opens the seeded demo session the landing page points at, and prints the join
   code plus the student, host, and projection links.
 
       mix quorum.demo                 # the open demo room, seeded if there isn't one

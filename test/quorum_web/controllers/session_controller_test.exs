@@ -15,7 +15,7 @@ defmodule QuorumWeb.SessionControllerTest do
     # The SSO control is disabled rather than inert-looking, and says what turns it on.
     assert html =~ ~s(disabled="disabled")
     assert html =~ "Single sign-on turns on once your institution"
-    assert html =~ "Join a lecture with a code"
+    assert html =~ "Join a session with a code"
   end
 
   test "asking for a link emails one and moves to the check-your-email screen", %{conn: conn} do
@@ -57,7 +57,7 @@ defmodule QuorumWeb.SessionControllerTest do
     assert_no_email_sent()
   end
 
-  test "clicking the link signs the lecturer in and opens their rooms", %{conn: conn} do
+  test "clicking the link signs the presenter in and opens their rooms", %{conn: conn} do
     {:ok, user, token} = Accounts.request_link("a.adeyemi@university.ac.uk")
 
     conn = get(conn, ~p"/sign-in/#{token.token}")
@@ -95,20 +95,20 @@ defmodule QuorumWeb.SessionControllerTest do
     assert conn |> recycle() |> get(~p"/rooms") |> redirected_to() == ~p"/sign-in"
   end
 
-  test "rooms is for signed-in lecturers, and sends anyone else to sign in", %{conn: conn} do
+  test "rooms is for signed-in presenters, and sends anyone else to sign in", %{conn: conn} do
     assert conn |> get(~p"/rooms") |> redirected_to() == ~p"/sign-in"
   end
 
-  test "a signed-in lecturer sees the rooms they opened, and not other people's", %{conn: conn} do
+  test "a signed-in presenter sees the rooms they opened, and not other people's", %{conn: conn} do
     {:ok, _user, token} = Accounts.request_link("a.adeyemi@university.ac.uk")
     conn = get(conn, ~p"/sign-in/#{token.token}")
 
     conn = get(conn, ~p"/start")
-    {:ok, _other} = Quorum.Sessions.open_room("Someone else's lecture")
+    {:ok, _other} = Quorum.Sessions.open_room("Someone else's session")
 
     html = conn |> recycle() |> get(~p"/rooms") |> html_response(200)
 
-    assert html =~ "New lecture"
-    refute html =~ "Someone else&#39;s lecture"
+    assert html =~ "New session"
+    refute html =~ "Someone else&#39;s session"
   end
 end

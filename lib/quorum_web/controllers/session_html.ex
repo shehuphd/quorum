@@ -1,5 +1,5 @@
 defmodule QuorumWeb.SessionHTML do
-  @moduledoc "The lecturer sign-in screens."
+  @moduledoc "The presenter sign-in screens."
   use QuorumWeb, :html
 
   embed_templates "session_html/*"

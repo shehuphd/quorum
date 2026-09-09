@@ -8,7 +8,7 @@ All notable changes to Quorum are recorded here, dated per release.
 - `Quorum.Sessions` domain with `Room`, `Question`, and `Vote` resources, and their initial migration.
 - Live updates: an Ash notifier broadcasts room changes over Phoenix.PubSub.
 - Adversarial test suite covering resource validation, vote dedup, status transitions, ranking, and broadcasts.
-- Spotlight on `Room`, so the lecturer's pick drives the projection screen.
+- Spotlight on `Room`, so the presenter's pick drives the projection screen.
 - The four core screens as LiveViews: join, student feed, host console, and projection.
 - `GET /start` opens a room and redirects to its console; `QuorumWeb.BrowserToken` gives each browser an opaque identity for voting and retraction without sign-up.
 - Phoenix Presence counts the students connected to a room.
@@ -18,13 +18,13 @@ All notable changes to Quorum are recorded here, dated per release.
 - Text-link buttons meet the 44px minimum target, and the vote control and feed question take their laptop-width sizes.
 - Launchers for macOS, Linux, and Windows (`launch.sh`, `launch.command`, `launch.bat`).
 - Landing page at `/`: hero with a student code field and a Start a room call to action, a demo band, how it works, the reading-pointer illustration, and the capability columns.
-- A seeded demo lecture behind `/demo`, `/demo/host`, and `/demo/project`, so anyone can see all three roles without opening a room. `rooms.demo?` keeps it apart from a lecturer's own rooms.
-- `mix quorum.demo` opens or reseeds that lecture and prints its links.
+- A seeded demo session behind `/demo`, `/demo/host`, and `/demo/project`, so anyone can see all three roles without opening a room. `rooms.demo?` keeps it apart from a presenter's own rooms.
+- `mix quorum.demo` opens or reseeds that session and prints its links.
 - The projection's QR card is framed with a hairline in a lit hall, where white on near-white has no edge of its own.
 - **L** and **D** each toggle the hall light, rather than each setting one state.
-- Lecturer accounts and magic-link sign-in at `/sign-in`, with single-use links, a fifteen-minute expiry, and a thirty-second cooldown between requests. Single sign-on is drawn but disabled until an institution's provider is connected.
-- `/rooms` lists a lecturer's own rooms. A room opened while signed in belongs to them; `/host/:host_token` keeps working as before, with or without an account.
-- The host console is a full page: site shell, room bar with rename and a fresh join code, the joining panel that shrinks to a strip once questions arrive, and a rail carrying the projection state, the pre-lecture checklist, and the keyboard map.
+- Presenter accounts and magic-link sign-in at `/sign-in`, with single-use links, a fifteen-minute expiry, and a thirty-second cooldown between requests. Single sign-on is drawn but disabled until an institution's provider is connected.
+- `/rooms` lists a presenter's own rooms. A room opened while signed in belongs to them; `/host/:host_token` keeps working as before, with or without an account.
+- The host console is a full page: site shell, room bar with rename and a fresh join code, the joining panel that shrinks to a strip once questions arrive, and a rail carrying the projection state, the before-you-start checklist, and the keyboard map.
 - Privacy, Accessibility, and Contact pages behind the footer, so no footer link goes nowhere. Contact mail routes to the configured address, with the sender on reply-to.
 - The landing page's example card cycles through twenty questions, alternating named and anonymous askers and varying the age between 30 seconds and 15 minutes. It holds still for anyone who has asked for reduced motion.
 - More room between the landing page's sections, and the footer's edges line up with the rest of the page.
@@ -39,7 +39,7 @@ All notable changes to Quorum are recorded here, dated per release.
 - A held question is invisible to the room and to the projection, and visible to its own asker, who can retract it while it waits. The console grows a review queue with Approve and Refuse while anything is held.
 - Four things can hold a question: the room holds everything, the asker has had nothing approved here yet, the body uses a held word, or the body carries a link. Any one is enough, and each holds rather than refuses.
 - Holding a student's first question reads trust per room, since students have no accounts. Once one of their questions is approved, the rest go straight through.
-- A signed-in lecturer can have the rooms they open start with holding on. It seeds a new room only, so changing it never rewrites a lecture already running.
+- A signed-in presenter can have the rooms they open start with holding on. It seeds a new room only, so changing it never rewrites a session already running.
 - Questions outlive the session by default, because a term of them is the record of what didn't land. A room can be set to delete them, with their votes, the moment the session closes.
 - Retracting a question that anyone had upvoted used to fail on a foreign key. Votes now go with the question they're about.
 - A question can only reach the projection if the room can already see it. The check moved to the domain, so holding a question back means the whole hall, not just the queue.

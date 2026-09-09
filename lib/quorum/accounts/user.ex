@@ -1,6 +1,6 @@
 defmodule Quorum.Accounts.User do
   @moduledoc """
-  A lecturer. Students never have one: they join a room by code and stay
+  A presenter. Students never have one: they join a room by code and stay
   anonymous, so an account exists only to own rooms and reading lists.
   """
   use Ash.Resource,
@@ -18,7 +18,7 @@ defmodule Quorum.Accounts.User do
     default_accept([])
 
     create :register do
-      description("Create a lecturer from the email they asked for a link with.")
+      description("Create a presenter from the email they asked for a link with.")
       accept([:email])
       upsert?(true)
       upsert_identity(:unique_email)
@@ -29,7 +29,7 @@ defmodule Quorum.Accounts.User do
     end
 
     update :set_moderation_default do
-      description("Whether rooms this lecturer opens start by holding every question.")
+      description("Whether rooms this presenter opens start by holding every question.")
       accept([:hold_for_review_default?])
     end
   end
@@ -48,9 +48,9 @@ defmodule Quorum.Accounts.User do
       constraints(max_length: 120)
     end
 
-    # A lecturer who moderates one lecture usually moderates the next. This
+    # A presenter who moderates one session usually moderates the next. This
     # seeds each new room they open; changing it never touches a room already
-    # running, so turning it on mid-term doesn't rewrite today's lecture.
+    # running, so turning it on mid-term doesn't rewrite today's session.
     attribute :hold_for_review_default?, :boolean do
       allow_nil?(false)
       public?(true)

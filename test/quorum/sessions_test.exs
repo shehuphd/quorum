@@ -427,7 +427,7 @@ defmodule Quorum.SessionsTest do
       {:ok, first} = Sessions.ask(room.id, %{body: "mine here", submitter_token: "amara"})
       Sessions.approve(first)
 
-      other = open_room("Another lecture")
+      other = open_room("Another session")
       {:ok, other} = Sessions.update_settings(other, %{hold_first_question?: true})
 
       assert {:ok, %{status: :pending}} =

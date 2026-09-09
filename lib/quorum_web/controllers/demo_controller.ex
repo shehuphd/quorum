@@ -1,6 +1,6 @@
 defmodule QuorumWeb.DemoController do
   @moduledoc """
-  Three doors into the seeded demo lecture, one per role. The landing page links
+  Three doors into the seeded demo session, one per role. The landing page links
   here rather than to a room code, so the links keep working when the demo room
   is reseeded.
   """
@@ -20,7 +20,7 @@ defmodule QuorumWeb.DemoController do
       _ ->
         conn
         |> put_status(:service_unavailable)
-        |> text("The demo lecture isn't available right now. Try again in a moment.")
+        |> text("The demo session isn't available right now. Try again in a moment.")
     end
   end
 end

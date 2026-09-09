@@ -3,7 +3,7 @@ defmodule Quorum.Sessions.Reading do
   One item on a room's approved reading list.
 
   This list is the only corpus the resource pointer may draw on, so it's the
-  lecturer's own material rather than anything the model finds.
+  presenter's own material rather than anything the model finds.
   """
   use Ash.Resource,
     otp_app: :quorum,
