@@ -66,7 +66,7 @@ screens, and the landing page is a plain controller.
 
 | File | Role |
 |---|---|
-| `assets/css/app.css` | Entry point. Imports the three stylesheets below, then adds the base body rules, the link-as-button rule, `.q-sr-only`, `.q-divider`, and the reconnecting banner. |
+| `assets/css/app.css` | Entry point. Imports the stylesheets below, then adds the base body rules, the link-as-button rule, `.q-sr-only`, `.q-divider`, the reconnecting banner, and the three corrections where the design export falls short of DESIGN.md (44px link buttons, and the laptop-width vote control and question size). |
 | `assets/css/tokens.css` | Design tokens: colour, type, spacing, radius, touch target sizes. |
 | `assets/css/quorum.css` | The `q-*` component classes: buttons, inputs, surfaces, rows, the vote control, status lines, the projection backgrounds. |
 | `assets/css/landing.css` | The landing page's bands and grids (`q-l-*`), plus `q-button--ink` for the nav call to action. Everything else on that page reuses the product's components. |

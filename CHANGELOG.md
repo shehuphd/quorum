@@ -15,6 +15,7 @@ All notable changes to Quorum are recorded here, dated per release.
 - Server-rendered QR codes on the projection, via eqrcode.
 - Keyboard control: **J**, **K**, **Enter**, **A**, **H**, and Escape on the console; **L**, **D**, and **Q** on the projection.
 - Design system as CSS: tokens, `q-*` components, and Archivo and Literata self-hosted as woff2.
+- Text-link buttons meet the 44px minimum target, and the vote control and feed question take their laptop-width sizes.
 - Launchers for macOS, Linux, and Windows (`launch.sh`, `launch.command`, `launch.bat`).
 - Landing page at `/`: hero with a student code field and a Start a room call to action, a demo band, how it works, the reading-pointer illustration, and the capability columns.
 - A seeded demo lecture behind `/demo`, `/demo/host`, and `/demo/project`, so anyone can see all three roles without opening a room. `rooms.demo?` keeps it apart from a lecturer's own rooms.

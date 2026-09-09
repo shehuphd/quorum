@@ -125,6 +125,28 @@ a.q-button {
   text-decoration: none;
 }
 
+/* The 44px minimum applies to text-link buttons too. The exported quorum.css
+   pads them to about 33px, so the rule is met here rather than by editing the
+   export. The underline stays on the text, not on the padded box. */
+.q-button--link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--q-touch);
+  box-sizing: border-box;
+}
+
+/* Laptop-width sizes the export doesn't carry: a square vote control and the
+   larger question size. */
+@media (min-width: 1024px) {
+  .q-vote {
+    width: var(--q-vote-size);
+  }
+
+  .q-question {
+    font-size: 17px;
+  }
+}
+
 /* Labels that belong to screen readers but would be redundant on screen. */
 .q-sr-only {
   position: absolute;
