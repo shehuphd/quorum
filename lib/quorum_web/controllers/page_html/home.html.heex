@@ -1,0 +1,192 @@
+<div class="q-l-band">
+  <div class="q-l-shell">
+    <nav class="q-l-nav">
+      <QuorumWeb.Brand.logo size={24} />
+      <div class="q-l-nav-links">
+        <a href="#how-it-works">How it works</a>
+        <a href="#for-lecturers">For lecturers</a>
+        <.link href={~p"/start"} class="q-button q-button--ink">Start a room</.link>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<div class="q-l-band">
+  <div class="q-l-shell">
+    <section class="q-l-hero">
+      <div>
+        <h1>Take live questions during lectures.</h1>
+        <p class="q-l-hero-sub">
+          Project a code, have students post and vote from their seats, and answer the top questions.
+        </p>
+
+        <div class="q-l-code-card">
+          <label class="q-label" for="code">Have a code?</label>
+          <form class="q-l-code-row" action={~p"/join"} method="get">
+            <input
+              id="code"
+              name="code"
+              class="q-input"
+              maxlength="5"
+              autocapitalize="characters"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder={@demo.code}
+            />
+            <button type="submit" class="q-button">Join a lecture</button>
+          </form>
+          <p class="q-meta">No account. You remain anonymous unless you choose otherwise.</p>
+        </div>
+      </div>
+
+      <div class="q-l-mock">
+        <div class="q-l-projection q-projection q-projection--dark">
+          <div style="text-align:left;"><QuorumWeb.Brand.logo on_dark size={19} /></div>
+          <p style="font:400 15px var(--q-font-sans);color:var(--q-on-dark-muted);margin:16px 0 0;">
+            Scan to ask a question
+          </p>
+          <div class="q-l-projection-qr">{raw(qr(@demo.code, 148))}</div>
+          <p class="q-code" style="font-size:44px;margin:0;">{@demo.code}</p>
+          <div class="q-l-projection-stats">
+            <span><strong>{@demo.connected}</strong> connected</span>
+            <span><strong>{@demo.posted}</strong> questions</span>
+          </div>
+        </div>
+
+        <div class="q-l-feed-card">
+          <div class="q-l-feed-vote">
+            <svg width="13" height="10" viewBox="0 0 15 12" aria-hidden="true">
+              <path d="M7.5 1 L14 11 L1 11 Z" fill="currentColor" />
+            </svg>
+            <span style="font:700 14px var(--q-font-sans);margin-top:2px;">31</span>
+          </div>
+          <div>
+            <p class="q-question" style="font-size:13px;line-height:1.4;margin:0;">
+              If a system reports being conscious, what would count as evidence that it isn't?
+            </p>
+            <p class="q-meta" style="margin:6px 0 0;">Anonymous, 4 minutes ago</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="q-l-band q-l-band--sunken">
+  <div class="q-l-shell">
+    <section class="q-l-demo">
+      <div>
+        <div class="q-label" style="font-size:16px;">Demo room, code {@demo.code}</div>
+        <p class="q-meta" style="margin:4px 0 0;">
+          {String.capitalize(count(@demo.posted, "question", "questions"))} posted, {word(
+            @demo.answered
+          )} answered. Open two views side by side to see the queue update.
+        </p>
+      </div>
+      <div class="q-l-demo-actions">
+        <.link href={~p"/demo"} class="q-button">Join as a student</.link>
+        <.link href={~p"/demo/host"} class="q-button q-button--secondary">Join as a lecturer</.link>
+        <.link href={~p"/demo/project"} class="q-button q-button--secondary">
+          Open the projection
+        </.link>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="q-l-band" id="how-it-works">
+  <div class="q-l-shell">
+    <section class="q-l-section">
+      <h2>How it works</h2>
+      <div class="q-l-cols" style="margin-top:34px;">
+        <div>
+          <h3>Project the code</h3>
+          <p>Open a room and project a QR code on-screen for quick, easy access.</p>
+        </div>
+        <div>
+          <h3>Students ask and vote</h3>
+          <p>One tap to join, no account needed. Questions are anonymous by default.</p>
+        </div>
+        <div>
+          <h3>Answer the top ones</h3>
+          <p>Spotlight top-voted questions in the queue and work your way down the list.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="q-l-band q-l-band--sunken">
+  <div class="q-l-shell">
+    <section class="q-l-section q-l-split">
+      <div>
+        <h2>Add reading suggestions for offline learning</h2>
+        <p>
+          Attach your reading list to a room or lesson. When a student posts a question, Quorum
+          points them at items from that list.
+        </p>
+      </div>
+      <div class="q-l-pointer">
+        <p class="q-question" style="font-size:17px;margin:0;">
+          Is Nagel's bat argument about knowledge or about ontology?
+        </p>
+        <div class="q-l-pointer-block">
+          <div class="q-label" style="margin-bottom:8px;">
+            While you wait, from your course reading list
+          </div>
+          <p class="q-meta" style="margin:0;line-height:1.7;">
+            <a href="#for-lecturers">Nagel, What Is It Like to Be a Bat?</a>, pp. 435 to 441<br />
+            <a href="#for-lecturers">Lecture 6 slides</a>, the epistemic gap section
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="q-l-band" id="for-lecturers">
+  <div class="q-l-shell">
+    <section class="q-l-section">
+      <div class="q-l-cols q-l-cols--two">
+        <div>
+          <h3>In the hall</h3>
+          <ul>
+            <li>Readable from the back row, lit or dark.</li>
+            <li>Works on any phone with a browser.</li>
+            <li>Keyboard shortcuts for the queue.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Setup</h3>
+          <ul>
+            <li>No student accounts, roster upload, or install needed.</li>
+            <li>Close rooms at a set time or keep them open longer.</li>
+            <li>Questions and answers remain readable afterwards.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="q-l-band q-l-band--sunken">
+  <div class="q-l-shell">
+    <section class="q-l-cta">
+      <div>
+        <h2 style="font:700 32px var(--q-font-sans);margin:0 0 6px;">Start a room</h2>
+        <p class="q-meta" style="font-size:15px;">See Quorum in action</p>
+      </div>
+      <div class="q-l-cta-actions">
+        <.link href={~p"/start"} class="q-button">Start a room</.link>
+        <.link href={~p"/demo"} class="q-button q-button--secondary">See a demo lecture</.link>
+      </div>
+    </section>
+  </div>
+</div>
+
+<footer class="q-l-shell q-l-footer">
+  <QuorumWeb.Brand.logo size={20} />
+  <p class="q-meta" style="margin:0;">
+    Built with Elixir and Phoenix LiveView.
+  </p>
+</footer>

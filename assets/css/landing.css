@@ -1,0 +1,284 @@
+/* Landing page. Uses the same tokens and q-* components as the product; these
+   classes only handle the page's bands and grids. */
+
+.q-l-band {
+  background: var(--q-surface-raised);
+  border-bottom: 1px solid var(--q-hairline);
+}
+.q-l-band--sunken {
+  background: var(--q-surface-sunken);
+}
+
+.q-l-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+/* Navigation */
+
+.q-l-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 76px;
+}
+.q-l-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.q-l-nav-links a:not(.q-button) {
+  font: 400 15px var(--q-font-sans);
+  color: var(--q-ink-secondary);
+  text-decoration: none;
+  padding: 12px 0;
+}
+.q-l-nav-links a:not(.q-button):hover {
+  color: var(--q-ink);
+}
+
+/* An ink-filled button, for the one CTA that has to read as chrome rather than
+   as the page's primary action. */
+.q-button--ink {
+  background: var(--q-ink);
+  color: #fff;
+  border: none;
+}
+
+/* Hero */
+
+.q-l-hero {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 56px;
+  align-items: center;
+  padding: 64px 0 76px;
+}
+.q-l-hero h1 {
+  font: 700 54px/1.08 var(--q-font-sans);
+  letter-spacing: -0.02em;
+  margin: 0 0 20px;
+}
+.q-l-hero-sub {
+  font: 400 18px/1.5 var(--q-font-sans);
+  color: var(--q-ink-secondary);
+  margin: 0 0 32px;
+  max-width: 30em;
+}
+
+.q-l-code-card {
+  background: var(--q-surface-raised);
+  border: 1px solid var(--q-hairline);
+  border-radius: var(--q-radius-card);
+  padding: 22px;
+  max-width: 520px;
+}
+.q-l-code-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  margin: 10px 0;
+}
+.q-l-code-row .q-input {
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* The projection mock, and the feed card that overlaps its corner */
+
+.q-l-mock {
+  position: relative;
+}
+.q-l-projection {
+  border-radius: 10px;
+  padding: 26px 26px 30px;
+  text-align: center;
+  color: var(--q-on-dark);
+}
+.q-l-projection-qr {
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  width: fit-content;
+  margin: 18px auto 14px;
+  line-height: 0;
+}
+/* Left-aligned, like the projection's own footer, and clear of the feed card
+   that overlaps the opposite corner. */
+.q-l-projection-stats {
+  display: flex;
+  justify-content: flex-start;
+  gap: 22px;
+  font: 400 14px var(--q-font-sans);
+  color: var(--q-on-dark-muted);
+  margin-top: 16px;
+}
+
+.q-l-feed-card {
+  position: absolute;
+  right: -28px;
+  bottom: -52px;
+  width: 252px;
+  background: var(--q-surface-raised);
+  border: 1px solid var(--q-hairline);
+  border-radius: var(--q-radius-card);
+  box-shadow: 0 6px 20px rgb(20 23 26 / 10%);
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+}
+.q-l-feed-vote {
+  width: 44px;
+  height: 46px;
+  flex: none;
+  border-radius: var(--q-radius-input);
+  background: var(--q-accent);
+  color: var(--q-accent-ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The demo band */
+
+.q-l-demo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 22px 0;
+}
+.q-l-demo-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Content sections */
+
+.q-l-section {
+  padding: 56px 0;
+}
+.q-l-section h2 {
+  font: 700 32px/1.15 var(--q-font-sans);
+  letter-spacing: -0.01em;
+  margin: 0 0 14px;
+}
+.q-l-section p {
+  font: 400 16px/1.55 var(--q-font-sans);
+  color: var(--q-ink-secondary);
+  margin: 0;
+  max-width: 34em;
+}
+
+.q-l-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+.q-l-cols--two {
+  grid-template-columns: repeat(2, 1fr);
+}
+.q-l-cols h3 {
+  font: 600 17px var(--q-font-sans);
+  margin: 0 0 8px;
+}
+.q-l-cols p,
+.q-l-cols li {
+  font: 400 15px/1.5 var(--q-font-sans);
+  color: var(--q-ink-secondary);
+}
+.q-l-cols ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.q-l-cols li + li {
+  margin-top: 6px;
+}
+
+.q-l-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 56px;
+  align-items: center;
+}
+
+/* The reading-pointer example */
+
+.q-l-pointer {
+  background: var(--q-surface-raised);
+  border: 1px solid var(--q-hairline);
+  border-radius: var(--q-radius-card);
+  padding: 22px;
+}
+.q-l-pointer-block {
+  background: var(--q-surface-sunken);
+  border-radius: var(--q-radius-input);
+  padding: 14px 16px;
+  margin-top: 14px;
+}
+.q-l-pointer-block a {
+  color: var(--q-accent);
+}
+
+/* Closing call to action, and the footer */
+
+.q-l-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 52px 0;
+}
+.q-l-cta-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.q-l-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 28px 0;
+}
+
+@media (max-width: 900px) {
+  .q-l-shell {
+    padding: 0 22px;
+  }
+  .q-l-hero,
+  .q-l-split {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .q-l-hero {
+    padding: 40px 0 56px;
+  }
+  .q-l-hero h1 {
+    font-size: 38px;
+  }
+  .q-l-cols,
+  .q-l-cols--two {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .q-l-feed-card {
+    position: static;
+    width: auto;
+    margin-top: 16px;
+  }
+  .q-l-nav-links a:not(.q-button) {
+    display: none;
+  }
+}

@@ -1,0 +1,54 @@
+/* Quorum components. Load tokens.css first, plus Archivo and Literata. */
+
+.q-surface { background: var(--q-surface); border: 1px solid var(--q-hairline); border-radius: var(--q-radius-card); }
+
+.q-question { font: 400 16px/1.45 var(--q-font-serif); color: var(--q-ink); }
+.q-question--projected { font: 600 62px/1.16 var(--q-font-serif); }
+.q-meta { font: 400 13px var(--q-font-sans); color: var(--q-ink-muted); }
+.q-label { font: 600 14px var(--q-font-sans); color: var(--q-ink); }
+.q-code { font: 700 92px var(--q-font-sans); letter-spacing: 0.06em; line-height: 1; }
+
+.q-button {
+  min-height: var(--q-touch); padding: 12px 18px; border-radius: var(--q-radius-input);
+  font: 600 15px var(--q-font-sans); cursor: pointer; white-space: nowrap;
+  background: var(--q-accent); color: var(--q-accent-ink); border: none;
+}
+.q-button--secondary { background: var(--q-surface-raised); color: var(--q-ink); border: 1px solid var(--q-control-border); }
+.q-button--destructive { background: var(--q-surface-raised); color: var(--q-destructive); border: 1px solid var(--q-destructive-border); }
+.q-button--destructive-solid { background: var(--q-destructive); color: #FFFFFF; border: none; }
+.q-button[disabled] { background: var(--q-disabled-surface); color: var(--q-ink-muted); border: 1px solid var(--q-hairline); cursor: not-allowed; }
+.q-button--link { background: none; border: none; padding: 8px 0; font: 500 14px var(--q-font-sans); color: var(--q-accent); text-decoration: underline; text-underline-offset: 3px; }
+
+.q-input, .q-select, .q-textarea {
+  width: 100%; box-sizing: border-box; min-height: var(--q-touch); padding: 12px;
+  border: 1px solid var(--q-control-border); border-radius: var(--q-radius-input);
+  background: var(--q-surface-raised); font: 400 15px var(--q-font-sans);
+}
+.q-textarea { font: 400 16px/1.4 var(--q-font-serif); resize: none; }
+
+.q-vote {
+  width: 52px; min-height: var(--q-vote-size); height: var(--q-vote-size); align-self: flex-start; flex: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--q-surface-raised); border: 1px solid var(--q-control-border);
+  border-radius: var(--q-radius-input); cursor: pointer;
+}
+.q-vote--voted { background: var(--q-accent); border-color: var(--q-accent); color: var(--q-accent-ink); }
+.q-vote--closed { background: var(--q-surface-sunken); border-color: var(--q-hairline); color: var(--q-ink-muted); cursor: not-allowed; }
+
+.q-row { display: flex; gap: 14px; align-items: flex-start; }
+.q-row--pinned { border: 1px solid var(--q-accent); border-radius: var(--q-radius-input); padding: 12px; }
+
+/* Reserved height, so an appearing note never reflows what sits below it. */
+.q-status { min-height: 20px; font: 400 13px var(--q-font-sans); color: var(--q-ink-muted); }
+.q-status--saved { color: var(--q-accent); font-weight: 500; }
+
+.q-tab { text-align: left; background: none; border: none; padding: 12px 24px; min-height: var(--q-touch); font: 400 15px var(--q-font-sans); color: var(--q-ink-secondary); cursor: pointer; }
+.q-tab[aria-current="page"] { background: var(--q-surface-selected); color: var(--q-ink); font-weight: 600; }
+
+.q-projection { background: var(--q-projection-light); }
+.q-projection--dark { background: var(--q-projection-dark); color: var(--q-on-dark); }
+.q-projection--waiting { background-size: 150% 150%; animation: q-drift 26s ease-in-out infinite alternate; }
+@keyframes q-drift { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@media (prefers-reduced-motion: reduce) { .q-projection--waiting { animation: none; } }
+
+:where(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--q-accent); outline-offset: 2px; }

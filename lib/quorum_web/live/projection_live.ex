@@ -1,0 +1,169 @@
+defmodule QuorumWeb.ProjectionLive do
+  @moduledoc """
+  The screen at the front of the hall. Joining owns the screen while nothing is
+  spotlighted and shrinks to a rail once the lecturer picks a question. L and D
+  each toggle the hall light, Q clears the spotlight.
+  """
+  use QuorumWeb, :live_view
+
+  alias Quorum.Sessions
+  alias QuorumWeb.Brand
+
+  @impl true
+  def mount(%{"host_token" => token}, _session, socket) do
+    case Sessions.get_room_by_host_token(token) do
+      {:ok, %{} = room} ->
+        if connected?(socket), do: Sessions.subscribe(room.id)
+        {:ok, socket |> assign(dark: true, page_title: "Projection") |> load(room)}
+
+      _ ->
+        {:ok, assign(socket, room: nil, dark: true, page_title: "Projection")}
+    end
+  end
+
+  @impl true
+  def handle_info(_message, %{assigns: %{room: nil}} = socket), do: {:noreply, socket}
+  def handle_info(_message, socket), do: {:noreply, load(socket, socket.assigns.room)}
+
+  # Either key flips the hall light, so a lecturer who reaches for the wrong one
+  # still gets the switch rather than nothing.
+  @impl true
+  def handle_event("key", %{"key" => key}, socket) when key in ["l", "L", "d", "D"],
+    do: {:noreply, assign(socket, dark: !socket.assigns.dark)}
+
+  def handle_event("key", %{"key" => key}, socket) when key in ["q", "Q"] do
+    room = socket.assigns.room
+    if room && room.spotlight_question_id, do: Sessions.clear_spotlight(room)
+    {:noreply, socket}
+  end
+
+  def handle_event("key", _key, socket), do: {:noreply, socket}
+
+  defp load(socket, room) do
+    {:ok, room} = Sessions.get_room(room.id)
+    questions = Sessions.list_questions(room.id)
+    connected = room.id |> Sessions.topic() |> QuorumWeb.Presence.list() |> map_size()
+
+    assign(socket,
+      room: room,
+      spotlight: room.spotlight_question,
+      connected: connected,
+      question_count: length(questions)
+    )
+  end
+
+  defp qr_svg(code, width) do
+    ~p"/r/#{code}" |> url() |> EQRCode.encode() |> EQRCode.svg(width: width)
+  end
+
+  defp muted(true), do: "color:var(--q-on-dark-muted);"
+  defp muted(false), do: "color:var(--q-ink-muted);"
+
+  defp faint(true), do: "color:var(--q-on-dark-faint);"
+  defp faint(false), do: "color:var(--q-ink-muted);"
+
+  defp rail_fill(true), do: "background:#1A1A1A;"
+  defp rail_fill(false), do: "background:#E9E9E9;"
+
+  # A white QR card has no edge of its own against a lit hall, so give it one.
+  defp qr_frame(true), do: ""
+  defp qr_frame(false), do: "border:1px solid var(--q-ink);"
+
+  defp asker(%{display_name: name}) when is_binary(name) and name != "", do: "Asked by #{name}"
+  defp asker(_), do: "Asked anonymously"
+
+  defp votes(1), do: "vote"
+  defp votes(_), do: "votes"
+
+  @impl true
+  def render(%{room: nil} = assigns) do
+    ~H"""
+    <main
+      class="q-projection q-projection--dark"
+      style="min-height:100dvh;display:flex;align-items:center;justify-content:center;"
+    >
+      <p style="font:400 20px var(--q-font-sans);color:var(--q-on-dark);">
+        That host link doesn't match a room.
+      </p>
+    </main>
+    """
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div
+      phx-window-keyup="key"
+      class={[
+        "q-projection",
+        @dark && "q-projection--dark",
+        is_nil(@spotlight) && "q-projection--waiting"
+      ]}
+      style="min-height:100dvh;display:flex;flex-direction:column;"
+    >
+      <%= if @spotlight do %>
+        <main style="flex:1;display:flex;min-height:0;">
+          <aside style={"width:268px;flex:none;padding:28px 22px;display:flex;flex-direction:column;gap:12px;#{rail_fill(@dark)}"}>
+            <Brand.logo on_dark={@dark} size={22} />
+            <p style={"font:400 15px var(--q-font-sans);margin:14px 0 0;#{muted(@dark)}"}>
+              Scan to ask a question
+            </p>
+            <div style={"background:#fff;padding:10px;border-radius:8px;width:fit-content;#{qr_frame(@dark)}"}>
+              {raw(qr_svg(@room.join_code, 180))}
+            </div>
+            <p style={"font:400 14px var(--q-font-sans);margin:0;#{muted(@dark)}"}>quorum.app/join</p>
+            <p class="q-code" style="font-size:42px;margin:0;">{@room.join_code}</p>
+          </aside>
+
+          <section style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:48px 5% 48px 48px;">
+            <p style="font:600 20px var(--q-font-sans);color:var(--q-accent-on-dark);margin:0 0 18px;">
+              Answering now
+            </p>
+            <p class="q-question--projected" style="margin:0;">{@spotlight.body}</p>
+            <p style={"font:400 20px var(--q-font-sans);margin:28px 0 0;#{muted(@dark)}"}>
+              {asker(@spotlight)}, {@spotlight.vote_count} {votes(@spotlight.vote_count)}
+            </p>
+          </section>
+        </main>
+      <% else %>
+        <header style="padding:28px 32px;">
+          <Brand.logo on_dark={@dark} size={26} />
+        </header>
+
+        <main style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:22px;padding:0 32px;">
+          <p style={"font:400 30px var(--q-font-sans);margin:0;#{muted(@dark)}"}>
+            Scan to ask a question
+          </p>
+          <div style={"background:#fff;padding:18px;border-radius:12px;line-height:0;#{qr_frame(@dark)}"}>
+            {raw(qr_svg(@room.join_code, 300))}
+          </div>
+          <p style={"font:400 20px var(--q-font-sans);margin:0;#{muted(@dark)}"}>
+            Or go to quorum.app/join and type
+          </p>
+          <p class="q-code" style="margin:0;">{@room.join_code}</p>
+        </main>
+      <% end %>
+
+      <footer style="display:flex;justify-content:space-between;align-items:flex-end;gap:22px;padding:24px 32px;">
+        <div style={"font:400 18px var(--q-font-sans);line-height:1.5;#{muted(@dark)}"}>
+          <div>
+            <strong>{@connected}</strong> {if @connected == 1, do: "student", else: "students"} connected
+          </div>
+          <div :if={@question_count > 0}>
+            <strong>{@question_count}</strong> {if @question_count == 1,
+              do: "question",
+              else: "questions"} asked
+          </div>
+          <div :if={@question_count == 0}>No questions yet</div>
+        </div>
+        <div style={"font:400 13px var(--q-font-sans);text-align:right;#{faint(@dark)}"}>
+          Press <strong>L</strong>
+          or <strong>D</strong>{if @dark,
+            do: " for a lit hall.",
+            else: " for a dark hall."}
+          <span :if={@spotlight}>Press <strong>Q</strong> to hide the spotlight.</span>
+        </div>
+      </footer>
+    </div>
+    """
+  end
+end

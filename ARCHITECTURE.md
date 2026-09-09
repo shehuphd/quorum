@@ -1,0 +1,73 @@
+# Architecture
+
+This document describes how Quorum is built: its structure, the domain resources, the data store, and the path a change takes through the system.
+
+## STRuFO
+
+[S]hape, [T]echnical stack, [Ru]n details, [F]ailure modes, [O]bservability.
+
+### Shape
+
+Quorum is a live classroom engagement tool for university lectures. Students join a session by scanning a projected QR code, then submit and upvote questions from their seats; the lecturer answers the top-ranked ones and closes the session. The interactive UI renders server-side over websockets via Phoenix LiveView.
+
+Four screens make up the product. The projection and the console belong to the lecturer, behind a secret host token. The join screen and the student feed are public to anyone holding the five-character code.
+
+A landing page at `/` fronts all of it, and a seeded demo lecture behind `/demo`, `/demo/host`, and `/demo/project` opens the same room in each of the three roles, so the product can be looked at without a lecture to run.
+
+### Technical stack
+
+- Elixir on the BEAM (Erlang VM)
+- Phoenix web framework, with LiveView for all four screens and a plain controller for the landing page
+- Ash for the domain layer, resources grouped under `Quorum.Sessions`
+- Ecto with PostgreSQL for persistence, through `Quorum.Repo` (an `AshPostgres.Repo`)
+- Phoenix.PubSub (`Quorum.PubSub`) for live updates, driven by an Ash notifier
+- Phoenix.Presence for the connected-student count
+- eqrcode for server-rendered QR codes, so the projection needs no client JavaScript to draw one
+- A bespoke CSS design system (tokens plus `q-*` components) with Archivo and Literata self-hosted as woff2
+- Oban for scheduled and background jobs (not added yet; arrives with auto-close and the AI slice)
+- Deployment target: Fly.io
+
+### Run details
+
+#### Plain-English version
+
+A student posts a question to a room. Ash runs the room's `ask` action, which validates the body and writes a row through AshPostgres. Once the write commits, the room's notifier publishes one "this room changed" message on the room's PubSub topic. Every LiveView watching that room, on any device and in any process, receives it and re-reads the room's visible questions ordered by vote count. The lecturer's console, the projection, and every student's phone all redraw within the same round-trip, with no page refresh.
+
+An upvote follows the same path: the `cast` action upserts a vote, so a repeat vote by the same browser changes nothing, and the same broadcast reloads every viewer. A vote is tied to an opaque token in the browser's session cookie, which is also what lets a student retract their own question. No sign-up, and no way for one student to see who asked what.
+
+The lecturer's actions take the same path. Spotlighting a question writes the pick onto the room, and the projection reloads and swaps its layout because it heard the same broadcast, not because the console told it to.
+
+#### Technical version
+
+- `Quorum.Sessions.Question` `:ask`, built with `Ash.Changeset.for_create/3` and run by `Ash.create/1`
+- validation and the insert run through `AshPostgres.DataLayer` against `Quorum.Repo`
+- after commit, `Quorum.Sessions.Broadcaster.notify/1` calls `Phoenix.PubSub.broadcast/3` on `Quorum.Sessions.topic(room_id)` with `{:room_changed, room_id}`
+- every LiveView subscribes in `mount/3` via `Quorum.Sessions.subscribe/1` and reloads in a single `handle_info/2` clause, since the message names the room rather than a delta
+- an upvote takes `Quorum.Sessions.Vote` `:cast`, an upsert on the `unique_vote` identity; the notifier loads the vote's question to resolve its room, then broadcasts
+- `QuorumWeb.BrowserToken` puts an opaque token in the session on the first request; `AttendeeLive` reads it in `mount/3` and passes it as the `voter_token` and `submitter_token`
+- `QuorumWeb.Presence.track/3` in `AttendeeLive`'s mount, `Presence.list/1` in the console and projection, both keyed on the same room topic
+- the LiveViews call only `Quorum.Sessions` functions; no changeset or `Ash.Query` is built in the web layer
+
+### Failure modes
+
+| Cause | Handling |
+|---|---|
+| Empty or over-length question body | The composer refuses to submit an empty body, and Ash validation rejects an over-length one; either way the draft stays in the box and a status line says the question wasn't posted |
+| Question with no room or no submitter token | `allow_nil? false` rejects it before insert |
+| Same browser votes twice | The `unique_vote` identity plus an upsert make the second vote a no-op, not an error and not a duplicate row |
+| Duplicate join code or host token | Unique identities reject the collision; a room open fails rather than shadowing an existing room |
+| Unknown join code | The join screen names the code it rejected; a bad code in a `/r/:code` URL redirects back to join with that code prefilled |
+| Unknown host token | The console and the projection each render a plain "that host link doesn't match a room" instead of crashing the LiveView |
+| A spotlighted question is deleted | The foreign key nilifies `rooms.spotlight_question_id`, so the projection falls back to the joining screen rather than pointing at a missing row |
+| The list reorders under a reader's thumb | A voted row is held in its position and the feed offers a resort with a count of what rose above it, rather than moving content the reader is looking at |
+| PubSub message missed, or a viewer joins late | The broadcast names the room, not a delta, so a reload reconstructs the correct state; a missed message costs at most one stale render until the next change |
+| Websocket drops | LiveView reconnects and remounts; the student's unsent draft is held in the LiveView's own assigns and comes back with it |
+| The demo room is closed or missing | `Demo.ensure_room/0` seeds a new one on the next visit, so `/demo` never reaches a dead link. The landing page reads without seeding, so a page view never writes |
+| Database unreachable | Ash returns a transport error from the action; nothing is silently swallowed |
+
+### Observability
+
+- Ecto logs every query with timings in dev, so the SQL a run issued is visible without adding print statements
+- The ExUnit suite drives every resource action against a live database, and the LiveView suite drives all four screens through `Phoenix.LiveViewTest`, asserting the rendered outcome rather than internal state
+- `Phoenix.LiveDashboard` is mounted for process, memory, and query inspection
+- Telemetry handlers that record each handler's decision arrive when there are decisions to record; today every screen's state is one reload of the same query, which the query log already shows

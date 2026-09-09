@@ -1,0 +1,112 @@
+defmodule Quorum.Sessions.Room do
+  @moduledoc """
+  A live session: one lecture, all-hands, or stream. Students join it by its
+  `join_code` (also encoded in the projected QR); whoever holds the `host_token`
+  gets the host view.
+  """
+  use Ash.Resource,
+    otp_app: :quorum,
+    domain: Quorum.Sessions,
+    data_layer: AshPostgres.DataLayer,
+    notifiers: [Quorum.Sessions.Broadcaster]
+
+  alias Quorum.Sessions.Codes
+
+  postgres do
+    table "rooms"
+    repo Quorum.Repo
+
+    references do
+      # If a spotlighted question is deleted, the projection just goes dark.
+      reference :spotlight_question, on_delete: :nilify
+    end
+  end
+
+  actions do
+    defaults([:read, :destroy])
+    default_accept([])
+
+    create :open do
+      description("Open a new room. The caller keeps the returned host_token.")
+      accept([:name, :auto_close_at, :demo?])
+    end
+
+    update :close do
+      description("Close the room to new questions and votes.")
+      accept([])
+      change(set_attribute(:status, :closed))
+    end
+
+    update :spotlight do
+      description("Put a question on the projection.")
+      accept([:spotlight_question_id])
+    end
+
+    update :clear_spotlight do
+      description("Take the projection back to the waiting screen.")
+      accept([])
+      change(set_attribute(:spotlight_question_id, nil))
+    end
+  end
+
+  attributes do
+    uuid_primary_key(:id)
+
+    attribute :name, :string do
+      allow_nil?(false)
+      public?(true)
+      constraints(max_length: 200, min_length: 1)
+    end
+
+    # Shown to students; generated, never client-set.
+    attribute :join_code, :string do
+      allow_nil?(false)
+      default(&Codes.join_code/0)
+      constraints(max_length: 12)
+    end
+
+    # Secret; grants the host view. Never rendered to students.
+    attribute :host_token, :string do
+      allow_nil?(false)
+      default(&Codes.token/0)
+      constraints(max_length: 64)
+    end
+
+    attribute :status, :atom do
+      allow_nil?(false)
+      public?(true)
+      default(:open)
+      constraints(one_of: [:open, :closed])
+    end
+
+    attribute :auto_close_at, :utc_datetime do
+      public?(true)
+    end
+
+    # A demo room is the one the landing page points at, so anyone can look at
+    # the product without opening a lecture of their own.
+    attribute :demo?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(false)
+    end
+
+    create_timestamp(:inserted_at)
+    update_timestamp(:updated_at)
+  end
+
+  relationships do
+    has_many :questions, Quorum.Sessions.Question
+
+    # The question currently on the projection, if any.
+    belongs_to :spotlight_question, Quorum.Sessions.Question do
+      allow_nil?(true)
+      attribute_writable?(true)
+    end
+  end
+
+  identities do
+    identity(:unique_join_code, [:join_code])
+    identity(:unique_host_token, [:host_token])
+  end
+end
