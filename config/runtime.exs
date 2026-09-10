@@ -182,6 +182,12 @@ if config_env() == :prod do
     config :quorum, :contact_from, from
   end
 
+  # The AI's daily ceiling, in dollars. The provider keys behind the sidecar are
+  # live, so this is what stops an open demo drawing an account down.
+  if budget = System.get_env("QUORUM_AI_DAILY_BUDGET") do
+    config :quorum, :ai_daily_budget, budget
+  end
+
   # Where the contact form's mail goes.
   if address = System.get_env("CONTACT_EMAIL") do
     config :quorum, :contact_email, address

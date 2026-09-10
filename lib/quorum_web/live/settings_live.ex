@@ -724,6 +724,7 @@ defmodule QuorumWeb.SettingsLive do
             type="button"
             role="switch"
             aria-checked={to_string(@room.allow_display_name?)}
+            aria-label="Let students sign a question"
             class={["q-switch", @room.allow_display_name? && "q-switch--on"]}
             phx-click="toggle"
             phx-value-field="allow_display_name?"
@@ -731,7 +732,7 @@ defmodule QuorumWeb.SettingsLive do
             <span class="q-switch-knob"></span>
           </button>
           <span class="q-label">
-            Let students sign a question, {if @room.allow_display_name?, do: "on", else: "off"}
+            Let students sign a question
           </span>
         </div>
         <p class="q-meta">
@@ -828,7 +829,7 @@ defmodule QuorumWeb.SettingsLive do
           No keys yet. Add one below and everything switches on.
         </p>
 
-        <h3 style="margin-top:22px;">Add a key</h3>
+        <h3 style="margin:22px 0 12px;">Add a key</h3>
         <form id={"ai-key-form-#{@form_seq}"} phx-change="ai_form" class="q-ai-add" autocomplete="off">
           <div>
             <label class="q-label" for="ai-provider">Provider</label>
@@ -924,13 +925,14 @@ defmodule QuorumWeb.SettingsLive do
           type="button"
           role="switch"
           aria-checked={to_string(@on)}
+          aria-label={@label}
           class={["q-switch", @on && "q-switch--on"]}
           phx-click="toggle"
           phx-value-field={@field}
         >
           <span class="q-switch-knob"></span>
         </button>
-        <span class="q-label">{@label}, {if @on, do: "on", else: "off"}</span>
+        <span class="q-label">{@label}</span>
       </div>
       <p :if={@inner_block != []} class="q-meta">{render_slot(@inner_block)}</p>
     </div>
@@ -1058,6 +1060,7 @@ defmodule QuorumWeb.SettingsLive do
             type="button"
             role="switch"
             aria-checked={to_string(@room.readings_pointer?)}
+            aria-label="Show readings"
             class={["q-switch", @room.readings_pointer? && "q-switch--on"]}
             phx-click="toggle"
             phx-value-field="readings_pointer?"
@@ -1065,14 +1068,9 @@ defmodule QuorumWeb.SettingsLive do
             <span class="q-switch-knob"></span>
           </button>
           <span class="q-label">
-            Point students to approved readings, {if @room.readings_pointer?, do: "on", else: "off"}
+            Show readings
           </span>
         </div>
-        <p class="q-meta">
-          When it's on, a student who posts a question is shown up to two items from the list
-          below and nothing else, matched by a model that can pick from this list or pick
-          nothing. Only the asker sees them, and the AI service has to be running.
-        </p>
       </div>
 
       <hr class="q-divider" style="margin:8px 0;" />
@@ -1283,6 +1281,7 @@ defmodule QuorumWeb.SettingsLive do
             type="button"
             role="switch"
             aria-checked={to_string(@room.projection_drift?)}
+            aria-label="Drift the gradient slowly"
             class={["q-switch", @room.projection_drift? && "q-switch--on"]}
             phx-click="toggle"
             phx-value-field="projection_drift?"
@@ -1290,7 +1289,7 @@ defmodule QuorumWeb.SettingsLive do
             <span class="q-switch-knob"></span>
           </button>
           <span class="q-label">
-            Drift the gradient slowly, {if @room.projection_drift?, do: "on", else: "off"}
+            Drift the gradient slowly
           </span>
         </div>
         <p class="q-meta">

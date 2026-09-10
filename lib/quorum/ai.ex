@@ -10,6 +10,9 @@ defmodule Quorum.AI do
   """
   use Ash.Domain, otp_app: :quorum
 
+  require Ash.Query
+  require Logger
+
   resources do
     resource(Quorum.AI.Call)
   end
@@ -25,6 +28,63 @@ defmodule Quorum.AI do
     end
   end
 
+  # A day's worth of model use. The keys behind the sidecar are live and the demo
+  # is open to anyone with the link, so this is the ceiling that stops a room
+  # full of questions, or someone poking at it, from drawing an account down.
+  #
+  # Two ceilings, because either alone has a hole: the ledger can't price a model
+  # it doesn't know yet, and an unpriced call would otherwise cost nothing
+  # against a dollar limit, so a count guards it too. Both roll over 24 hours
+  # rather than resetting on a calendar day, so they recover without anything
+  # having to run.
+  @default_daily_budget "2.00"
+  @default_daily_calls 200
+
+  @doc "The most the AI may spend in a rolling day, in dollars."
+  def daily_budget do
+    :quorum
+    |> Application.get_env(:ai_daily_budget, @default_daily_budget)
+    |> to_string()
+    |> Decimal.new()
+  end
+
+  @doc "The most calls the AI may make in a rolling day, priced or not."
+  def daily_call_limit do
+    :quorum
+    |> Application.get_env(:ai_daily_calls, @default_daily_calls)
+    |> to_string()
+    |> String.to_integer()
+  end
+
+  @doc "What the AI has spent in the last 24 hours. Unpriced calls count as nothing."
+  def spent_today(now \\ DateTime.utc_now()), do: now |> day() |> elem(0)
+
+  @doc "How many calls the AI has made in the last 24 hours, priced or not."
+  def calls_today(now \\ DateTime.utc_now()), do: now |> day() |> elem(1)
+
+  @doc "Whether either ceiling still has room for another call today."
+  def within_budget?(now \\ DateTime.utc_now()) do
+    {spent, count} = day(now)
+    Decimal.lt?(spent, daily_budget()) and count < daily_call_limit()
+  end
+
+  defp day(now) do
+    since = DateTime.add(now, -24, :hour)
+
+    calls =
+      Quorum.AI.Call
+      |> Ash.Query.filter(inserted_at >= ^since)
+      |> Ash.read!()
+
+    spent =
+      calls
+      |> Enum.map(& &1.cost)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.reduce(Decimal.new(0), &Decimal.add/2)
+
+    {spent, length(calls)}
+  end
+
   @doc """
   One model call through the sidecar, recorded whatever happens.
 
@@ -33,6 +93,20 @@ defmodule Quorum.AI do
   belongs to, for the record). Returns `{:ok, text}` or `{:error, reason}`.
   """
   def generate(purpose, prompt, opts \\ []) do
+    if within_budget?() do
+      call(purpose, prompt, opts)
+    else
+      Logger.warning(
+        "AI call refused: the last 24 hours already used " <>
+          "$#{spent_today()} of $#{daily_budget()} or " <>
+          "#{calls_today()} of #{daily_call_limit()} calls"
+      )
+
+      {:error, :over_budget}
+    end
+  end
+
+  defp call(purpose, prompt, opts) do
     request = %{
       prompt: prompt,
       system: opts[:system],

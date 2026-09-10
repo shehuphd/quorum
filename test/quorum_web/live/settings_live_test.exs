@@ -133,16 +133,16 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert html =~ "linear-gradient(120deg, #1A1A1A, #2B4A3F)"
     end
 
-    test "the drift toggle names its state in words and stops the animation", %{conn: conn} do
+    test "the drift toggle carries its state and stops the animation", %{conn: conn} do
       room = room()
       {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/appearance")
 
-      assert html =~ "Drift the gradient slowly, on"
+      assert html =~ ~s(aria-checked="true" aria-label="Drift the gradient slowly")
 
       view |> element(~s([phx-value-field="projection_drift?"])) |> render_click()
 
       html = settle(view)
-      assert html =~ "Drift the gradient slowly, off"
+      assert html =~ ~s(aria-checked="false" aria-label="Drift the gradient slowly")
       assert html =~ ~s(aria-checked="false")
 
       {:ok, _view, projection} = live(conn, ~p"/host/#{room.host_token}/project")
@@ -196,19 +196,21 @@ defmodule QuorumWeb.SettingsLiveTest do
 
       view |> element(~s([phx-value-field="allow_display_name?"])) |> render_click()
 
-      assert settle(view) =~ "Let students sign a question, off"
+      assert settle(view) =~ ~s(aria-checked="false" aria-label="Let students sign a question")
 
       {:ok, _view, feed} = live(conn, ~p"/r/#{room.join_code}")
       refute feed =~ "Add your name"
       assert feed =~ "Every question here is anonymous."
     end
 
-    test "keeping questions is the default, and the switch says why it matters", %{conn: conn} do
+    test "keeping questions is the default, and the switch says what turning it off does", %{
+      conn: conn
+    } do
       room = room()
 
       {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/questions")
 
-      assert html =~ "Keep this room&#39;s questions, on"
+      assert html =~ ~s(aria-checked="true" aria-label="Keep this room&#39;s questions")
       assert html =~ "which weeks drew nothing"
       assert html =~ "There&#39;s no undo."
     end
@@ -220,7 +222,7 @@ defmodule QuorumWeb.SettingsLiveTest do
       {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/questions")
       view |> element(~s([phx-value-field="keep_questions?"])) |> render_click()
 
-      assert settle(view) =~ "Keep this room&#39;s questions, off"
+      assert settle(view) =~ ~s(aria-checked="false" aria-label="Keep this room&#39;s questions")
 
       {:ok, room} = Sessions.get_room(room.id)
       Sessions.close_room(room)
@@ -251,15 +253,15 @@ defmodule QuorumWeb.SettingsLiveTest do
   end
 
   describe "moderation" do
-    test "the hold switch names its state and takes effect on the next question", %{conn: conn} do
+    test "the hold switch carries its state and takes effect on the next question", %{conn: conn} do
       room = room()
       {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
 
-      assert html =~ "Hold every question for review, off"
+      assert html =~ ~s(aria-checked="false" aria-label="Hold every question for review")
 
       view |> element(~s([phx-value-field="hold_for_review?"])) |> render_click()
 
-      assert settle(view) =~ "Hold every question for review, on"
+      assert settle(view) =~ ~s(aria-checked="true" aria-label="Hold every question for review")
 
       assert {:ok, %{status: :pending}} =
                Sessions.ask(room.id, %{body: "held one", submitter_token: "a"})
@@ -340,20 +342,20 @@ defmodule QuorumWeb.SettingsLiveTest do
       refute html =~ "waiting for review"
     end
 
-    test "each of the three switches names its state and takes effect", %{conn: conn} do
+    test "each of the three switches carries its state and takes effect", %{conn: conn} do
       room = room()
       {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
 
-      assert html =~ "Hold a student&#39;s first question, off"
-      assert html =~ "Hold anything with a link, off"
+      assert html =~ ~s(aria-checked="false" aria-label="Hold a student&#39;s first question")
+      assert html =~ ~s(aria-checked="false" aria-label="Hold anything with a link")
 
       view |> element(~s([phx-value-field="hold_first_question?"])) |> render_click()
       settle(view)
       view |> element(~s([phx-value-field="hold_links?"])) |> render_click()
 
       html = settle(view)
-      assert html =~ "Hold a student&#39;s first question, on"
-      assert html =~ "Hold anything with a link, on"
+      assert html =~ ~s(aria-checked="true" aria-label="Hold a student&#39;s first question")
+      assert html =~ ~s(aria-checked="true" aria-label="Hold anything with a link")
 
       assert {:ok, saved} = Sessions.get_room(room.id)
       assert saved.hold_first_question?
@@ -434,7 +436,7 @@ defmodule QuorumWeb.SettingsLiveTest do
       {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/projection")
 
       view |> element(~s([phx-value-field="projection_show_asker?"])) |> render_click()
-      assert settle(view) =~ "Show who asked, off"
+      assert settle(view) =~ ~s(aria-checked="false" aria-label="Show who asked")
 
       {:ok, _view, wall} = live(conn, ~p"/host/#{room.host_token}/project")
       refute wall =~ "Asked anonymously"
@@ -620,16 +622,16 @@ defmodule QuorumWeb.SettingsLiveTest do
       refute html =~ "Their reading"
     end
 
-    test "the pointer toggle names its state in words", %{conn: conn} do
+    test "the pointer toggle carries its state", %{conn: conn} do
       room = room()
       {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/resources")
 
-      assert html =~ "Point students to approved readings, off"
+      assert html =~ ~s(aria-checked="false" aria-label="Show readings")
 
       view |> element(~s([phx-value-field="readings_pointer?"])) |> render_click()
 
       html = settle(view)
-      assert html =~ "Point students to approved readings, on"
+      assert html =~ ~s(aria-checked="true" aria-label="Show readings")
       assert html =~ ~s(aria-checked="true")
       assert {:ok, saved} = Sessions.get_room(room.id)
       assert saved.readings_pointer?

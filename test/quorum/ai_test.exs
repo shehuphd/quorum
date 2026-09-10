@@ -12,6 +12,8 @@ defmodule Quorum.AITest do
     on_exit(fn ->
       Application.delete_env(:quorum, :ai_stub)
       Application.delete_env(:quorum, :ai_enabled)
+      Application.delete_env(:quorum, :ai_daily_budget)
+      Application.delete_env(:quorum, :ai_daily_calls)
     end)
   end
 
@@ -23,6 +25,79 @@ defmodule Quorum.AITest do
 
   defp calls do
     Quorum.AI.Call |> Ash.read!()
+  end
+
+  describe "the daily ceilings" do
+    setup do
+      ai_on()
+
+      answer_with(
+        {:ok,
+         %{
+           "text" => "fine",
+           "provider" => "anthropic",
+           "model" => "some-model",
+           "input_tokens" => 100,
+           "output_tokens" => 100,
+           "elapsed_ms" => 100.0
+         }}
+      )
+
+      :ok
+    end
+
+    defp priced_call(cost) do
+      Quorum.AI.Call
+      |> Ash.Changeset.for_create(:record, %{
+        purpose: :draft,
+        provider: "anthropic",
+        model: "some-model",
+        input_tokens: 100,
+        output_tokens: 100,
+        elapsed_ms: 100,
+        cost: Decimal.new(cost),
+        ok?: true
+      })
+      |> Ash.create!()
+    end
+
+    test "a call goes through while both ceilings have room" do
+      assert {:ok, "fine"} = AI.generate(:draft, "anything")
+    end
+
+    test "a call is refused once the day's spend is used, and reaches no provider" do
+      Application.put_env(:quorum, :ai_daily_budget, "0.50")
+      priced_call("0.60")
+      before = length(calls())
+
+      # The keys behind the sidecar are live, so the ceiling has to stop the
+      # call rather than only report it afterwards.
+      assert {:error, :over_budget} = AI.generate(:draft, "anything")
+      assert length(calls()) == before
+    end
+
+    test "a call is refused once the day's calls are used, priced or not" do
+      Application.put_env(:quorum, :ai_daily_calls, "1")
+
+      assert {:ok, _} = AI.generate(:draft, "first")
+
+      # A model the ledger can't price costs nothing against the dollar ceiling,
+      # so the count is what stops an unknown model being used to walk past it.
+      assert {:error, :over_budget} = AI.generate(:draft, "second")
+    end
+
+    test "yesterday's spend and calls don't count against today" do
+      Application.put_env(:quorum, :ai_daily_budget, "0.50")
+      Application.put_env(:quorum, :ai_daily_calls, "1")
+      priced_call("0.60")
+
+      tomorrow = DateTime.add(DateTime.utc_now(), 25, :hour)
+
+      # The window rolls, so it recovers without anything having to reset it.
+      assert Decimal.eq?(AI.spent_today(tomorrow), 0)
+      assert AI.calls_today(tomorrow) == 0
+      assert AI.within_budget?(tomorrow)
+    end
   end
 
   describe "the spend record" do
