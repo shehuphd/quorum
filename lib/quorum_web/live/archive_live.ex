@@ -12,6 +12,8 @@ defmodule QuorumWeb.ArchiveLive do
   """
   use QuorumWeb, :live_view
 
+  import QuorumWeb.Wording
+
   alias Quorum.Sessions
   alias QuorumWeb.CurrentUser
 
@@ -127,9 +129,6 @@ defmodule QuorumWeb.ArchiveLive do
 
   defp day(dt), do: Calendar.strftime(dt, "%-d %b %Y")
 
-  defp asker(%{display_name: name}) when is_binary(name) and name != "", do: name
-  defp asker(_), do: "Anonymous"
-
   # The session's own line. While a search is running it counts what matched,
   # since the answered figure for the whole session would disagree with the one
   # row under it.
@@ -151,13 +150,10 @@ defmodule QuorumWeb.ArchiveLive do
 
   # Who asked, when, and whether it was answered in the room, as one line.
   defp meta(question) do
-    [asker(question), day(question.inserted_at)]
+    [name_or_anon(question.display_name), day(question.inserted_at)]
     |> then(&if question.status == :answered, do: &1 ++ ["answered"], else: &1)
     |> Enum.join(" · ")
   end
-
-  defp counted(1, word), do: "1 #{word}"
-  defp counted(n, word), do: "#{n} #{word}s"
 
   @impl true
   def render(assigns) do

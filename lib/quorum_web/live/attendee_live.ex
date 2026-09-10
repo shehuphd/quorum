@@ -12,6 +12,8 @@ defmodule QuorumWeb.AttendeeLive do
   """
   use QuorumWeb, :live_view
 
+  import QuorumWeb.Wording
+
   alias Quorum.Sessions
 
   @undo_seconds 10
@@ -265,8 +267,6 @@ defmodule QuorumWeb.AttendeeLive do
   defp pointed(question, readings),
     do: question.pointer_reading_ids |> Enum.map(&Map.get(readings, &1)) |> Enum.reject(&is_nil/1)
 
-  defp clock(dt), do: Calendar.strftime(dt, "%H:%M")
-
   defp ago(dt) do
     case DateTime.diff(DateTime.utc_now(), dt) do
       s when s < 60 -> "just now"
@@ -274,9 +274,6 @@ defmodule QuorumWeb.AttendeeLive do
       s -> "#{div(s, 3600)} h ago"
     end
   end
-
-  defp votes(1), do: "vote"
-  defp votes(_), do: "votes"
 
   # How many this student can still post, counting only what's waiting on them.
   defp remaining(0), do: "You've used your questions for now. Retracting one frees it up."

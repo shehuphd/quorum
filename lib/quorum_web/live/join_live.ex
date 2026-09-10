@@ -11,6 +11,8 @@ defmodule QuorumWeb.JoinLive do
   """
   use QuorumWeb, :live_view
 
+  import QuorumWeb.Wording
+
   alias Quorum.Sessions
   alias QuorumWeb.Brand
 
@@ -113,17 +115,6 @@ defmodule QuorumWeb.JoinLive do
 
   # The room's own gradient, as the longhand: the `background` shorthand would
   # reset background-size and the drift animates the position across it.
-  defp hall(nil), do: nil
-
-  defp hall(room) do
-    {from, to} =
-      if room.projection_dark?,
-        do: {room.projection_dark_from, room.projection_dark_to},
-        else: {room.projection_light_from, room.projection_light_to}
-
-    "background-image:linear-gradient(#{room.projection_angle}deg, #{from}, #{to});"
-  end
-
   defp slots(code) do
     typed = String.graphemes(code)
     for i <- 0..(@length - 1), do: {i, Enum.at(typed, i), i == length(typed)}
@@ -140,15 +131,12 @@ defmodule QuorumWeb.JoinLive do
   defp badge(""), do: "Anonymous"
   defp badge(name), do: name
 
-  defp counted(1, word), do: "1 #{word}"
-  defp counted(n, word), do: "#{n} #{word}s"
-
   @impl true
   def render(assigns) do
     ~H"""
     <div
       class={["q-join", dark?(@room) && "q-join--dark", drift?(@room) && "q-join--drift"]}
-      style={hall(@room)}
+      style={hall(@room, @room && @room.projection_dark?)}
     >
       <header class="q-join-top">
         <.link navigate={~p"/"} aria-label="Quorum home">

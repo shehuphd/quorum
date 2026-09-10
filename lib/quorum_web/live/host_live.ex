@@ -9,6 +9,8 @@ defmodule QuorumWeb.HostLive do
   """
   use QuorumWeb, :live_view
 
+  import QuorumWeb.Wording
+
   alias Quorum.Sessions
   alias QuorumWeb.CurrentUser
 
@@ -232,8 +234,6 @@ defmodule QuorumWeb.HostLive do
   defp spotlighted?(nil, _id), do: false
   defp spotlighted?(spotlight, id), do: spotlight.id == id
 
-  defp clock(dt), do: Calendar.strftime(dt, "%H:%M")
-
   # The draft is stored as "- " lines; older ones may be prose. Either way the
   # rail draws a list, one item per line, prose as a single item.
   defp draft_lines(draft) do
@@ -253,15 +253,6 @@ defmodule QuorumWeb.HostLive do
   defp held_because(%{held_reason: :suspected}), do: "reads like an instruction to the AI"
   defp held_because(%{held_reason: :injection}), do: "the AI read this as aimed at itself"
   defp held_because(_), do: "held"
-
-  defp asker(%{display_name: name}) when is_binary(name) and name != "", do: "Asked by #{name}"
-  defp asker(_), do: "Anonymous"
-
-  defp votes(1), do: "vote"
-  defp votes(_), do: "votes"
-
-  defp qr(code, width),
-    do: ~p"/r/#{code}" |> url() |> EQRCode.encode() |> EQRCode.svg(width: width)
 
   defp student_url(code), do: url(~p"/r/#{code}")
 
@@ -397,7 +388,7 @@ defmodule QuorumWeb.HostLive do
         <main class="q-console-main">
           <%= if @question_count == 0 do %>
             <section class="q-join-panel">
-              <div class="q-join-qr">{raw(qr(@room.join_code, 150))}</div>
+              <div class="q-join-qr">{raw(qr_svg(@room.join_code, 150))}</div>
               <div style="min-width:0;">
                 <p class="q-meta" style="font-size:15px;margin:0;">
                   Students join at {QuorumWeb.Shell.join_hint()} with
@@ -422,7 +413,7 @@ defmodule QuorumWeb.HostLive do
             </section>
           <% else %>
             <section class="q-join-strip">
-              <div class="q-join-qr">{raw(qr(@room.join_code, 46))}</div>
+              <div class="q-join-qr">{raw(qr_svg(@room.join_code, 46))}</div>
               <div style="flex:1;min-width:0;">
                 <p class="q-meta" style="margin:0;">Still joining at {QuorumWeb.Shell.join_hint()}</p>
                 <p class="q-code">{@room.join_code}</p>
@@ -451,7 +442,7 @@ defmodule QuorumWeb.HostLive do
               <div style="flex:1;min-width:0;">
                 <p class="q-question">{question.body}</p>
                 <p class="q-meta" style="margin:6px 0 0;">
-                  {asker(question)}, {clock(question.inserted_at)} &middot; {held_because(question)}
+                  {asked_by(question)}, {clock(question.inserted_at)} &middot; {held_because(question)}
                 </p>
               </div>
               <div class="q-queue-actions">
@@ -530,7 +521,7 @@ defmodule QuorumWeb.HostLive do
                     On the projection now
                   </div>
                   <div :if={!spotlighted?(@spotlight, q.id)} class="q-meta" style="margin-top:6px;">
-                    {asker(q)}, {clock(q.inserted_at)}
+                    {asked_by(q)}, {clock(q.inserted_at)}
                   </div>
                 </div>
                 <div class="q-queue-actions">

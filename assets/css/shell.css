@@ -660,11 +660,6 @@
   padding-left: 0;
   padding-right: 20px;
 }
-.q-tab-note {
-  font: 400 12px var(--q-font-sans);
-  color: var(--q-ink-muted);
-  margin-top: 2px;
-}
 .q-settings-pane {
   padding: 28px 0 48px 32px;
   min-width: 0;

@@ -6,6 +6,8 @@ defmodule QuorumWeb.ProjectionLive do
   """
   use QuorumWeb, :live_view
 
+  import QuorumWeb.Wording
+
   alias Quorum.Sessions
   alias QuorumWeb.Brand
 
@@ -56,10 +58,6 @@ defmodule QuorumWeb.ProjectionLive do
     )
   end
 
-  defp qr_svg(code, width) do
-    ~p"/r/#{code}" |> url() |> EQRCode.encode() |> EQRCode.svg(width: width)
-  end
-
   defp muted(true), do: "color:var(--q-on-dark-muted);"
   defp muted(false), do: "color:var(--q-ink-muted);"
 
@@ -71,30 +69,15 @@ defmodule QuorumWeb.ProjectionLive do
   defp rail_fill(room, true), do: "background:#{room.projection_dark_from};"
   defp rail_fill(room, false), do: "background:#{room.projection_light_from};"
 
-  # The hall's own gradient, from Settings, Appearance.
-  defp hall(room, dark?) do
-    {from, to} =
-      if dark?,
-        do: {room.projection_dark_from, room.projection_dark_to},
-        else: {room.projection_light_from, room.projection_light_to}
-
-    # The longhand, not the `background` shorthand: the shorthand resets
-    # background-size, and the drift animates a position across 150% of it.
-    "background-image:linear-gradient(#{room.projection_angle}deg, #{from}, #{to});"
-  end
-
   # A white QR card has no edge of its own against a lit hall, so give it one.
   defp qr_frame(true), do: ""
   defp qr_frame(false), do: "border:1px solid var(--q-ink);"
-
-  defp asker(%{display_name: name}) when is_binary(name) and name != "", do: "Asked by #{name}"
-  defp asker(_), do: "Asked anonymously"
 
   # The line under the question. Either half can be turned off, and with both
   # off there's no line at all rather than an empty one.
   defp attribution(room, question) do
     [
-      room.projection_show_asker? && asker(question),
+      room.projection_show_asker? && asked_by(question, "Asked anonymously"),
       room.projection_show_votes? && "#{question.vote_count} #{votes(question.vote_count)}"
     ]
     |> Enum.filter(&is_binary/1)
@@ -110,9 +93,6 @@ defmodule QuorumWeb.ProjectionLive do
 
   defp question_size(room),
     do: "font-size:#{round(62 * room.projection_question_scale / 100)}px;"
-
-  defp votes(1), do: "vote"
-  defp votes(_), do: "votes"
 
   @impl true
   def render(%{room: nil} = assigns) do

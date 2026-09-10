@@ -6,7 +6,7 @@ defmodule QuorumWeb.SettingsLive do
   screens. A change sets the indicator to "Saving", does the work, and settles on
   "All changes saved", so the header always says where the room stands.
 
-  All six tabs are drawn. The rail carries them in a fixed order, so the shape of
+  All seven tabs are drawn. The rail carries them in a fixed order, so the shape of
   the settings doesn't move under someone as panes change.
   """
   use QuorumWeb, :live_view

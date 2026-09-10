@@ -2,7 +2,7 @@ defmodule Quorum.Sessions.Reading do
   @moduledoc """
   One item on a room's approved reading list.
 
-  This list is the only corpus the resource pointer may draw on, so it's the
+  This list is the only corpus the reading pointer may draw on, so it's the
   presenter's own material rather than anything the model finds.
   """
   use Ash.Resource,

@@ -123,6 +123,5 @@ defmodule QuorumWeb.LandingExamples do
   def random_age, do: ago(Enum.random(30..900))
 
   @doc "What to call the asker."
-  def asker(nil), do: "Anonymous"
-  def asker(name), do: name
+  def asker(name), do: QuorumWeb.Wording.name_or_anon(name)
 end

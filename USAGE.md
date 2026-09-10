@@ -243,6 +243,6 @@ The `Quorum.Sessions` domain exposes four resources through Ash actions:
 - `Room`: `open` a room (returns a join code and a host token), then `close` it. `spotlight` and `clear_spotlight` drive the projection. `settings` applies one settings change. `demo?` marks the room the landing page points at.
 - `Question`: `ask` in a room, then `approve`, `answer`, `hide`, or `restore`. A question the room's moderation holds is written with status `:pending` and reaches nobody but its asker until it's approved.
 - `Vote`: `cast` an upvote (idempotent per browser); destroy a vote to unvote.
-- `Reading`: `add` an item to a room's approved list, then `edit` or destroy it.
+- `Reading`: `add` an item to a room's approved list, then destroy it.
 
 Subscribe a process to a room's live feed with `Quorum.Sessions.subscribe(room_id)`; every change to that room delivers `{:room_changed, room_id}` so a view can reload its ranked questions.
