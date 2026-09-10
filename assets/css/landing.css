@@ -15,6 +15,47 @@
   padding: 0 32px;
 }
 
+/* The bar stays with you down the page. It carries no ground of its own at the
+   top, and takes a translucent one once the page has moved under it, so what
+   scrolls behind stays readable through it. */
+
+.q-l-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: transparent;
+  border-bottom-color: transparent;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    backdrop-filter 160ms ease;
+}
+.q-l-topbar.is-scrolled {
+  background: var(--q-veil);
+  backdrop-filter: saturate(150%) blur(12px);
+  -webkit-backdrop-filter: saturate(150%) blur(12px);
+  border-bottom-color: var(--q-hairline);
+}
+
+/* Where backdrop-filter isn't available, an opaque ground rather than a
+   half-legible one. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .q-l-topbar.is-scrolled {
+    background: var(--q-surface-raised);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-l-topbar {
+    transition: none;
+  }
+}
+
+/* A section the nav jumps to clears the bar rather than hiding under it. */
+.q-l-band[id] {
+  scroll-margin-top: 84px;
+}
+
 /* Navigation */
 
 .q-l-nav {
@@ -178,6 +219,14 @@
   color: var(--q-ink-secondary);
   margin: 0;
   max-width: 34em;
+}
+
+.q-l-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 40px;
 }
 
 .q-l-cols {

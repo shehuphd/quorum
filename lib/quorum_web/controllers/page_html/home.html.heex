@@ -1,4 +1,4 @@
-<div class="q-l-band">
+<div class="q-l-band q-l-topbar" id="q-topbar">
   <div class="q-l-shell">
     <nav class="q-l-nav">
       <.link href={~p"/"} aria-label="Quorum home"><QuorumWeb.Brand.logo size={24} /></.link>
@@ -177,6 +177,13 @@
             <li>Questions are kept after the session, so a term of them reads back.</li>
           </ul>
         </div>
+      </div>
+
+      <div class="q-l-section-actions">
+        <.link href={~p"/demo/host"} class="q-button">See demo</.link>
+        <p class="q-meta" style="margin:0;">
+          The presenter's console, with a session already running.
+        </p>
       </div>
     </section>
   </div>

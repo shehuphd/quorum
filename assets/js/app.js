@@ -163,3 +163,16 @@ window.addEventListener("quorum:copy", (event) => {
     }
   })
 })()
+
+// The landing page's bar carries no ground until the page has moved under it.
+;(() => {
+  const bar = document.getElementById("q-topbar")
+  if (!bar) return
+
+  // A class toggle to the value it already holds costs nothing, so the listener
+  // can run on every scroll without a frame guard between it and the work.
+  const mark = () => bar.classList.toggle("is-scrolled", window.scrollY > 4)
+
+  mark()
+  window.addEventListener("scroll", mark, { passive: true })
+})()
