@@ -143,6 +143,17 @@ if config_env() == :prod do
 
   cond do
     brevo_key ->
+      # Brevo sends only from an address the account has confirmed, so a key
+      # without one to send from is a send that fails at the provider. Say so at
+      # boot rather than leaving it to the first person who uses the form.
+      unless System.get_env("CONTACT_FROM") do
+        IO.warn(
+          "BREVO_API_KEY is set but CONTACT_FROM isn't, so the form will mail " <>
+            "from its built-in address, which Brevo refuses unless the account " <>
+            "has confirmed it. Set CONTACT_FROM to a sender you confirmed."
+        )
+      end
+
       config :quorum, Quorum.Mailer, adapter: Swoosh.Adapters.Brevo, api_key: brevo_key
 
     mailgun_key && mailgun_domain ->
