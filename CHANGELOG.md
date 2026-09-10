@@ -102,3 +102,4 @@ All notable changes to Quorum are recorded here, dated per release.
 - A field the browser has filled keeps the app's own colours, rather than the grey-blue Chromium paints behind it.
 - The contact form's wait is held on the server as well as in the browser's session: one message per address every five minutes, and twenty an hour across everyone. The address counted is the one the ingress recorded, so clearing cookies doesn't get a second message through, and the hourly ceiling keeps a flood inside a mail provider's free allowance. The honeypot and the session cooldown stay as they were.
 - The contact form's from address follows the sending domain, since a provider only sends from a domain the account holds. `CONTACT_FROM` sets it outright.
+- A sent contact message leaves the form where it was, emptied, under a short "Message sent." line, rather than replacing the page with a confirmation and a way back. Sending a second one takes no navigating.

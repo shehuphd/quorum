@@ -610,6 +610,13 @@
   margin: 6px 0 0 !important;
 }
 
+/* The counterpart to a field error: the form went through. */
+.q-form-sent {
+  font: 500 15px var(--q-font-sans);
+  color: var(--q-accent) !important;
+  margin: 0 0 20px !important;
+}
+
 /* The honeypot has to be reachable by a bot reading the DOM and invisible to
    everyone else, so it's moved off-screen rather than display:none. */
 .q-honeypot {

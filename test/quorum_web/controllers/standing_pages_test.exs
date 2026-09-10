@@ -103,6 +103,23 @@ defmodule QuorumWeb.StandingPagesTest do
       assert html =~ "Does Quorum work on eduroam?"
     end
 
+    test "a sent message leaves the form in place and empty", %{conn: conn} do
+      html = conn |> post(~p"/contact", @valid) |> html_response(200)
+
+      assert html =~ "Message sent."
+      refute html =~ "Back to the start"
+
+      # The form is still there to send another, carrying none of the last one.
+      assert html =~ ~s(action="/contact")
+      assert html =~ "Send message"
+
+      assert html =~
+               ~s(<input id="name" name="name" class="q-input" maxlength="120" required autocomplete="name" value="">)
+
+      refute html =~ "Ada Lovelace"
+      refute html =~ "Does Quorum work on eduroam?"
+    end
+
     test "the sender's address is never forged as the from address", %{conn: conn} do
       post(conn, ~p"/contact", @valid)
 

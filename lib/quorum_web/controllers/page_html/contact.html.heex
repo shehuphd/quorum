@@ -4,83 +4,79 @@
   <main class="q-prose">
     <h1>Contact</h1>
 
-    <%= if @sent do %>
-      <p class="q-prose-lead">Message sent. We'll reply to the address you gave.</p>
-      <p class="q-prose-cta">
-        <.link navigate={~p"/"} class="q-button">Back to the start</.link>
-      </p>
-    <% else %>
-      <p class="q-prose-lead">
-        Questions about Quorum, a bug, or an accessibility barrier. Every message reaches a person.
-      </p>
+    <p class="q-prose-lead">
+      Questions about Quorum, a bug, or an accessibility barrier. Every message reaches a person.
+    </p>
 
-      <form action={~p"/contact"} method="post" class="q-form">
-        <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <%!-- The form stays put on a send, emptied, so another message needs no navigating back to. --%>
+    <p :if={@sent} class="q-form-sent" role="status">Message sent.</p>
 
-        <div>
-          <label class="q-label" for="name">Your name</label>
-          <input
-            id="name"
-            name="name"
-            class="q-input"
-            maxlength="120"
-            required
-            autocomplete="name"
-            value={Map.get(@params, "name", "")}
-            aria-describedby={error_id(@errors, :name)}
-          />
-          <p :if={error(@errors, :name)} id="name-error" class="q-field-error">
-            {error(@errors, :name)}
-          </p>
-        </div>
+    <form action={~p"/contact"} method="post" class="q-form">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
 
-        <div>
-          <label class="q-label" for="email">Your email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            class="q-input"
-            required
-            autocomplete="email"
-            value={Map.get(@params, "email", "")}
-            aria-describedby={error_id(@errors, :email)}
-          />
-          <p :if={error(@errors, :email)} id="email-error" class="q-field-error">
-            {error(@errors, :email)}
-          </p>
-          <p :if={!error(@errors, :email)} class="q-meta" style="margin:6px 0 0;">
-            Only used to reply to you.
-          </p>
-        </div>
+      <div>
+        <label class="q-label" for="name">Your name</label>
+        <input
+          id="name"
+          name="name"
+          class="q-input"
+          maxlength="120"
+          required
+          autocomplete="name"
+          value={Map.get(@params, "name", "")}
+          aria-describedby={error_id(@errors, :name)}
+        />
+        <p :if={error(@errors, :name)} id="name-error" class="q-field-error">
+          {error(@errors, :name)}
+        </p>
+      </div>
 
-        <div>
-          <label class="q-label" for="message">Your message</label>
-          <textarea
-            id="message"
-            name="message"
-            class="q-textarea"
-            rows="7"
-            maxlength="4000"
-            required
-            aria-describedby={error_id(@errors, :message)}
-          >{Map.get(@params, "message", "")}</textarea>
-          <p :if={error(@errors, :message)} id="message-error" class="q-field-error">
-            {error(@errors, :message)}
-          </p>
-        </div>
+      <div>
+        <label class="q-label" for="email">Your email</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          class="q-input"
+          required
+          autocomplete="email"
+          value={Map.get(@params, "email", "")}
+          aria-describedby={error_id(@errors, :email)}
+        />
+        <p :if={error(@errors, :email)} id="email-error" class="q-field-error">
+          {error(@errors, :email)}
+        </p>
+        <p :if={!error(@errors, :email)} class="q-meta" style="margin:6px 0 0;">
+          Only used to reply to you.
+        </p>
+      </div>
 
-        <%!-- Left empty by a person, filled by a bot. Hidden from both eyes and screen readers. --%>
-        <div class="q-honeypot" aria-hidden="true">
-          <label for="website">Leave this blank</label>
-          <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
-        </div>
+      <div>
+        <label class="q-label" for="message">Your message</label>
+        <textarea
+          id="message"
+          name="message"
+          class="q-textarea"
+          rows="7"
+          maxlength="4000"
+          required
+          aria-describedby={error_id(@errors, :message)}
+        >{Map.get(@params, "message", "")}</textarea>
+        <p :if={error(@errors, :message)} id="message-error" class="q-field-error">
+          {error(@errors, :message)}
+        </p>
+      </div>
 
-        <div>
-          <button type="submit" class="q-button">Send message</button>
-        </div>
-      </form>
-    <% end %>
+      <%!-- Left empty by a person, filled by a bot. Hidden from both eyes and screen readers. --%>
+      <div class="q-honeypot" aria-hidden="true">
+        <label for="website">Leave this blank</label>
+        <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+      </div>
+
+      <div>
+        <button type="submit" class="q-button">Send message</button>
+      </div>
+    </form>
   </main>
 
   <QuorumWeb.Shell.footer />
