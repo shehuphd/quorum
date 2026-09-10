@@ -18,7 +18,7 @@ defmodule QuorumWeb.SettingsLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/room")
 
-      names = ["Room", "Questions", "Moderation", "Readings and AI", "Projection", "Appearance"]
+      names = ["Room", "Questions", "Moderation", "Readings", "Projection", "Appearance"]
       positions = Enum.map(names, &:binary.match(html, &1))
 
       assert Enum.all?(positions, &(&1 != :nomatch))
@@ -49,7 +49,7 @@ defmodule QuorumWeb.SettingsLiveTest do
             {"room", "Room"},
             {"questions", "Questions"},
             {"moderation", "Moderation"},
-            {"resources", "Readings and AI"},
+            {"resources", "Readings"},
             {"projection", "Projection"},
             {"appearance", "Appearance"}
           ] do
@@ -265,72 +265,59 @@ defmodule QuorumWeb.SettingsLiveTest do
                Sessions.ask(room.id, %{body: "held one", submitter_token: "a"})
     end
 
-    test "a room arrives with a starting list rather than an empty box", %{conn: conn} do
+    test "a room arrives with its starting list already in the field", %{conn: conn} do
       room = room()
 
       {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
 
-      assert html =~ "starting point, not a policy"
-      assert html =~ "Remove every word"
-      refute html =~ "No words held."
+      assert html =~ ~s(name="held_words")
+      assert html =~ "stupid"
     end
 
-    test "removing every word empties the list and says what to do instead", %{conn: conn} do
-      room = room()
-
-      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
-      view |> element("button", "Remove every word") |> render_click()
-      html = settle(view)
-
-      assert html =~ "No words held."
-      assert {:ok, %{held_words: []}} = Sessions.get_room(room.id)
-    end
-
-    test "a word is added, listed, and holds a question", %{conn: conn} do
+    test "the words save on blur, sorted and deduplicated", %{conn: conn} do
       room = room()
       {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
 
-      html = view |> form("#add-word-form") |> render_submit(%{"word" => "Grade"})
+      view
+      |> element(~s(textarea[name="held_words"]))
+      |> render_blur(%{"value" => "zebra, apple, APPLE,   , mango"})
 
-      # Stored lowercase, so the list shows what actually matches.
-      assert html =~ "grade"
+      settle(view)
+
+      assert {:ok, saved} = Sessions.get_room(room.id)
+      # Lowercased, blanks and repeats dropped, and alphabetical whatever the typing order.
+      assert saved.held_words == ["apple", "mango", "zebra"]
+    end
+
+    test "the sorted list is what the field reads back", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      view
+      |> element(~s(textarea[name="held_words"]))
+      |> render_blur(%{"value" => "zebra, apple"})
+
+      assert settle(view) =~ "apple, zebra"
+    end
+
+    test "a word typed into the field holds a question", %{conn: conn} do
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
+
+      view |> element(~s(textarea[name="held_words"])) |> render_blur(%{"value" => "Grade"})
+      settle(view)
 
       assert {:ok, %{status: :pending}} =
                Sessions.ask(room.id, %{body: "What about my grade?", submitter_token: "a"})
     end
 
-    test "the same word twice is refused, and says so", %{conn: conn} do
+    test "emptying the field holds nothing", %{conn: conn} do
       room = room()
       {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
 
-      view |> form("#add-word-form") |> render_submit(%{"word" => "grade"})
-      html = view |> form("#add-word-form") |> render_submit(%{"word" => "GRADE"})
+      view |> element(~s(textarea[name="held_words"])) |> render_blur(%{"value" => ""})
+      settle(view)
 
-      assert html =~ "That word is already on the list."
-      assert {:ok, saved} = Sessions.get_room(room.id)
-      assert Enum.count(saved.held_words, &(&1 == "grade")) == 1
-    end
-
-    test "a blank word is refused", %{conn: conn} do
-      room = room()
-      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
-
-      html = view |> form("#add-word-form") |> render_submit(%{"word" => "   "})
-
-      assert html =~ "Type a word to hold."
-      assert {:ok, saved} = Sessions.get_room(room.id)
-      assert saved.held_words == Sessions.default_held_words()
-    end
-
-    test "a word is removed", %{conn: conn} do
-      room = room()
-      {:ok, room} = Sessions.update_settings(room, %{held_words: []})
-      {:ok, _room} = Sessions.add_held_word(room, "grade")
-
-      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/moderation")
-      html = view |> element(~s(button[phx-value-word="grade"])) |> render_click()
-
-      refute html =~ ">grade<"
       assert {:ok, %{held_words: []}} = Sessions.get_room(room.id)
     end
 
@@ -534,13 +521,14 @@ defmodule QuorumWeb.SettingsLiveTest do
   end
 
   describe "readings" do
-    test "the empty list says what the first reading does", %{conn: conn} do
+    test "the empty list offers the form and lists nothing", %{conn: conn} do
       room = room()
 
-      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/resources")
+      {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/resources")
 
-      assert html =~ "No readings yet."
-      assert html =~ "the only material a suggestion can"
+      assert html =~ "add-reading-form"
+      assert view |> element("#add-reading-form") |> has_element?()
+      refute view |> element(".q-reading-list") |> has_element?()
     end
 
     test "a reading is added and listed", %{conn: conn} do

@@ -8,12 +8,18 @@
   background: var(--q-surface-raised);
 }
 
+/* The site chrome keeps the same gutter as the landing page's column, so the
+   mark sits in one place whichever page you are on, and collapses to a flat
+   32px once the window is narrower than that column. */
+:root {
+  --q-gutter: max(32px, calc((100% - 1180px) / 2 + 32px));
+}
 .q-shell-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 16px 32px;
+  padding: 16px var(--q-gutter);
   border-bottom: 1px solid var(--q-hairline);
 }
 .q-shell-brand {
@@ -69,7 +75,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 22px 32px;
+  padding: 22px var(--q-gutter);
   border-top: 1px solid var(--q-hairline);
 }
 .q-shell-footer .q-meta {
@@ -130,11 +136,15 @@
   margin: 0 0 12px;
   overflow-x: auto;
 }
+.q-ai-spend {
+  margin-top: 4px;
+}
 .q-ai-spend-figures {
   display: flex;
-  gap: 18px;
+  gap: 26px;
   font: 400 15px var(--q-font-sans);
   flex-wrap: wrap;
+  padding: 14px 0 4px;
 }
 
 /* The suggested answer in the console rail: presenter-only, visibly so. */
@@ -196,7 +206,7 @@
   justify-content: space-between;
   gap: 28px;
   flex-wrap: wrap;
-  padding: 22px 32px;
+  padding: 22px var(--q-gutter);
 }
 .q-room-title {
   display: flex;
@@ -219,6 +229,10 @@
 .q-room-status {
   min-width: 150px;
   text-align: right;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 .q-room-stat {
   text-align: center;
@@ -711,6 +725,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
+  margin-bottom: 26px;
 }
 .q-colour {
   display: flex;
@@ -740,16 +755,34 @@
 .q-appearance-preview {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 18px;
+  margin-top: 4px;
 }
 .q-appearance-preview > div {
-  height: 104px;
+  position: relative;
+  height: 132px;
   border-radius: var(--q-radius-card);
   border: 1px solid var(--q-hairline);
   display: flex;
   align-items: flex-end;
   padding: 12px;
   font: 600 14px var(--q-font-sans);
+}
+
+/* Which way the gradient runs, so the angle reads on a dark tile too. */
+
+.q-angle-mark {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  opacity: 0.5;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* The reading list */
@@ -790,34 +823,12 @@
 /* The held-word list: short entries, so they sit in a row that wraps rather
    than in a column of mostly empty rows. */
 
-.q-word-form {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  flex-wrap: wrap;
+/* The held words are one comma-separated field, sorted when it loses focus. */
+.q-word-area {
+  font: 400 15px/1.6 var(--q-font-sans);
+  min-height: 96px;
+  resize: vertical;
 }
-.q-word-form > div {
-  flex: 1;
-  min-width: 200px;
-}
-.q-word-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.q-word-list li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--q-hairline);
-  border-radius: var(--q-radius-card);
-  padding: 6px 6px 6px 14px;
-  background: var(--q-surface);
-}
-
 .q-reading-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -831,6 +842,17 @@
   display: block;
   margin-bottom: 8px;
 }
+/* The search field and its tally, with the tally clear of the input's edge. */
+.q-reading-search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.q-reading-search .q-status {
+  margin: 0;
+}
+
 .q-reading-list {
   list-style: none;
   margin: 0;

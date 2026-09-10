@@ -18,10 +18,10 @@ defmodule QuorumWeb.SettingsLive do
     {"room", "Room"},
     {"questions", "Questions"},
     {"moderation", "Moderation"},
-    {"resources", "Readings and AI"},
+    {"resources", "Readings"},
     {"projection", "Projection"},
     {"appearance", "Appearance"},
-    {"ai", "AI keys"}
+    {"ai", "API keys"}
   ]
 
   @slugs Enum.map(@tabs, &elem(&1, 0))
@@ -45,6 +45,7 @@ defmodule QuorumWeb.SettingsLive do
            delete_typed: "",
            reading_error: nil,
            word_error: nil,
+           word_seq: 0,
            ai_up?: false,
            ai_targets: [],
            ai_providers: [],
@@ -188,33 +189,21 @@ defmodule QuorumWeb.SettingsLive do
 
   def handle_event("reset_moderation", _params, socket),
     do:
-      {:noreply, socket |> assign(word_error: nil) |> start_save(Sessions.moderation_defaults())}
+      {:noreply,
+       socket
+       |> assign(word_error: nil, word_seq: socket.assigns.word_seq + 1)
+       |> start_save(Sessions.moderation_defaults())}
 
   ## Held words
 
-  def handle_event("add_word", params, socket) do
-    case Sessions.add_held_word(socket.assigns.room, Map.get(params, "word", "")) do
-      {:ok, room} ->
-        {:noreply, socket |> assign(room: room, word_error: nil, status: :saved) |> load()}
-
-      {:error, :blank} ->
-        {:noreply, assign(socket, word_error: "Type a word to hold.")}
-
-      {:error, :duplicate} ->
-        {:noreply, assign(socket, word_error: "That word is already on the list.")}
-
-      {:error, _} ->
-        {:noreply, assign(socket, word_error: "That word couldn't be added.")}
-    end
+  # The whole list is one field. Blurring saves it, deduped and sorted, and the
+  # bumped sequence replaces the textarea so the sorted order is what stays on screen.
+  def handle_event("save_words", %{"value" => text}, socket) do
+    {:noreply,
+     socket
+     |> assign(word_error: nil, word_seq: socket.assigns.word_seq + 1)
+     |> start_save(%{held_words: Sessions.parse_held_words(text)})}
   end
-
-  def handle_event("remove_word", %{"word" => word}, socket) do
-    {:ok, room} = Sessions.remove_held_word(socket.assigns.room, word)
-    {:noreply, socket |> assign(room: room, word_error: nil, status: :saved) |> load()}
-  end
-
-  def handle_event("clear_words", _params, socket),
-    do: {:noreply, socket |> assign(word_error: nil) |> start_save(%{held_words: []})}
 
   ## Readings
 
@@ -355,6 +344,22 @@ defmodule QuorumWeb.SettingsLive do
 
   defp normalise(key, value, _offset), do: normalise(key, value)
 
+  # The angle turns both gradients, but a pair of close tones reads as flat at
+  # preview size, so the arrow shows which way the gradient runs whatever the
+  # colours are. It points the way the CSS angle does: 0 up, 90 to the right.
+  attr :angle, :integer, required: true
+
+  defp angle_mark(assigns) do
+    ~H"""
+    <svg class="q-angle-mark" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+      <g transform={"rotate(#{@angle} 14 14)"}>
+        <line x1="14" y1="21.5" x2="14" y2="6.5" />
+        <polyline points="10,10.5 14,6.5 18,10.5" />
+      </g>
+    </svg>
+    """
+  end
+
   defp normalise("projection_angle", value), do: whole(value, 60)
   defp normalise("question_max_length", value), do: whole(value, 500)
   defp normalise("questions_per_student", value), do: whole(value, 0)
@@ -477,9 +482,7 @@ defmodule QuorumWeb.SettingsLive do
           <div class="q-room-title">
             <h1>Settings</h1>
           </div>
-          <p class="q-meta" style="margin:6px 0 0;">
-            {@room.name}. Every change applies as you make it.
-          </p>
+          <p class="q-meta" style="margin:6px 0 0;">{@room.name}</p>
         </div>
         <div class="q-room-actions">
           <p class="q-status q-room-status" aria-live="polite">
@@ -520,6 +523,7 @@ defmodule QuorumWeb.SettingsLive do
                 held={@held}
                 current_user={@current_user}
                 error={@word_error}
+                seq={@word_seq}
               />
             <% "resources" -> %>
               <.resources_pane
@@ -770,12 +774,7 @@ defmodule QuorumWeb.SettingsLive do
   defp ai_pane(assigns) do
     ~H"""
     <section>
-      <h2>AI keys</h2>
-      <p class="q-meta" style="margin-top:0;">
-        The keys behind the reading pointer, the suggested answers, and the AI hold. They live
-        with the AI service, never in Quorum, and a key is stored only once its provider has
-        accepted it live. These keys are for the whole install, not just this room.
-      </p>
+      <h2>API keys</h2>
 
       <div :if={!@up?} class="q-panel" style="padding:18px;">
         <div class="q-label" style="margin-bottom:6px;">The AI service isn't running</div>
@@ -915,7 +914,7 @@ defmodule QuorumWeb.SettingsLive do
   attr :field, :string, required: true
   attr :on, :boolean, required: true
   attr :label, :string, required: true
-  slot :inner_block, required: true
+  slot :inner_block, required: false
 
   defp hold_switch(assigns) do
     ~H"""
@@ -933,7 +932,7 @@ defmodule QuorumWeb.SettingsLive do
         </button>
         <span class="q-label">{@label}, {if @on, do: "on", else: "off"}</span>
       </div>
-      <p class="q-meta">{render_slot(@inner_block)}</p>
+      <p :if={@inner_block != []} class="q-meta">{render_slot(@inner_block)}</p>
     </div>
     """
   end
@@ -942,6 +941,7 @@ defmodule QuorumWeb.SettingsLive do
   attr :held, :integer, required: true
   attr :current_user, :map, default: nil
   attr :error, :string, default: nil
+  attr :seq, :integer, default: 0
 
   defp moderation_pane(assigns) do
     ~H"""
@@ -1015,56 +1015,24 @@ defmodule QuorumWeb.SettingsLive do
 
       <h3>Hold anything using these words</h3>
       <p class="q-meta" style="margin-top:0;">
-        The only trigger you edit yourself. A room starts with a short list of
-        profanity and insults so it isn't ungated on day one; it's a starting point, not a policy,
-        and every word comes off. A word matches whole, so "class" doesn't trip on "ass".
+        Comma separated, sorted when you click away. A word matches whole, so "class" doesn't trip
+        on "ass".
       </p>
 
-      <form id="add-word-form" phx-submit="add_word" class="q-word-form">
-        <div>
-          <label class="q-sr-only" for="word">Word to hold</label>
-          <input
-            id="word"
-            name="word"
-            class="q-input"
-            maxlength="40"
-            autocomplete="off"
-            placeholder="A word or name"
-          />
-        </div>
-        <button type="submit" class="q-button">Add word</button>
-      </form>
+      <label class="q-sr-only" for={"held-words-#{@seq}"}>Words that hold a question</label>
+      <textarea
+        id={"held-words-#{@seq}"}
+        name="held_words"
+        class="q-textarea q-word-area"
+        rows="4"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="No words held"
+        phx-blur="save_words"
+      >{Enum.join(@room.held_words, ", ")}</textarea>
       <p class="q-status" style={@error && "color:var(--q-destructive);"}>{@error}</p>
 
-      <p :if={@room.held_words == []} class="q-meta">
-        No words held. Add one above, or leave the list empty and use the switches when you need
-        them.
-      </p>
-
-      <ul :if={@room.held_words != []} class="q-word-list">
-        <li :for={word <- @room.held_words}>
-          <span class="q-label">{word}</span>
-          <button
-            type="button"
-            class="q-button q-button--destructive"
-            phx-click="remove_word"
-            phx-value-word={word}
-            aria-label={"Stop holding #{word}"}
-          >
-            Remove
-          </button>
-        </li>
-      </ul>
-
-      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;">
-        <button
-          :if={@room.held_words != []}
-          type="button"
-          class="q-button--link"
-          phx-click="clear_words"
-        >
-          Remove every word
-        </button>
+      <div style="margin-top:8px;">
         <button type="button" class="q-button--link" phx-click="reset_moderation">
           Reset this tab
         </button>
@@ -1082,7 +1050,7 @@ defmodule QuorumWeb.SettingsLive do
   defp resources_pane(assigns) do
     ~H"""
     <section class="q-pane">
-      <h2>Readings and AI</h2>
+      <h2>Readings</h2>
 
       <div class="q-field">
         <div class="q-switch-row">
@@ -1146,7 +1114,7 @@ defmodule QuorumWeb.SettingsLive do
       </form>
       <p class="q-status" style={@error && "color:var(--q-destructive);"}>{@error}</p>
 
-      <div :if={@readings != []}>
+      <div :if={@readings != []} class="q-reading-search">
         <label class="q-sr-only" for="reading-search">Search readings</label>
         <input
           id="reading-search"
@@ -1159,11 +1127,6 @@ defmodule QuorumWeb.SettingsLive do
         />
         <p class="q-status" aria-live="polite">{tally(@search, length(@shown), length(@readings))}</p>
       </div>
-
-      <p :if={@readings == []} class="q-meta">
-        No readings yet. Add the first one above, and it becomes the only material a suggestion can
-        draw on.
-      </p>
 
       <p :if={@readings != [] and @shown == []} class="q-meta">
         No readings match that search.
@@ -1233,19 +1196,13 @@ defmodule QuorumWeb.SettingsLive do
         field="projection_show_asker?"
         on={@room.projection_show_asker?}
         label="Show who asked"
-      >
-        A name only appears if the asker typed one; otherwise this reads "Asked anonymously".
-        Turning it off drops the line either way.
-      </.hold_switch>
+      />
 
       <.hold_switch
         field="projection_show_votes?"
         on={@room.projection_show_votes?}
         label="Show the vote count"
-      >
-        How many wanted this one. Some rooms would rather the wall didn't rank people's questions
-        in front of them.
-      </.hold_switch>
+      />
 
       <hr class="q-divider" style="margin:8px 0;" />
 
@@ -1253,20 +1210,14 @@ defmodule QuorumWeb.SettingsLive do
       <.hold_switch
         field="projection_show_joining?"
         on={@room.projection_show_joining?}
-        label="Keep the join code beside a question"
-      >
-        The QR code and join code stay in a rail on the left while you're answering, for anyone
-        arriving late. Off gives the question the whole wall.
-      </.hold_switch>
+        label="Show join code"
+      />
 
       <.hold_switch
         field="projection_show_counts?"
         on={@room.projection_show_counts?}
-        label="Show the counts along the bottom"
-      >
-        How many are connected and how many have asked. Useful while a room fills up, less so once
-        it has.
-      </.hold_switch>
+        label="Show attendee count"
+      />
 
       <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;">
         <.link
@@ -1348,11 +1299,13 @@ defmodule QuorumWeb.SettingsLive do
 
       <h3>Preview</h3>
       <div class="q-appearance-preview">
-        <div style={"background:linear-gradient(#{@room.projection_angle}deg, #{@room.projection_light_from}, #{@room.projection_light_to});"}>
-          <span style="color:var(--q-ink);">Lit hall</span>
+        <div style={"background:linear-gradient(#{@room.projection_angle}deg, #{@room.projection_light_from}, #{@room.projection_light_to});color:var(--q-ink);"}>
+          <.angle_mark angle={@room.projection_angle} />
+          <span>Lit hall</span>
         </div>
-        <div style={"background:linear-gradient(#{@room.projection_angle}deg, #{@room.projection_dark_from}, #{@room.projection_dark_to});"}>
-          <span style="color:var(--q-on-dark);">Dark hall</span>
+        <div style={"background:linear-gradient(#{@room.projection_angle}deg, #{@room.projection_dark_from}, #{@room.projection_dark_to});color:var(--q-on-dark);"}>
+          <.angle_mark angle={@room.projection_angle} />
+          <span>Dark hall</span>
         </div>
       </div>
 

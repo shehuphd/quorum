@@ -536,4 +536,19 @@ defmodule Quorum.Sessions do
 
   def remove_held_word(room, word),
     do: update_settings(room, %{held_words: List.delete(room.held_words, word)})
+
+  @doc """
+  Read a comma-separated list of held words, applying the same rules one word
+  gets: trimmed, lowercased, no blanks, no repeats. Sorted, so the settings
+  field reads back tidy however it was typed.
+  """
+  def parse_held_words(text) do
+    text
+    |> to_string()
+    |> String.split(",")
+    |> Enum.map(&(&1 |> String.trim() |> String.downcase()))
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
 end

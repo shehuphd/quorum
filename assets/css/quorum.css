@@ -18,7 +18,9 @@
 .q-button--destructive { background: var(--q-surface-raised); color: var(--q-destructive); border: 1px solid var(--q-destructive-border); }
 .q-button--destructive-solid { background: var(--q-destructive); color: #FFFFFF; border: none; }
 .q-button[disabled] { background: var(--q-disabled-surface); color: var(--q-ink-muted); border: 1px solid var(--q-hairline); cursor: not-allowed; }
-.q-button--link { background: none; border: none; padding: 8px 0; font: 500 14px var(--q-font-sans); color: var(--q-accent); text-decoration: underline; text-underline-offset: 3px; }
+.q-button--link { background: none; border: none; padding: 8px 0; font: 500 14px var(--q-font-sans); color: var(--q-accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+/* Anything pressable reads as pressable, including the switch and the colour swatches. */
+.q-switch, .q-tab, .q-vote:not(.q-vote--closed), .q-pin { cursor: pointer; }
 
 .q-input, .q-select, .q-textarea {
   width: 100%; box-sizing: border-box; min-height: var(--q-touch); padding: 12px;

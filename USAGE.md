@@ -159,10 +159,10 @@ Every control applies as you change it. There is no save button, and the line be
 | Room | The room's name, when it closes itself, the join code, and deleting the room |
 | Questions | What a student may post |
 | Moderation | Whether questions wait for you before the room sees them |
-| Readings and AI | The approved reading list, and whether students are pointed at it |
+| Readings | The approved reading list, and whether students are pointed at it |
 | Projection | What the screen at the front puts on the wall |
 | Appearance | The projection's colours |
-| AI keys | Provider keys, the model each uses, and what the AI has spent |
+| API keys | Provider keys, the model each uses, and what the AI has spent |
 
 **Questions** sets the longest a question may be (140, 280, 500, or 1000 characters), how many a student can have waiting at once, and whether students may sign what they post. The composer follows all three. Answered and hidden questions stop counting against their asker, so a student who's been answered can post again. Turning signing off posts every question anonymously, including any name an old page still sends.
 
@@ -180,7 +180,7 @@ The same tab decides what happens to the questions when the session ends. **Keep
 | Held words | The question uses a word you've put on the room's list |
 | Reads as aimed at the AI | A model reads the text as instructions to an AI system, rather than a question for you |
 
-A room starts with a list of twenty held words, profanity and insults, so it isn't ungated on day one. It's a starting point, not a policy: remove them one at a time, or all at once.
+A room starts with a list of twenty held words, profanity and insults, so it isn't ungated on day one. The words are one comma-separated field: add one by typing a comma and the word, remove one by deleting it, empty the field to hold nothing. Clicking away saves, and the field reads back lowercased, deduplicated, and alphabetical, however you typed it.
 
 Every one of them holds rather than refuses, so the worst a mistake costs an asker is a wait. That's what lets the list stay blunt: a question citing Dr. Dick Rittmann's paper gets held, you glance at it, you approve it. Held words match whole words, so "ass" doesn't catch "class". The link check ignores file names, so a question about Node.js goes straight through.
 
@@ -194,7 +194,7 @@ A held question is invisible to the room and to the projection. Its own asker se
 
 **Appearance** sets the two gradients the projection uses, one for a lit hall and one for a dark one, the angle between them, and whether the gradient drifts. A preview stands beside the controls, and one link puts the whole tab back to its defaults. Drift stops on its own for anyone who has asked for reduced motion.
 
-**Readings and AI** holds the room's approved reading list: a title, optionally where in it, and optionally a link. When the reading pointer is on and the AI service is running, a student who posts a question is shown up to two items from this list under their own question, and nothing else: the list is the only corpus the model may pick from, and picking nothing is allowed. The list belongs to the room and goes when the room does.
+**Readings** holds the room's approved reading list: a title, optionally where in it, and optionally a link. When the reading pointer is on and the AI service is running, a student who posts a question is shown up to two items from this list under their own question, and nothing else: the list is the only corpus the model may pick from, and picking nothing is allowed. The list belongs to the room and goes when the room does.
 
 **Deleting a room** needs the session closed first, and then the room's name typed to confirm. It takes the room, its questions, and its votes. The server checks both conditions rather than trusting the disabled button.
 
@@ -228,7 +228,7 @@ QUORUM_SIDECAR_TOKEN=<printed value> ./launch.sh
 
 The key file is KeyCall's own TOML shape, so `keycall verify --source ./project/keys.toml` checks the same file the sidecar reads. Providers are data: add a `[[targets]]` entry and it's available, and no provider is named anywhere in Quorum.
 
-You don't have to edit the file by hand. The **AI keys** settings tab manages it once the service is up: pick a provider, paste a key, and the key is tested against the provider the moment you stop typing. A key that answers is stored and confirmed ("Key accepted: 12 usable models."); one the provider refuses is never stored, and the tab shows the provider's own message. A stored key renders as its first four characters and asterisks, and can't be read back out, only replaced or removed.
+You don't have to edit the file by hand. The **API keys** settings tab manages it once the service is up: pick a provider, paste a key, and the key is tested against the provider the moment you stop typing. A key that answers is stored and confirmed ("Key accepted: 12 usable models."); one the provider refuses is never stored, and the tab shows the provider's own message. A stored key renders as its first four characters and asterisks, and can't be read back out, only replaced or removed.
 
 Each key normally runs on the newest model that answers, chosen from the provider's live catalog. The picker beside a key pins one instead, offering only models the key can use for text: nothing deprecated, no image or embedding models.
 
