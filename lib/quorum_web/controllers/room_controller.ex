@@ -58,16 +58,7 @@ defmodule QuorumWeb.RoomController do
         redirect(conn, to: ~p"/sign-in")
 
       user ->
-        rooms =
-          user.id
-          |> Sessions.list_rooms()
-          |> Enum.map(fn room ->
-            %{visible: visible, answered: answered} =
-              room.id |> Sessions.list_questions() |> Sessions.partition()
-
-            Map.put(room, :question_count, length(visible) + length(answered))
-          end)
-
+        rooms = Sessions.list_rooms_with_counts(user.id)
         render(conn, :index, rooms: rooms, current_user: user)
     end
   end

@@ -416,6 +416,13 @@ defmodule Quorum.Sessions do
     |> Ash.read!()
   end
 
+  @doc "How many questions a room holds, counted in the database rather than loaded."
+  def count_questions(room_id) do
+    Question
+    |> Ash.Query.filter(room_id == ^room_id)
+    |> Ash.count!()
+  end
+
   @doc """
   Every session a presenter has run, newest first, each carrying the questions
   it drew. This is the term's record: what the room asked, week by week, which
@@ -433,6 +440,20 @@ defmodule Quorum.Sessions do
         by_room |> Map.get(room.id, []) |> partition()
 
       Map.merge(room, %{questions: visible ++ answered, answered_count: length(answered)})
+    end)
+  end
+
+  @doc """
+  A presenter's rooms, each with the count of what the room asked (visible plus
+  answered), resolved in one grouped query rather than one per room.
+  """
+  def list_rooms_with_counts(owner_id) do
+    rooms = list_rooms(owner_id)
+    by_room = questions_by_room(Enum.map(rooms, & &1.id))
+
+    Enum.map(rooms, fn room ->
+      %{visible: visible, answered: answered} = by_room |> Map.get(room.id, []) |> partition()
+      Map.put(room, :question_count, length(visible) + length(answered))
     end)
   end
 

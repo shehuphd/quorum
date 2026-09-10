@@ -46,7 +46,6 @@ defmodule QuorumWeb.ProjectionLive do
 
   defp load(socket, room) do
     {:ok, room} = Sessions.get_room(room.id)
-    questions = Sessions.list_questions(room.id)
     connected = room.id |> Sessions.topic() |> QuorumWeb.Presence.list() |> map_size()
 
     assign(socket,
@@ -54,7 +53,7 @@ defmodule QuorumWeb.ProjectionLive do
       dark: room.projection_dark?,
       spotlight: room.spotlight_question,
       connected: connected,
-      question_count: length(questions)
+      question_count: Sessions.count_questions(room.id)
     )
   end
 

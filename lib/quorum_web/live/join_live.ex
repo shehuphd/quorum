@@ -103,7 +103,7 @@ defmodule QuorumWeb.JoinLive do
       room: room,
       state: if(room.status == :open, do: :resolved, else: :closed),
       connected: connected,
-      question_count: room.id |> Sessions.list_questions() |> length()
+      question_count: Sessions.count_questions(room.id)
     )
   end
 
