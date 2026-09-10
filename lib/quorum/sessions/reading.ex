@@ -28,10 +28,6 @@ defmodule Quorum.Sessions.Reading do
       description("Put a reading on a room's approved list.")
       accept([:room_id, :title, :detail, :url])
     end
-
-    update :edit do
-      accept([:title, :detail, :url])
-    end
   end
 
   attributes do

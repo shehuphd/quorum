@@ -1,6 +1,6 @@
 # Quorum manifest
 
-Last updated: 2026-09-10 21:26:46 UTC
+Last updated: 2026-09-10 21:43:06 UTC
 
 Map of every source file: what it defines and what it touches. The Ash resources
 are grouped under the `Quorum.Sessions` domain; the LiveViews are the five live
@@ -87,8 +87,7 @@ screens, and the landing page is a plain controller.
 | `lib/quorum_web/endpoint.ex` | HTTP endpoint and socket wiring. |
 | `lib/quorum_web/telemetry.ex` | Telemetry supervisor and metric definitions. |
 | `lib/quorum_web/gettext.ex` | Translation macros. |
-| `lib/quorum_web/components/core_components.ex` | Shared function components (generated). |
-| `lib/quorum_web/components/layouts.ex`, `layouts/root.html.heex` | Root and app layouts. The root layout loads the app stylesheet and sets the title suffix. |
+| `lib/quorum_web/components/layouts.ex`, `layouts/root.html.heex` | The root layout: the HTML skeleton that loads the stylesheet and socket, sets the theme before paint, and sets the title suffix. The screens draw their own chrome through `Shell`, so there is no app layout. |
 | `lib/quorum_web/controllers/error_html.ex`, `error_json.ex` | Error renderers. |
 
 ## Mix tasks

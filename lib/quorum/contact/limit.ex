@@ -19,9 +19,6 @@ defmodule Quorum.Contact.Limit do
   @window_seconds 3600
   @window_limit 20
 
-  @doc "Seconds one sender waits between messages."
-  def per_sender_seconds, do: @per_sender_seconds
-
   @doc "How many messages everyone together may send in an hour."
   def window_limit, do: @window_limit
 

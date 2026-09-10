@@ -84,9 +84,6 @@ defmodule QuorumWeb do
 
       # HTML escaping functionality
       import Phoenix.HTML
-      # Core UI components
-      import QuorumWeb.CoreComponents
-
       # Common modules used in templates
       alias Phoenix.LiveView.JS
       alias QuorumWeb.Layouts
