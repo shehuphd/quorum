@@ -129,31 +129,46 @@ if config_env() == :prod do
   #
   # The base config names Swoosh's local adapter, which keeps mail in a process
   # this environment doesn't start, so leaving it in place makes every send exit.
-  # With no provider credentials to send through, contact mail goes to the log,
-  # where `az containerapp logs show` reads it back.
+  # Whichever provider has credentials here wins, and with none of them set the
+  # contact form's mail goes to the log, where `az containerapp logs show` reads
+  # it back.
   #
-  # To mail out, set MAILGUN_API_KEY and MAILGUN_DOMAIN. Any other Swoosh
-  # provider works the same way: name its adapter and pass its own keys.
+  # Brevo takes an API key and sends from any address you've confirmed by email.
+  # Mailgun takes a key and a sending domain, its no-DNS sandbox included, and
+  # sends only from that domain. Any other Swoosh provider works the same way:
+  # name its adapter and pass its own keys.
+  brevo_key = System.get_env("BREVO_API_KEY")
   mailgun_key = System.get_env("MAILGUN_API_KEY")
   mailgun_domain = System.get_env("MAILGUN_DOMAIN")
 
-  if mailgun_key && mailgun_domain do
-    config :quorum, Quorum.Mailer,
-      adapter: Swoosh.Adapters.Mailgun,
-      api_key: mailgun_key,
-      domain: mailgun_domain
+  cond do
+    brevo_key ->
+      config :quorum, Quorum.Mailer, adapter: Swoosh.Adapters.Brevo, api_key: brevo_key
 
-    # Mailgun sends only from a domain the account holds, the sandbox one
-    # included, so the from address follows the sending domain unless it's set.
-    config :quorum,
-           :contact_from,
-           System.get_env("CONTACT_FROM") || "no-reply@#{mailgun_domain}"
-  else
-    # The whole message, not only who it was for, so a form submission is still
-    # readable back out of the log.
-    config :quorum, Quorum.Mailer,
-      adapter: Swoosh.Adapters.Logger,
-      log_full_email: true
+    mailgun_key && mailgun_domain ->
+      config :quorum, Quorum.Mailer,
+        adapter: Swoosh.Adapters.Mailgun,
+        api_key: mailgun_key,
+        domain: mailgun_domain
+
+      # Mailgun sends only from a domain the account holds, so the from address
+      # follows the sending domain unless CONTACT_FROM says otherwise.
+      config :quorum,
+             :contact_from,
+             System.get_env("CONTACT_FROM") || "no-reply@#{mailgun_domain}"
+
+    true ->
+      # The whole message, not only who it was for, so a form submission is
+      # still readable back out of the log.
+      config :quorum, Quorum.Mailer,
+        adapter: Swoosh.Adapters.Logger,
+        log_full_email: true
+  end
+
+  # The address the form mails from. A provider will only send from one it has
+  # confirmed, so this is set per deployment rather than written down.
+  if from = System.get_env("CONTACT_FROM") do
+    config :quorum, :contact_from, from
   end
 
   # Where the contact form's mail goes.
