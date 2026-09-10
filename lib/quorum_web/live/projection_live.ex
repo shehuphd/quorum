@@ -133,10 +133,10 @@ defmodule QuorumWeb.ProjectionLive do
             <div style={"background:#fff;padding:10px;border-radius:8px;width:fit-content;#{qr_frame(@dark)}"}>
               {raw(qr_svg(@room.join_code, 180))}
             </div>
-            <p style={"font:400 14px var(--q-font-sans);margin:0;#{muted(@dark)}"}>
-              {QuorumWeb.Shell.join_hint()}
-            </p>
             <p class="q-code" style="font-size:42px;margin:0;">{@room.join_code}</p>
+            <p style={"font:400 13px var(--q-font-sans);margin:0;#{faint(@dark)}"}>
+              or go to {QuorumWeb.Shell.join_hint()}
+            </p>
           </aside>
 
           <section style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:48px 5% 48px 48px;">
@@ -168,10 +168,10 @@ defmodule QuorumWeb.ProjectionLive do
           <div style={"background:#fff;padding:18px;border-radius:12px;line-height:0;#{qr_frame(@dark)}"}>
             {raw(qr_svg(@room.join_code, 300))}
           </div>
-          <p style={"font:400 20px var(--q-font-sans);margin:0;#{muted(@dark)}"}>
-            Or go to {QuorumWeb.Shell.join_hint()} and type
-          </p>
           <p class="q-code" style="margin:0;">{@room.join_code}</p>
+          <p style={"font:400 15px var(--q-font-sans);margin:0;#{faint(@dark)}"}>
+            or go to {QuorumWeb.Shell.join_hint()} to type it in
+          </p>
         </main>
       <% end %>
 

@@ -391,7 +391,7 @@ defmodule QuorumWeb.HostLive do
               <div class="q-join-qr">{raw(qr_svg(@room.join_code, 150))}</div>
               <div style="min-width:0;">
                 <p class="q-meta" style="font-size:15px;margin:0;">
-                  Students join at {QuorumWeb.Shell.join_hint()} with
+                  Students join with
                 </p>
                 <p class="q-code">{@room.join_code}</p>
                 <div class="q-join-actions">
@@ -415,7 +415,7 @@ defmodule QuorumWeb.HostLive do
             <section class="q-join-strip">
               <div class="q-join-qr">{raw(qr_svg(@room.join_code, 46))}</div>
               <div style="flex:1;min-width:0;">
-                <p class="q-meta" style="margin:0;">Still joining at {QuorumWeb.Shell.join_hint()}</p>
+                <p class="q-meta" style="margin:0;">Still joining</p>
                 <p class="q-code">{@room.join_code}</p>
               </div>
               <button
@@ -485,8 +485,7 @@ defmodule QuorumWeb.HostLive do
           <div :if={@question_count == 0} class="q-panel">
             <div class="q-label" style="font-size:17px;margin-bottom:6px;">No questions yet</div>
             <p class="q-meta" style="margin:0;">
-              Questions appear here the moment a student posts one, sorted by votes. Search and the
-              answered list turn up with the first one.
+              Questions appear here the moment a student posts one.
             </p>
           </div>
 
