@@ -143,7 +143,11 @@ if config_env() == :prod do
       api_key: mailgun_key,
       domain: mailgun_domain
   else
-    config :quorum, Quorum.Mailer, adapter: Swoosh.Adapters.Logger
+    # The whole message, not only who it was for, so a form submission is still
+    # readable back out of the log.
+    config :quorum, Quorum.Mailer,
+      adapter: Swoosh.Adapters.Logger,
+      log_full_email: true
   end
 
   # Where the contact form's mail goes.
