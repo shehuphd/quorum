@@ -51,19 +51,33 @@ defmodule Quorum.Contact do
     end
   end
 
-  @doc "Send a validated message on to the contact address."
-  def deliver(%{name: name, email: email, message: body}) do
-    new()
-    |> to(recipient())
-    |> from({"Quorum", "no-reply@quorum.app"})
-    |> reply_to({name, email})
-    |> subject("Quorum contact from #{name}")
-    |> text_body("""
-    #{name} <#{email}> wrote through the Quorum contact form:
+  @doc """
+  Send a validated message on to the contact address.
 
-    #{body}
-    """)
-    |> Mailer.deliver()
+  Returns `{:ok, term}` or `{:error, term}`. A mailer that raises or exits, an
+  unreachable provider or an adapter with nothing behind it, comes back as an
+  error rather than taking the request down with it, so the form can say the
+  message didn't send and keep what was typed.
+  """
+  def deliver(%{name: name, email: email, message: body}) do
+    email =
+      new()
+      |> to(recipient())
+      |> from({"Quorum", "no-reply@quorum.app"})
+      |> reply_to({name, email})
+      |> subject("Quorum contact from #{name}")
+      |> text_body("""
+      #{name} <#{email}> wrote through the Quorum contact form:
+
+      #{body}
+      """)
+
+    try do
+      Mailer.deliver(email)
+    catch
+      :exit, reason -> {:error, {:exit, reason}}
+      kind, reason -> {:error, {kind, reason}}
+    end
   end
 
   defp check(errors, true, field, message), do: [{field, message} | errors]

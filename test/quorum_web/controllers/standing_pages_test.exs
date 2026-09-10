@@ -1,3 +1,16 @@
+# Stands in for a mailer with nothing behind it: Swoosh's local adapter calls a
+# process that some environments never start, and a GenServer call to a missing
+# process exits rather than returning an error.
+defmodule QuorumTest.DeadMailer do
+  @behaviour Swoosh.Adapter
+
+  @impl true
+  def deliver(_email, _config), do: exit({:noproc, {GenServer, :call, [:nowhere, :push, 5000]}})
+
+  @impl true
+  def validate_config(_config), do: :ok
+end
+
 defmodule QuorumWeb.StandingPagesTest do
   use QuorumWeb.ConnCase
 
@@ -66,6 +79,21 @@ defmodule QuorumWeb.StandingPagesTest do
         assert email.subject == "Quorum contact from Ada Lovelace"
         assert email.text_body =~ "Does Quorum work on eduroam?"
       end)
+    end
+
+    test "a mailer that can't send says so, and keeps what was typed", %{conn: conn} do
+      # The local adapter's storage isn't started in every environment, and a
+      # provider can be unreachable. Either exits rather than returning an
+      # error, which used to take the whole request down with it.
+      original = Application.get_env(:quorum, Quorum.Mailer)
+      Application.put_env(:quorum, Quorum.Mailer, adapter: QuorumTest.DeadMailer)
+      on_exit(fn -> Application.put_env(:quorum, Quorum.Mailer, original) end)
+
+      html = conn |> post(~p"/contact", @valid) |> html_response(200)
+
+      assert html =~ "That didn&#39;t send"
+      refute html =~ "Message sent."
+      assert html =~ "Does Quorum work on eduroam?"
     end
 
     test "the sender's address is never forged as the from address", %{conn: conn} do

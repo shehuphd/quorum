@@ -125,21 +125,29 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
-  # ## Configuring the mailer
+  # ## The mailer
   #
-  # In production you need to configure the mailer to use a different adapter.
-  # Here is an example configuration for Mailgun:
+  # The base config names Swoosh's local adapter, which keeps mail in a process
+  # this environment doesn't start, so leaving it in place makes every send exit.
+  # With no provider credentials to send through, contact mail goes to the log,
+  # where `az containerapp logs show` reads it back.
   #
-  #     config :quorum, Quorum.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
-  # and Finch out-of-the-box. This configuration is typically done at
-  # compile-time in your config/prod.exs:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
-  #
-  # See https://swoosh.hexdocs.pm/Swoosh.html#module-installation for details.
+  # To mail out, set MAILGUN_API_KEY and MAILGUN_DOMAIN. Any other Swoosh
+  # provider works the same way: name its adapter and pass its own keys.
+  mailgun_key = System.get_env("MAILGUN_API_KEY")
+  mailgun_domain = System.get_env("MAILGUN_DOMAIN")
+
+  if mailgun_key && mailgun_domain do
+    config :quorum, Quorum.Mailer,
+      adapter: Swoosh.Adapters.Mailgun,
+      api_key: mailgun_key,
+      domain: mailgun_domain
+  else
+    config :quorum, Quorum.Mailer, adapter: Swoosh.Adapters.Logger
+  end
+
+  # Where the contact form's mail goes.
+  if address = System.get_env("CONTACT_EMAIL") do
+    config :quorum, :contact_email, address
+  end
 end

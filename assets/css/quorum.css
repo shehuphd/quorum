@@ -29,6 +29,20 @@
 }
 .q-textarea { font: 400 16px/1.4 var(--q-font-serif); resize: none; }
 
+/* A field the browser has filled keeps the app's own colours. Chromium paints
+   its autofill background behind the element, past `background`, so the inset
+   shadow covers it and the fill colour carries the text. */
+.q-input:-webkit-autofill,
+.q-input:-webkit-autofill:hover,
+.q-input:-webkit-autofill:focus,
+.q-select:-webkit-autofill,
+.q-textarea:-webkit-autofill {
+  -webkit-text-fill-color: var(--q-ink);
+  -webkit-box-shadow: 0 0 0 100px var(--q-surface-raised) inset;
+  box-shadow: 0 0 0 100px var(--q-surface-raised) inset;
+  caret-color: var(--q-ink);
+}
+
 .q-vote {
   width: 52px; min-height: var(--q-vote-size); height: var(--q-vote-size); align-self: flex-start; flex: none;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -79,7 +93,7 @@
 /* A question only its own asker can see, while the presenter decides on it. */
 .q-row--waiting { border: 1px dashed var(--q-control-border); border-radius: var(--q-radius-input); padding: 14px; align-items: center; background: var(--q-surface-sunken); }
 
-/* Reserved height, so an appearing note never reflows what sits below it. */
+/* Reserved height, so an appearing note never reflows what follows it. */
 .q-status { min-height: 20px; font: 400 13px var(--q-font-sans); color: var(--q-ink-muted); }
 .q-status--saved { color: var(--q-accent); font-weight: 500; }
 
