@@ -747,4 +747,152 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert room.auto_close_at == nil
     end
   end
+
+  describe "the AI keys tab" do
+    setup do
+      on_exit(fn ->
+        Application.delete_env(:quorum, :ai_stub_api)
+        Application.delete_env(:quorum, :ai_stub)
+      end)
+    end
+
+    defp ai_api(map), do: Application.put_env(:quorum, :ai_stub_api, map)
+
+    defp one_target do
+      %{
+        "name" => "anthropic",
+        "provider" => "anthropic",
+        "key_hint" => "sk-a************",
+        "model" => nil,
+        "models" => ["model-new", "model-old"]
+      }
+    end
+
+    test "with the service down, the tab says so and how to start it", %{conn: conn} do
+      room = room()
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      assert html =~ "The AI service isn&#39;t running"
+      assert html =~ "./sidecar/run.sh"
+    end
+
+    test "each key shows its provider, its first four characters, and its models", %{conn: conn} do
+      ai_api(%{targets: fn -> {:ok, [one_target()]} end, providers: fn -> {:ok, ["gemini"]} end})
+      room = room()
+
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      assert html =~ "sk-a************"
+      assert html =~ "Automatic: newest that answers"
+      assert html =~ "model-new"
+      refute html =~ "sk-ant-"
+    end
+
+    test "a key is tested the moment it stops being typed, and a tick confirms it", %{conn: conn} do
+      test_pid = self()
+
+      ai_api(%{
+        targets: fn -> {:ok, []} end,
+        providers: fn -> {:ok, ["deepseek"]} end,
+        put_target: fn params ->
+          send(test_pid, {:stored, params})
+          {:ok, %{"ok" => true, "models" => ["a", "b", "c"]}}
+        end
+      })
+
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      html =
+        view
+        |> form("[id^=ai-key-form]", %{"provider" => "deepseek", "key" => "sk-something"})
+        |> render_change()
+
+      assert html =~ "Checking the key"
+      assert render(view) =~ "Key accepted: 3 usable models."
+      assert_received {:stored, %{provider: "deepseek", key: "sk-something"}}
+    end
+
+    test "a refused key says what the provider said", %{conn: conn} do
+      ai_api(%{
+        targets: fn -> {:ok, []} end,
+        providers: fn -> {:ok, ["deepseek"]} end,
+        put_target: fn _params -> {:error, {:sidecar, 422, "Your api key is invalid"}} end
+      })
+
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      view
+      |> form("[id^=ai-key-form]", %{"provider" => "deepseek", "key" => "sk-bad"})
+      |> render_change()
+
+      assert render(view) =~ "Your api key is invalid"
+    end
+
+    test "a key with no provider picked is told, not tested", %{conn: conn} do
+      ai_api(%{targets: fn -> {:ok, []} end, providers: fn -> {:ok, ["deepseek"]} end})
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      html =
+        view
+        |> form("[id^=ai-key-form]", %{"provider" => "", "key" => "sk-something"})
+        |> render_change()
+
+      assert html =~ "Pick the provider the key is for first."
+    end
+
+    test "pinning a model and removing a key go through the service", %{conn: conn} do
+      test_pid = self()
+
+      ai_api(%{
+        targets: fn -> {:ok, [one_target()]} end,
+        providers: fn -> {:ok, []} end,
+        put_model: fn name, model ->
+          send(test_pid, {:pinned, name, model})
+          {:ok, %{"ok" => true}}
+        end,
+        delete_target: fn name ->
+          send(test_pid, {:removed, name})
+          :ok
+        end
+      })
+
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      view
+      |> element(~s(form[phx-change="ai_pin"]))
+      |> render_change(%{"target" => "anthropic", "model" => "model-old"})
+
+      assert_received {:pinned, "anthropic", "model-old"}
+
+      view |> element("button", "Remove") |> render_click()
+      assert_received {:removed, "anthropic"}
+    end
+
+    test "the spend counter adds up and clears", %{conn: conn} do
+      ai_api(%{targets: fn -> {:ok, []} end, providers: fn -> {:ok, []} end})
+
+      Application.put_env(:quorum, :ai_stub, fn _request ->
+        {:ok, %{"text" => "x", "input_tokens" => 100, "output_tokens" => 7}}
+      end)
+
+      {:ok, _} = Quorum.AI.generate(:draft, "a")
+      {:ok, _} = Quorum.AI.generate(:pointer, "b")
+
+      room = room()
+      {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      assert html =~ "2</strong> calls"
+      assert html =~ "200</strong> tokens in"
+      assert html =~ "14</strong> tokens out"
+      assert html =~ "1 reading pointers, 1 drafts"
+
+      html = view |> element("button", "Clear the counter") |> render_click()
+      assert html =~ "0</strong> calls"
+      assert html =~ "Nothing spent yet."
+    end
+  end
 end

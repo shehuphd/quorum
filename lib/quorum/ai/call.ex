@@ -18,7 +18,7 @@ defmodule Quorum.AI.Call do
   end
 
   actions do
-    defaults([:read])
+    defaults([:read, :destroy])
     default_accept([])
 
     create :record do

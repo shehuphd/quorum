@@ -50,7 +50,7 @@ defmodule QuorumWeb.HostLiveTest do
     Sessions.spotlight(room, question.id)
 
     {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
-    view |> element("button", "Clear the spotlight") |> render_click()
+    view |> element("button.q-button--live", "Clear") |> render_click()
 
     assert render(view) =~ "Nothing spotlighted"
   end
@@ -147,22 +147,30 @@ defmodule QuorumWeb.HostLiveTest do
     assert {:ok, %{status: :closed}} = Sessions.get_room(room.id)
   end
 
-  test "J and K move the selection, and Enter spotlights it", %{conn: conn} do
+  test "nothing is selected until J or K asks, then Enter spotlights it", %{conn: conn} do
     room = room()
     first = question(room, "Top of the queue") |> votes(3)
     second = question(room, "Below it")
 
-    {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
+    {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}")
+
+    # No ring on load: the top of the pile marks itself.
+    refute html =~ "q-queue-row--selected"
+
+    # Enter with nothing selected spotlights nothing.
+    render_keyup(view, "key", %{"key" => "Enter"})
+    assert {:ok, %{spotlight_question_id: nil}} = Sessions.get_room(room.id)
+
+    # The first J selects the top row; the second steps down.
+    assert render_keyup(view, "key", %{"key" => "j"}) =~ "q-queue-row--selected"
+    render_keyup(view, "key", %{"key" => "Enter"})
+    assert {:ok, %{spotlight_question_id: id}} = Sessions.get_room(room.id)
+    assert id == first.id
 
     render_keyup(view, "key", %{"key" => "j"})
     render_keyup(view, "key", %{"key" => "Enter"})
     assert {:ok, %{spotlight_question_id: id}} = Sessions.get_room(room.id)
     assert id == second.id
-
-    render_keyup(view, "key", %{"key" => "k"})
-    render_keyup(view, "key", %{"key" => "Enter"})
-    assert {:ok, %{spotlight_question_id: id}} = Sessions.get_room(room.id)
-    assert id == first.id
   end
 
   test "A answers the selected question and H hides it", %{conn: conn} do
@@ -170,14 +178,30 @@ defmodule QuorumWeb.HostLiveTest do
     question(room, "Answer me with A")
 
     {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}")
+    render_keyup(view, "key", %{"key" => "j"})
     render_keyup(view, "key", %{"key" => "a"})
     assert render(view) =~ "Answered, 1"
 
     question(room, "Hide me with H")
     assert render(view) =~ "Hide me with H"
 
+    render_keyup(view, "key", %{"key" => "j"})
     render_keyup(view, "key", %{"key" => "h"})
     refute render(view) =~ "Hide me with H"
+  end
+
+  test "the spotlighted row carries the live Clear button", %{conn: conn} do
+    room = room()
+    question = question(room, "On the wall")
+    {:ok, _} = Sessions.spotlight(room, question.id)
+
+    {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}")
+    assert html =~ "q-button--live"
+
+    view |> element("button.q-button--live", "Clear") |> render_click()
+
+    assert {:ok, %{spotlight_question_id: nil}} = Sessions.get_room(room.id)
+    refute render(view) =~ "q-button--live"
   end
 
   test "shortcuts stay quiet while the close dialog is open", %{conn: conn} do

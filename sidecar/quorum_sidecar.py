@@ -1,9 +1,10 @@
 """The bridge between Quorum (Elixir) and the AI providers.
 
 Quorum never speaks to a provider itself. This service holds the keys, drives
-every provider through KeyCall, and answers one normalized /generate call on
-localhost. Providers are data: they live in the key file, and no provider name
-appears in this code.
+every provider through KeyCall, and answers a small localhost API: one
+normalized /generate, plus the key management the settings screen offers.
+Providers are data: they live in the key file, and no provider name appears
+in this code.
 
 Run it beside the app:
 
@@ -12,13 +13,14 @@ Run it beside the app:
         --keys ../project/keys.toml
 
 The token guards the port from anything else on the machine; give Quorum the
-same value in the same variable. Keys never leave this process: /health names
-targets and models, never credentials.
+same value in the same variable. Keys never leave this process whole: every
+listing shows the first four characters and asterisks, nothing more.
 """
 
 import argparse
 import json
 import os
+import re
 import sys
 import threading
 
@@ -26,27 +28,39 @@ try:
     import tomllib
 except ModuleNotFoundError:  # tomllib arrived in Python 3.11
     import tomli as tomllib
+
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from keycall import KeyCall, KeyCallError, Message, TextInput
 
 MAX_BODY_BYTES = 64 * 1024
 
+# A refused credential ends a model walk: no other model fares better with a
+# key the provider rejects. Every other error is treated as model-scoped and
+# the next candidate gets its turn, the rule KeyCall's verify applies.
+CREDENTIAL_FAILURES = {"INVALID_API_KEY", "PERMISSION_DENIED"}
+MAX_MODEL_ATTEMPTS = 4
 
-def load_targets(path):
-    """The [[targets]] entries of the key file, minus unfilled placeholders."""
-    with open(path, "rb") as f:
-        data = tomllib.load(f)
 
-    targets = []
-    for entry in data.get("targets", []):
-        if not entry.get("provider") or not entry.get("key"):
-            continue
-        if "REPLACE" in entry["key"]:
-            continue
-        entry.setdefault("name", entry["provider"])
-        targets.append(entry)
-    return targets
+def text_providers():
+    """The providers a Quorum key can be for: every one the catalog knows,
+    minus the streaming-transcription platforms, which have no text models.
+    Read from KeyCall's own catalog so a provider added there appears here
+    without an edit; the registry module is the same one KeyCall's viewer
+    reads for its key form."""
+    try:
+        from keycall._registry import providers_with, supported_providers
+
+        speech = providers_with("streaming_transcription")
+        return [p for p in supported_providers() if p not in speech]
+    except Exception:
+        return []
+
+
+def key_hint(key):
+    """The first four characters and asterisks. Enough to tell keys apart,
+    never enough to matter."""
+    return key[:4] + "*" * 12
 
 
 def order_candidates(models):
@@ -59,61 +73,6 @@ def order_candidates(models):
     if dated and len(dated) == len(models):
         return sorted(models, key=lambda m: m.released_at, reverse=True)
     return sorted(models, key=lambda m: not m.id.lower().endswith("-latest"))
-
-
-# A refused credential ends the walk: no other model fares better with a key
-# the provider rejects. Every other error is treated as model-scoped and the
-# next candidate gets its turn, which is the rule KeyCall's verify applies.
-CREDENTIAL_FAILURES = {"INVALID_API_KEY", "PERMISSION_DENIED"}
-MAX_MODEL_ATTEMPTS = 4
-
-
-class Target:
-    """One credential, its client, and the models to try for it, in order.
-
-    A `model =` line in the key file pins the choice outright. Otherwise the
-    provider's live list is walked front to back per request kind, and the
-    first model that answers is remembered — a model can serve plain text yet
-    refuse structured output, so plain and schema calls each keep their own.
-    """
-
-    def __init__(self, entry):
-        self.name = entry["name"]
-        self.provider = entry["provider"]
-        self.pinned_model = entry.get("model")
-        self._entry = entry
-        self._client = None
-        self._candidates = None
-        self._working = {}
-        self._lock = threading.Lock()
-
-    def client(self):
-        if self._client is None:
-            kwargs = {"provider": self._entry["provider"], "api_key": self._entry["key"]}
-            for passthrough in ("protocol", "base_url"):
-                if self._entry.get(passthrough):
-                    kwargs[passthrough] = self._entry[passthrough]
-            self._client = KeyCall(**kwargs)
-        return self._client
-
-    def candidates(self, kind):
-        with self._lock:
-            if self._candidates is None:
-                if self.pinned_model:
-                    self._candidates = [self.pinned_model]
-                else:
-                    models = self.client().list_models().models
-                    if not models:
-                        raise LookupError(f"target {self.name} lists no text models")
-                    self._candidates = [m.id for m in order_candidates(models)]
-
-            working = self._working.get(kind)
-            rest = [c for c in self._candidates if c != working]
-            return ([working] + rest if working else rest)[:MAX_MODEL_ATTEMPTS]
-
-    def remember(self, kind, model_id):
-        with self._lock:
-            self._working[kind] = model_id
 
 
 def strip_additional_properties(schema):
@@ -146,9 +105,163 @@ def generate_with_schema_fallback(client, model, messages, kwargs):
         return client.generate_text(model=model, messages=messages, **retry)
 
 
+class Target:
+    """One credential, its client, and the models to try for it, in order.
+
+    A `model =` line in the key file pins the choice outright. Otherwise the
+    provider's live list is walked front to back per request kind, and the
+    first model that answers is remembered — a model can serve plain text yet
+    refuse structured output, so plain and schema calls each keep their own.
+    """
+
+    def __init__(self, entry):
+        self.name = entry["name"]
+        self.provider = entry["provider"]
+        self.pinned_model = entry.get("model")
+        self.entry = entry
+        self._client = None
+        self._candidates = None
+        self._working = {}
+        self._lock = threading.Lock()
+
+    def client(self):
+        if self._client is None:
+            kwargs = {"provider": self.entry["provider"], "api_key": self.entry["key"]}
+            for passthrough in ("protocol", "base_url"):
+                if self.entry.get(passthrough):
+                    kwargs[passthrough] = self.entry[passthrough]
+            self._client = KeyCall(**kwargs)
+        return self._client
+
+    def models(self):
+        """Every usable text model for this key, in the walk's own order.
+        KeyCall's listing already returns text models only and withholds the
+        ones its catalog records as shut down, which is what makes this list
+        safe to put straight into a picker."""
+        return [m.id for m in order_candidates(self.client().list_models().models)]
+
+    def candidates(self, kind):
+        with self._lock:
+            if self._candidates is None:
+                if self.pinned_model:
+                    self._candidates = [self.pinned_model]
+                else:
+                    listed = self.models()
+                    if not listed:
+                        raise LookupError(f"target {self.name} lists no text models")
+                    self._candidates = listed
+
+            working = self._working.get(kind)
+            rest = [c for c in self._candidates if c != working]
+            return ([working] + rest if working else rest)[:MAX_MODEL_ATTEMPTS]
+
+    def remember(self, kind, model_id):
+        with self._lock:
+            self._working[kind] = model_id
+
+
+class KeyFile:
+    """The TOML file of targets, owned by this process: read on change, and
+    rewritten whole on every edit. Hand-written comments don't survive a
+    rewrite, which the file's own header says."""
+
+    HEADER = (
+        "# Quorum's AI provider keys, in KeyCall's TOML shape, so\n"
+        "#   keycall verify --source ./project/keys.toml\n"
+        "# checks the same file the sidecar reads.\n"
+        "#\n"
+        "# Managed by the sidecar: the settings screen edits it through the\n"
+        "# sidecar's API and rewrites it whole, so comments here don't last.\n"
+        "# Gitignored. chmod 600. Keys never appear in any API response.\n"
+    )
+
+    def __init__(self, path):
+        self.path = path
+        self.lock = threading.Lock()
+        self.mtime = None
+        self.targets = {}
+
+    def refresh(self):
+        """Reload when the file changed underneath, so keys edited by hand
+        or by `keycall verify --source` fixes go live without a restart."""
+        with self.lock:
+            try:
+                mtime = os.stat(self.path).st_mtime_ns
+            except FileNotFoundError:
+                self.mtime, self.targets = None, {}
+                return
+
+            if mtime == self.mtime:
+                return
+            self.mtime = mtime
+            self.targets = {t["name"]: Target(t) for t in self._load()}
+
+    def _load(self):
+        with open(self.path, "rb") as f:
+            data = tomllib.load(f)
+
+        loaded = []
+        for entry in data.get("targets", []):
+            if not entry.get("provider") or not entry.get("key"):
+                continue
+            if "REPLACE" in entry["key"]:
+                continue
+            entry.setdefault("name", entry["provider"])
+            loaded.append(entry)
+        return loaded
+
+    def upsert(self, entry):
+        with self.lock:
+            entries = [t.entry for t in self.targets.values() if t.name != entry["name"]]
+            entries.append(entry)
+            self._write(entries)
+
+    def update_model(self, name, model):
+        with self.lock:
+            target = self.targets.get(name)
+            if target is None:
+                return False
+            entry = dict(target.entry)
+            if model:
+                entry["model"] = model
+            else:
+                entry.pop("model", None)
+            entries = [t.entry for t in self.targets.values() if t.name != name]
+            entries.append(entry)
+            self._write(entries)
+            return True
+
+    def remove(self, name):
+        with self.lock:
+            if name not in self.targets:
+                return False
+            self._write([t.entry for t in self.targets.values() if t.name != name])
+            return True
+
+    def _write(self, entries):
+        lines = [self.HEADER]
+        for entry in entries:
+            lines.append("\n[[targets]]")
+            for field in ("provider", "name", "key", "model", "protocol", "base_url"):
+                if entry.get(field):
+                    lines.append(f'{field} = "{self._escape(entry[field])}"')
+        text = "\n".join(lines) + "\n"
+
+        tmp = self.path + ".tmp"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
+        os.replace(tmp, self.path)
+        self.mtime = None  # next refresh() reloads
+
+    @staticmethod
+    def _escape(value):
+        return str(value).replace("\\", "\\\\").replace('"', '\\"')
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "QuorumSidecar/1.0"
-    targets = {}
+    server_version = "QuorumSidecar/2.0"
+    keyfile = None
     token = None
 
     def log_message(self, fmt, *args):
@@ -165,41 +278,155 @@ class Handler(BaseHTTPRequestHandler):
     def _authorized(self):
         return self.headers.get("X-Quorum-Token", "") == self.token
 
+    def _body(self):
+        length = int(self.headers.get("Content-Length", 0))
+        if length > MAX_BODY_BYTES:
+            return None
+        try:
+            return json.loads(self.rfile.read(length))
+        except (json.JSONDecodeError, ValueError):
+            return None
+
     def do_GET(self):
         if not self._authorized():
             return self._send(401, {"error": "unauthorized"})
-        if self.path != "/health":
-            return self._send(404, {"error": "not_found"})
+        self.keyfile.refresh()
 
-        return self._send(
-            200,
-            {
-                "ok": True,
-                "targets": [
-                    {"name": t.name, "provider": t.provider} for t in self.targets.values()
-                ],
-            },
-        )
+        if self.path == "/health":
+            return self._send(
+                200,
+                {
+                    "ok": True,
+                    "targets": [
+                        {"name": t.name, "provider": t.provider}
+                        for t in self.keyfile.targets.values()
+                    ],
+                },
+            )
+
+        if self.path == "/providers":
+            return self._send(200, {"providers": text_providers()})
+
+        if self.path == "/targets":
+            rows = []
+            for target in self.keyfile.targets.values():
+                row = {
+                    "name": target.name,
+                    "provider": target.provider,
+                    "key_hint": key_hint(target.entry["key"]),
+                    "model": target.pinned_model,
+                }
+                try:
+                    row["models"] = target.models()
+                except Exception as error:
+                    row["models"] = []
+                    row["error"] = str(error)
+                rows.append(row)
+            return self._send(200, {"targets": rows})
+
+        return self._send(404, {"error": "not_found"})
 
     def do_POST(self):
         if not self._authorized():
             return self._send(401, {"error": "unauthorized"})
-        if self.path != "/generate":
-            return self._send(404, {"error": "not_found"})
+        self.keyfile.refresh()
 
-        length = int(self.headers.get("Content-Length", 0))
-        if length > MAX_BODY_BYTES:
-            return self._send(413, {"error": "too_large"})
+        if self.path == "/generate":
+            return self._generate()
+        if self.path == "/targets":
+            return self._put_target()
+
+        pin = re.fullmatch(r"/targets/([^/]+)/model", self.path)
+        if pin:
+            return self._pin_model(pin.group(1))
+
+        return self._send(404, {"error": "not_found"})
+
+    def do_DELETE(self):
+        if not self._authorized():
+            return self._send(401, {"error": "unauthorized"})
+        self.keyfile.refresh()
+
+        match = re.fullmatch(r"/targets/([^/]+)", self.path)
+        if not match:
+            return self._send(404, {"error": "not_found"})
+        if not self.keyfile.remove(match.group(1)):
+            return self._send(404, {"error": "unknown_target"})
+        self.keyfile.refresh()
+        return self._send(200, {"ok": True})
+
+    def _put_target(self):
+        request = self._body()
+        if request is None:
+            return self._send(400, {"error": "bad_json"})
+
+        provider = str(request.get("provider") or "").strip().lower()
+        key = str(request.get("key") or "").strip()
+        if not provider or not key:
+            return self._send(400, {"error": "missing_fields"})
+
+        entry = {"provider": provider, "key": key, "name": request.get("name") or provider}
+        for passthrough in ("protocol", "base_url"):
+            if request.get(passthrough):
+                entry[passthrough] = request[passthrough]
+
+        # The key is proved live before it's stored: a fresh listing, no cache.
         try:
-            request = json.loads(self.rfile.read(length))
-        except (json.JSONDecodeError, ValueError):
+            models = Target(entry).client().list_models(refresh=True).models
+        except KeyCallError as error:
+            return self._send(422, {"error": "refused", "message": str(error)})
+        except Exception as error:
+            return self._send(422, {"error": "refused", "message": str(error)})
+
+        self.keyfile.upsert(entry)
+        self.keyfile.refresh()
+        return self._send(
+            200,
+            {
+                "ok": True,
+                "name": entry["name"],
+                "provider": provider,
+                "key_hint": key_hint(key),
+                "models": [m.id for m in order_candidates(models)],
+            },
+        )
+
+    def _pin_model(self, name):
+        request = self._body()
+        if request is None:
+            return self._send(400, {"error": "bad_json"})
+
+        target = self.keyfile.targets.get(name)
+        if target is None:
+            return self._send(404, {"error": "unknown_target"})
+
+        model = str(request.get("model") or "").strip()
+        if model:
+            try:
+                listed = target.models()
+            except Exception as error:
+                return self._send(422, {"error": "refused", "message": str(error)})
+            if model not in listed:
+                return self._send(422, {"error": "unknown_model"})
+
+        self.keyfile.update_model(name, model)
+        self.keyfile.refresh()
+        return self._send(200, {"ok": True, "name": name, "model": model or None})
+
+    def _generate(self):
+        request = self._body()
+        if request is None:
             return self._send(400, {"error": "bad_json"})
 
         prompt = request.get("prompt")
         if not prompt or not isinstance(prompt, str):
             return self._send(400, {"error": "missing_prompt"})
 
-        target = self._pick_target(request.get("target"))
+        name = request.get("target")
+        if name:
+            target = self.keyfile.targets.get(name)
+        else:
+            target = next(iter(self.keyfile.targets.values()), None)
         if target is None:
             return self._send(400, {"error": "unknown_target"})
 
@@ -208,9 +435,7 @@ class Handler(BaseHTTPRequestHandler):
             messages.append(Message(role="system", content=[TextInput(text=request["system"])]))
         messages.append(Message(role="user", content=[TextInput(text=prompt)]))
 
-        kwargs = {
-            "max_output_tokens": int(request.get("max_output_tokens", 400)),
-        }
+        kwargs = {"max_output_tokens": int(request.get("max_output_tokens", 400))}
         # Sampling is left to the model unless the caller sets it: several
         # current models pin temperature and refuse any other explicit value,
         # so a cross-provider default here would refuse whole providers.
@@ -228,6 +453,14 @@ class Handler(BaseHTTPRequestHandler):
                     result = generate_with_schema_fallback(
                         target.client(), model_id, messages, kwargs
                     )
+                    if not (result.text or "").strip():
+                        # Tokens were spent and nothing came back, most often a
+                        # reasoning model that thought its way through the whole
+                        # output budget. An empty answer is a failure for the
+                        # caller, so the walk moves on.
+                        last_error = RuntimeError(f"{model_id} returned no text")
+                        result = None
+                        continue
                     model = model_id
                     target.remember(kind, model_id)
                     break
@@ -256,11 +489,6 @@ class Handler(BaseHTTPRequestHandler):
             },
         )
 
-    def _pick_target(self, name):
-        if name:
-            return self.targets.get(name)
-        return next(iter(self.targets.values()), None)
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -272,15 +500,12 @@ def main():
     if not token:
         sys.exit("Set QUORUM_SIDECAR_TOKEN before starting; Quorum must hold the same value.")
 
-    targets = load_targets(args.keys)
-    if not targets:
-        sys.exit(f"No usable targets in {args.keys}. Fill in a key first.")
-
-    Handler.targets = {t["name"]: Target(t) for t in targets}
+    Handler.keyfile = KeyFile(args.keys)
+    Handler.keyfile.refresh()
     Handler.token = token
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    names = ", ".join(Handler.targets)
+    names = ", ".join(Handler.keyfile.targets) or "none yet; add keys from Settings"
     print(f"Quorum sidecar on 127.0.0.1:{args.port}, targets: {names}")
     server.serve_forever()
 

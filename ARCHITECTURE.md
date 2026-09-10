@@ -35,7 +35,7 @@ A landing page at `/` fronts all of it, and a seeded demo session behind `/demo`
 - eqrcode for server-rendered QR codes, so the projection needs no client JavaScript to draw one
 - A bespoke CSS design system (tokens plus `q-*` components) with Archivo and Literata self-hosted as woff2
 - Oban for scheduled and background jobs: one queue, a cron entry that closes rooms whose own clock has run out, and the three AI jobs (pointer, draft, screen)
-- AI provider calls through a localhost Python sidecar built on KeyCall (`sidecar/`): Quorum holds no provider keys, speaks HTTP to one normalized `/generate`, and records every call's spend in `ai_calls`
+- AI provider calls through a localhost Python sidecar built on KeyCall (`sidecar/`): Quorum holds no provider keys, speaks HTTP to one normalized `/generate` plus a small key-management API the settings screen drives, and records every call's spend in `ai_calls`
 - Deployment target: not chosen
 
 ### Run details

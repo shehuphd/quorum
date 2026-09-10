@@ -213,11 +213,16 @@ defmodule QuorumWeb.HostLive do
     load(socket)
   end
 
-  defp keep_selected(nil, [first | _]), do: first
-  defp keep_selected(nil, []), do: nil
-  defp keep_selected(id, ids), do: if(id in ids, do: id, else: List.first(ids))
+  # Nothing is selected until J or K asks: a standing ring on the top row read
+  # as decoration, and the top of the pile marks itself. A selection whose
+  # question leaves the queue clears rather than jumping somewhere unasked.
+  defp keep_selected(nil, _ids), do: nil
+  defp keep_selected(id, ids), do: if(id in ids, do: id, else: nil)
 
   defp step([], _current, _delta), do: nil
+
+  # From nothing, either direction lights the top of the pile.
+  defp step(ids, nil, _delta), do: List.first(ids)
 
   defp step(ids, current, delta) do
     i = Enum.find_index(ids, &(&1 == current)) || 0
@@ -228,6 +233,16 @@ defmodule QuorumWeb.HostLive do
   defp spotlighted?(spotlight, id), do: spotlight.id == id
 
   defp clock(dt), do: Calendar.strftime(dt, "%H:%M")
+
+  # The draft is stored as "- " lines; older ones may be prose. Either way the
+  # rail draws a list, one item per line, prose as a single item.
+  defp draft_lines(draft) do
+    draft
+    |> String.split("\n", trim: true)
+    |> Enum.map(&String.trim_leading(&1, "- "))
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
 
   # Why a question is in this queue, in the presenter's terms.
   defp held_because(%{held_reason: :room}), do: "held because everything is"
@@ -519,6 +534,14 @@ defmodule QuorumWeb.HostLive do
                 </div>
                 <div class="q-queue-actions">
                   <button
+                    :if={spotlighted?(@spotlight, q.id)}
+                    type="button"
+                    class="q-button q-button--live"
+                    phx-click="clear_spotlight"
+                  >
+                    Clear
+                  </button>
+                  <button
                     :if={!spotlighted?(@spotlight, q.id)}
                     type="button"
                     class="q-button"
@@ -595,20 +618,12 @@ defmodule QuorumWeb.HostLive do
               {projection_line(@spotlight)}
               <span :if={@spotlight}>Press <strong>Q</strong> on the projection to clear it.</span>
             </p>
-            <button
-              :if={@spotlight}
-              type="button"
-              class="q-button q-button--secondary"
-              style="margin-top:12px;"
-              phx-click="clear_spotlight"
-            >
-              Clear the spotlight
-            </button>
-
             <div :if={@spotlight && @spotlight.answer_draft} class="q-draft">
-              <div class="q-label">Suggested answer</div>
-              <p>{@spotlight.answer_draft}</p>
-              <p class="q-meta">Drafted by the AI. The hall never sees this; you decide.</p>
+              <div class="q-draft-title">Suggested answer</div>
+              <ul>
+                <li :for={line <- draft_lines(@spotlight.answer_draft)}>{line}</li>
+              </ul>
+              <p class="q-meta">AI-generated, only visible to you.</p>
             </div>
             <p :if={@spotlight && !@spotlight.answer_draft && @ai?} class="q-meta q-draft-wait">
               Drafting a suggested answer&hellip;

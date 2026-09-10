@@ -20,7 +20,8 @@ defmodule QuorumWeb.SettingsLive do
     {"moderation", "Moderation"},
     {"resources", "Readings and AI"},
     {"projection", "Projection"},
-    {"appearance", "Appearance"}
+    {"appearance", "Appearance"},
+    {"ai", "AI keys"}
   ]
 
   @slugs Enum.map(@tabs, &elem(&1, 0))
@@ -43,7 +44,14 @@ defmodule QuorumWeb.SettingsLive do
            confirm_delete: false,
            delete_typed: "",
            reading_error: nil,
-           word_error: nil
+           word_error: nil,
+           ai_up?: false,
+           ai_targets: [],
+           ai_providers: [],
+           ai_provider: "",
+           ai_key_status: nil,
+           ai_form_seq: 0,
+           ai_spend: nil
          )
          |> load()}
 
@@ -69,7 +77,9 @@ defmodule QuorumWeb.SettingsLive do
     tab = params |> Map.get("tab", "room")
 
     if tab in @slugs do
-      {:noreply, assign(socket, tab: tab, page_title: "#{label(tab)} settings")}
+      socket = assign(socket, tab: tab, page_title: "#{label(tab)} settings")
+      socket = if tab == "ai", do: load_ai(socket), else: socket
+      {:noreply, socket}
     else
       {:noreply,
        push_patch(socket, to: ~p"/host/#{socket.assigns.room.host_token}/settings/room")}
@@ -77,6 +87,30 @@ defmodule QuorumWeb.SettingsLive do
   end
 
   @impl true
+  def handle_info({:ai_check, provider, key}, socket) do
+    socket =
+      case Quorum.AI.add_key(%{provider: provider, key: key}) do
+        {:ok, %{"models" => models}} ->
+          socket
+          |> assign(
+            ai_key_status: {:ok, "Key accepted: #{length(models)} usable models."},
+            ai_form_seq: socket.assigns.ai_form_seq + 1,
+            ai_provider: ""
+          )
+          |> load_ai()
+
+        {:error, {:sidecar, _status, message}} ->
+          assign(socket, ai_key_status: {:error, message})
+
+        {:error, _} ->
+          assign(socket,
+            ai_key_status: {:error, "The AI service isn't answering. Is the sidecar running?"}
+          )
+      end
+
+    {:noreply, socket}
+  end
+
   def handle_info({:save, attrs}, socket) do
     case Sessions.update_settings(socket.assigns.room, attrs) do
       {:ok, room} -> {:noreply, socket |> assign(room: room, status: :saved) |> load()}
@@ -88,6 +122,35 @@ defmodule QuorumWeb.SettingsLive do
   def handle_info(_message, socket), do: {:noreply, load(socket)}
 
   @impl true
+  # The form hot-saves: a provider pick is kept, and a key is tested the
+  # moment it stops being typed (debounced change) or the field is left.
+  def handle_event("ai_form", params, socket) do
+    provider = Map.get(params, "provider", socket.assigns.ai_provider)
+    socket = assign(socket, ai_provider: provider)
+    {:noreply, maybe_check_key(socket, provider, Map.get(params, "key", ""))}
+  end
+
+  def handle_event("ai_key_blur", %{"value" => key}, socket),
+    do: {:noreply, maybe_check_key(socket, socket.assigns.ai_provider, key)}
+
+  def handle_event("ai_pin", %{"target" => name} = params, socket) do
+    model = Map.get(params, "model", "")
+    Quorum.AI.pin_model(name, if(model == "", do: nil, else: model))
+    {:noreply, load_ai(socket)}
+  end
+
+  def handle_event("ai_remove", %{"name" => name}, socket) do
+    Quorum.AI.remove_key(name)
+    {:noreply, socket |> assign(ai_key_status: nil) |> load_ai()}
+  end
+
+  def handle_event("ai_reload", _params, socket), do: {:noreply, load_ai(socket)}
+
+  def handle_event("ai_clear_spend", _params, socket) do
+    Quorum.AI.clear_spend()
+    {:noreply, assign(socket, ai_spend: Quorum.AI.spend())}
+  end
+
   def handle_event("save", params, socket),
     do: {:noreply, start_save(socket, attrs(params, socket.assigns.tz_offset))}
 
@@ -231,6 +294,45 @@ defmodule QuorumWeb.SettingsLive do
   defp start_save(socket, attrs) do
     send(self(), {:save, attrs})
     assign(socket, status: :saving)
+  end
+
+  defp maybe_check_key(socket, provider, key) do
+    key = String.trim(key)
+
+    cond do
+      key == "" ->
+        socket
+
+      provider == "" ->
+        assign(socket, ai_key_status: {:error, "Pick the provider the key is for first."})
+
+      true ->
+        # Two renders: the checking line appears now, the verdict when the
+        # provider answers.
+        send(self(), {:ai_check, provider, key})
+        assign(socket, ai_key_status: :checking)
+    end
+  end
+
+  defp load_ai(socket) do
+    case Quorum.AI.targets() do
+      {:ok, targets} ->
+        providers =
+          case Quorum.AI.providers() do
+            {:ok, providers} -> providers
+            _ -> []
+          end
+
+        assign(socket,
+          ai_up?: true,
+          ai_targets: targets,
+          ai_providers: providers,
+          ai_spend: Quorum.AI.spend()
+        )
+
+      {:error, _down} ->
+        assign(socket, ai_up?: false, ai_targets: [], ai_spend: Quorum.AI.spend())
+    end
   end
 
   defp attrs(params, offset) do
@@ -429,6 +531,16 @@ defmodule QuorumWeb.SettingsLive do
               />
             <% "projection" -> %>
               <.projection_pane room={@room} />
+            <% "ai" -> %>
+              <.ai_pane
+                up?={@ai_up?}
+                targets={@ai_targets}
+                providers={@ai_providers}
+                provider={@ai_provider}
+                key_status={@ai_key_status}
+                form_seq={@ai_form_seq}
+                spend={@ai_spend}
+              />
             <% "appearance" -> %>
               <.appearance_pane room={@room} />
             <% slug -> %>
@@ -645,6 +757,143 @@ defmodule QuorumWeb.SettingsLive do
       </div>
     </section>
     """
+  end
+
+  attr :up?, :boolean, required: true
+  attr :targets, :list, required: true
+  attr :providers, :list, required: true
+  attr :provider, :string, required: true
+  attr :key_status, :any, required: true
+  attr :form_seq, :integer, required: true
+  attr :spend, :any, required: true
+
+  defp ai_pane(assigns) do
+    ~H"""
+    <section>
+      <h2>AI keys</h2>
+      <p class="q-meta" style="margin-top:0;">
+        The keys behind the reading pointer, the suggested answers, and the AI hold. They live
+        with the AI service, never in Quorum, and a key is stored only once its provider has
+        accepted it live. These keys are for the whole install, not just this room.
+      </p>
+
+      <div :if={!@up?} class="q-panel" style="padding:18px;">
+        <div class="q-label" style="margin-bottom:6px;">The AI service isn't running</div>
+        <p class="q-meta" style="margin:0 0 12px;">
+          Start it beside the app and restart Quorum with the token it prints:
+        </p>
+        <pre class="q-code-line">./sidecar/run.sh</pre>
+        <button type="button" class="q-button q-button--secondary" phx-click="ai_reload">
+          Check again
+        </button>
+      </div>
+
+      <div :if={@up?}>
+        <div :for={target <- @targets} class="q-ai-key">
+          <div class="q-ai-key-id">
+            <span class="q-label">{target["provider"]}</span>
+            <code>{target["key_hint"]}</code>
+          </div>
+          <form id={"ai-pin-#{target["name"]}"} phx-change="ai_pin" class="q-ai-key-model">
+            <input type="hidden" name="target" value={target["name"]} />
+            <label class="q-sr-only" for={"model-#{target["name"]}"}>
+              Model for {target["provider"]}
+            </label>
+            <select id={"model-#{target["name"]}"} name="model" class="q-select">
+              <option value="" selected={target["model"] == nil}>
+                Automatic: newest that answers
+              </option>
+              <option
+                :for={model <- target["models"] || []}
+                value={model}
+                selected={target["model"] == model}
+              >
+                {model}
+              </option>
+            </select>
+          </form>
+          <button
+            type="button"
+            class="q-button q-button--destructive"
+            phx-click="ai_remove"
+            phx-value-name={target["name"]}
+          >
+            Remove
+          </button>
+          <p :if={target["error"]} class="q-meta q-ai-key-error">
+            This key stopped working: {target["error"]}
+          </p>
+        </div>
+
+        <p :if={@targets == []} class="q-meta">
+          No keys yet. Add one below and everything switches on.
+        </p>
+
+        <h3 style="margin-top:22px;">Add a key</h3>
+        <form id={"ai-key-form-#{@form_seq}"} phx-change="ai_form" class="q-ai-add" autocomplete="off">
+          <div>
+            <label class="q-label" for="ai-provider">Provider</label>
+            <select id="ai-provider" name="provider" class="q-select">
+              <option value="" selected={@provider == ""}>Pick one</option>
+              <option :for={p <- @providers} value={p} selected={@provider == p}>{p}</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <label class="q-label" for="ai-key">API key</label>
+            <input
+              id="ai-key"
+              name="key"
+              type="password"
+              class="q-input"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Paste the key; it's tested the moment you stop typing"
+              phx-debounce="800"
+              phx-blur="ai_key_blur"
+            />
+          </div>
+        </form>
+        <p class="q-status" role="status">
+          <%= case @key_status do %>
+            <% :checking -> %>
+              Checking the key with the provider&hellip;
+            <% {:ok, message} -> %>
+              <span class="q-status--saved">&check; {message}</span>
+            <% {:error, message} -> %>
+              <span style="color:var(--q-destructive);">{message}</span>
+            <% _ -> %>
+          <% end %>
+        </p>
+
+        <hr class="q-divider" style="margin:14px 0;" />
+
+        <h3>What the AI has spent</h3>
+        <div :if={@spend} class="q-ai-spend">
+          <div class="q-ai-spend-figures">
+            <span><strong>{@spend.calls}</strong> {if @spend.calls == 1, do: "call", else: "calls"}</span>
+            <span><strong>{@spend.input}</strong> tokens in</span>
+            <span><strong>{@spend.output}</strong> tokens out</span>
+          </div>
+          <p class="q-meta" style="margin:6px 0 12px;">
+            {spend_line(@spend.by_purpose)}
+          </p>
+          <button type="button" class="q-button q-button--secondary" phx-click="ai_clear_spend">
+            Clear the counter
+          </button>
+        </div>
+      </div>
+    </section>
+    """
+  end
+
+  defp spend_line(by_purpose) when map_size(by_purpose) == 0,
+    do: "Nothing spent yet."
+
+  defp spend_line(by_purpose) do
+    [pointer: "reading pointers", draft: "drafts", screen: "screens"]
+    |> Enum.map(fn {key, word} -> {Map.get(by_purpose, key, 0), word} end)
+    |> Enum.reject(fn {count, _} -> count == 0 end)
+    |> Enum.map_join(", ", fn {count, word} -> "#{count} #{word}" end)
   end
 
   attr :field, :string, required: true

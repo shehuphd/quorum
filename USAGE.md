@@ -131,7 +131,7 @@ The hall belongs to the room rather than to the screen showing it, so it survive
 
 ### Settings
 
-Settings open from the console at `/host/:host_token/settings`, with six categories on a rail. Each has its own URL, so a tab can be linked or reloaded.
+Settings open from the console at `/host/:host_token/settings`, with seven categories on a rail. Each has its own URL, so a tab can be linked or reloaded.
 
 Every control applies as you change it. There is no save button, and the line beside the buttons says "Saving", then "All changes saved". Its height is reserved, so the first save doesn't move the buttons under your pointer.
 
@@ -143,6 +143,7 @@ Every control applies as you change it. There is no save button, and the line be
 | Readings and AI | The approved reading list, and whether students are pointed at it |
 | Projection | What the screen at the front puts on the wall |
 | Appearance | The projection's colours |
+| AI keys | Provider keys, the model each uses, and what the AI has spent |
 
 **Questions** sets the longest a question may be (140, 280, 500, or 1000 characters), how many a student can have waiting at once, and whether students may sign what they post. The composer follows all three. Answered and hidden questions stop counting against their asker, so a student who's been answered can post again. Turning signing off posts every question anonymously, including any name an old page still sends.
 
@@ -208,7 +209,11 @@ QUORUM_SIDECAR_TOKEN=<printed value> ./launch.sh
 
 The key file is KeyCall's own TOML shape, so `keycall verify --source ./project/keys.toml` checks the same file the sidecar reads. Providers are data: add a `[[targets]]` entry and it's available, and no provider is named anywhere in Quorum.
 
-Every model call is recorded: what it was for, which provider and model answered, the tokens it spent, and how long it took, kept per presenter. Costs are priced later from rates data; the tokens are the durable fact.
+You don't have to edit the file by hand. The **AI keys** settings tab manages it once the service is up: pick a provider, paste a key, and the key is tested against the provider the moment you stop typing. A key that answers is stored and confirmed ("Key accepted: 12 usable models."); one the provider refuses is never stored, and the tab shows the provider's own message. A stored key renders as its first four characters and asterisks, and can't be read back out, only replaced or removed.
+
+Each key normally runs on the newest model that answers, chosen from the provider's live catalog. The picker beside a key pins one instead, offering only models the key can use for text: nothing deprecated, no image or embedding models.
+
+Every model call is recorded: what it was for, which provider and model answered, the tokens it spent, and how long it took, kept per presenter. The same tab shows the running total, calls, tokens in, tokens out, split by purpose, with a button that clears the counter. Costs are priced later from rates data; the tokens are the durable fact.
 
 ## The domain
 

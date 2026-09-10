@@ -74,3 +74,10 @@ All notable changes to Quorum are recorded here, dated per release.
 - The review queue says why each question is waiting.
 - Every model call is recorded, success or failure: purpose, provider, model, tokens, elapsed time, kept per presenter. Pricing waits on rates data; the tokens are the durable fact.
 - The sidecar walks a provider's models in KeyCall verify's own order and remembers the first that answers, per request kind, so a listed-but-retired model or one that refuses structured output costs one attempt rather than the feature.
+- The console opens with nothing selected: the ring appears on the first key press, not before.
+- The spotlighted row's own button becomes a pulsing **Clear**, so putting a question up and taking it down happen in the same place. The rail's separate control is gone.
+- The suggested answer is bullet points now, fifty words at most, under a bold title, with the note cut to "AI-generated, only visible to you."
+- An **AI keys** settings tab: paste a key and it's tested against its provider as you stop typing, stored only if it answers, and shown ever after as its first four characters and asterisks. A picker pins each key to a model from the provider's usable catalog, nothing deprecated and nothing that can't do text, and the spend counter reads back calls, tokens in, tokens out, by purpose, with a button to clear it.
+- The sidecar grew the key-management API behind that tab, and rewrites the key file itself: adding, pinning, and removing keys no longer means editing TOML by hand.
+- The three jobs' output caps rise to 2000 tokens: a reasoning model spends thinking tokens inside the cap, so the draft's tight one came back as billed tokens and no text. The prompt is what keeps the answer short.
+- A model that answers with no text now counts as a failed candidate in the sidecar's walk, so the next one gets the question instead of the feature silently doing nothing.

@@ -63,6 +63,47 @@ defmodule Quorum.AI do
     end
   end
 
+  ## Keys and models, through the sidecar
+
+  @doc "The configured targets: provider, name, a key hint, and usable models. Never a key."
+  def targets, do: client().targets(config())
+
+  @doc "The providers a key can be for, from KeyCall's own catalog."
+  def providers, do: client().providers(config())
+
+  @doc """
+  Add or replace a key. The sidecar proves it live against the provider before
+  storing it, so nothing invalid is ever saved; the key passes through this
+  process once and is never stored, logged, or echoed here.
+  """
+  def add_key(params), do: client().put_target(params, config())
+
+  @doc "Pin a target to one model, or nil to go back to automatic."
+  def pin_model(name, model), do: client().put_model(name, model, config())
+
+  @doc "Remove a key. The next feature call finds it gone."
+  def remove_key(name), do: client().delete_target(name, config())
+
+  ## The spend
+
+  @doc "What the AI has spent so far: calls and tokens, in total and per purpose."
+  def spend do
+    calls = Ash.read!(Quorum.AI.Call)
+
+    %{
+      calls: length(calls),
+      input: calls |> Enum.map(&(&1.input_tokens || 0)) |> Enum.sum(),
+      output: calls |> Enum.map(&(&1.output_tokens || 0)) |> Enum.sum(),
+      by_purpose: Enum.frequencies_by(calls, & &1.purpose)
+    }
+  end
+
+  @doc "Zero the counter. The rows go; the tokens were already spent."
+  def clear_spend do
+    Quorum.AI.Call |> Ash.read!() |> Enum.each(&Ash.destroy!/1)
+    :ok
+  end
+
   @doc "Every recorded call for a presenter, newest first."
   def calls(owner_id) do
     require Ash.Query
