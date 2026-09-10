@@ -66,7 +66,7 @@ That prints the demo session's join code and its three links, seeding the room i
 
 Sign-in is for presenters, and it's optional: `/start` opens a room without one, and the host link works either way. Signing in adds `/rooms`, a list of the rooms you opened.
 
-Enter a work email at `/sign-in` and Quorum sends a single-use link that expires in 15 minutes. Asking again within 30 seconds sends nothing, and the screen says how long is left. In development the email goes to the local mailbox at `/dev/mailbox` instead of out to the internet.
+Sign-in is a stub for this demo build, not a live credential. The page at `/sign-in` has one access code field, and the code is shown as the field's own placeholder, so the hint and the key are one value: type what's in the box and you're in as the shared demo presenter. No email is sent. The code defaults to `showtime` and is set per event with the `QUORUM_DEMO_CODE` environment variable. The magic-link machinery stays in the code, dormant, for a later build that authenticates presenters.
 
 Single sign-on appears on the page but is disabled, with microcopy saying what turns it on: an institution's provider being connected.
 

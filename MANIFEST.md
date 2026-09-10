@@ -10,7 +10,7 @@ screens, and the landing page is a plain controller.
 
 | File | Role |
 |---|---|
-| `lib/quorum/accounts.ex` | Presenter accounts and the magic-link rules: fifteen minutes to live, single use, and a thirty-second cooldown between requests. `request_link/1` returns `{:ok, user, token}`, `{:wait, seconds}`, or an error; `claim_link/1` returns the presenter once and then `:spent` or `:expired`, so the screen can say which. |
+| `lib/quorum/accounts.ex` | Presenter accounts. For the demo build, `demo_code/0` and `demo_code?/1` gate one access code (shown as the sign-in field's own placeholder, `QUORUM_DEMO_CODE` to override) and `demo_presenter/0` opens the shared demo account. The magic-link rules stay dormant beneath: `request_link/1` returns `{:ok, user, token}`, `{:wait, seconds}`, or an error; `claim_link/1` returns the presenter once and then `:spent` or `:expired`. |
 | `lib/quorum/accounts/user.ex` | `User` resource: a presenter's email, optional name, and whether the rooms they open start by holding every question. Students never have one. `register` upserts on the email, so one address is one account. Postgres table `users`. |
 | `lib/quorum/accounts/login_token.ex` | `LoginToken` resource: one single-use sign-in link, 32 random bytes with an expiry. Spent tokens are kept rather than deleted, so a second click is told apart from a token that never existed. Postgres table `login_tokens`. |
 | `lib/quorum/accounts/notifier.ex` | The one email Quorum sends. In development it goes to the local mailbox at `/dev/mailbox` rather than out to the internet. |
@@ -57,7 +57,7 @@ screens, and the landing page is a plain controller.
 | (landing template) | `/`. The landing page: hero with a code field and Start a room, the demo band, how it works, the reading-pointer illustration, the capability columns, and the closing call to action. Reads the demo room without seeding, so a visit never writes. `page_html.ex` carries `word/1`, `count/3`, and `qr/2`. |
 | `lib/quorum_web/controllers/archive_controller.ex` | `GET /archive/export`. The term's questions as a CSV, every field quoted, for the presenter who plans in a spreadsheet. |
 | `lib/quorum_web/controllers/room_controller.ex` | `GET /start` opens a room, owned by the presenter when one is signed in, and redirects to its console. `GET /rooms` lists a presenter's own. `POST /join` is the way in from the join page: it puts the display name in the session, where the feed reads it, and redirects to the room. |
-| `lib/quorum_web/controllers/session_controller.ex`, `session_html.ex`, `session_html/*` | `/sign-in`, `/sign-in/sent`, `/sign-in/:token`, `/sign-out`. Magic-link sign-in for presenters. The check-your-email screen reads the same whether or not the address was known, so it can't be used to find out who has an account. |
+| `lib/quorum_web/controllers/session_controller.ex`, `session_html.ex`, `session_html/*` | `/sign-in`, `/sign-in/sent`, `/sign-in/:token`, `/sign-out`. Demo sign-in for presenters: `create` checks the access code and opens the shared demo presenter, no email sent. The magic-link actions (`sent`, `claim`) stay in place, dormant. |
 | `lib/quorum_web/controllers/demo_controller.ex` | `/demo`, `/demo/host`, `/demo/project`. Three doors into the seeded demo session, one per role. Finds or seeds the room, then redirects, so the landing page's links survive a reseed. |
 
 ## Web: supporting modules
@@ -79,7 +79,7 @@ screens, and the landing page is a plain controller.
 |---|---|
 | `lib/quorum/application.ex` | OTP application. Supervises the repo, PubSub (`Quorum.PubSub`), Presence, telemetry, and the endpoint. |
 | `lib/quorum/repo.ex` | `Quorum.Repo`, an `AshPostgres.Repo` over PostgreSQL. |
-| `lib/quorum/mailer.ex` | Swoosh mailer, behind the sign-in link and the contact form. In development it writes to the local mailbox rather than sending. |
+| `lib/quorum/mailer.ex` | Swoosh mailer, behind the contact form (and the dormant sign-in link). In development it writes to the local mailbox rather than sending. |
 | `lib/quorum.ex` | App boundary module (generated). |
 | `lib/quorum_web.ex` | Web boundary: `controller/0`, `live_view/0`, `html/0` macros. |
 | `lib/quorum_web/endpoint.ex` | HTTP endpoint and socket wiring. |
@@ -139,7 +139,7 @@ screens, and the landing page is a plain controller.
 | File | Role |
 |---|---|
 | `test/quorum/accounts_test.exs` | The magic-link rules: registration, case-insensitive addresses, the cooldown, single use, expiry, and one presenter's link never signing in another. |
-| `test/quorum_web/controllers/session_controller_test.exs` | The sign-in screens and the whole loop: the disabled SSO control with its microcopy, the email it sends, a refused address, no second email inside the cooldown, sign-in, sign-out, and a presenter seeing only their own rooms. |
+| `test/quorum_web/controllers/session_controller_test.exs` | The demo sign-in: the access code shown as the field's placeholder, the disabled SSO control with its microcopy, the code opening the demo presenter (case- and space-forgiving), a wrong code refused with no session, sign-out, and a presenter seeing only their own rooms. |
 | `test/quorum/sessions_test.exs` | Adversarial suite over the Sessions resources: validation failures, anonymity, vote dedup, status transitions, ranking, spotlight, and live-update broadcasts. |
 | `test/quorum_web/live/join_live_test.exs` | The join screen: label, prefill, unknown code, and navigation however the code was typed. |
 | `test/quorum_web/live/attendee_live_test.exs` | The student feed: posting, draft retention, retraction limited to the author, voting and unvoting with the word "Voted" present, the answered list, the closed room, and live arrival. Then the room's limits: a refusal past the length, a refusal past the allowance, the count of what's left, a name dropped when signing is off, and the whole held-question path from posting to approval. |

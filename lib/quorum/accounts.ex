@@ -1,10 +1,12 @@
 defmodule Quorum.Accounts do
   @moduledoc """
-  Presenter accounts and the magic-link sign-in.
+  Presenter accounts and sign-in.
 
-  A link is the whole credential, so the rules live here rather than in a
-  controller: fifteen minutes to live, single use, and a cooldown between
-  requests so the same address can't be mailed repeatedly.
+  Sign-in is a demo stub: one access code opens the shared demo presenter, and
+  the sign-in field shows that code as its own placeholder. The magic-link rules
+  stay here, dormant, for a later build: a link is the whole credential, so its
+  rules live here rather than in a controller (fifteen minutes to live, single
+  use, and a cooldown between requests so an address can't be mailed repeatedly).
   """
   use Ash.Domain, otp_app: :quorum
 
@@ -18,6 +20,29 @@ defmodule Quorum.Accounts do
   end
 
   @cooldown_seconds 30
+
+  # Sign-in is a demo stub, not a live credential: one code opens the shared
+  # demo presenter, and the sign-in field shows this same code as its own
+  # placeholder, so the hint and the key are one value. Override per event with
+  # the QUORUM_DEMO_CODE env var. The magic-link machinery below stays in place,
+  # dormant, for a later build that authenticates presenters.
+  @demo_code "showtime"
+
+  @doc "The code that opens the demo. The sign-in field shows it as its placeholder."
+  def demo_code, do: System.get_env("QUORUM_DEMO_CODE") || @demo_code
+
+  @doc "Whether a typed code opens the demo, forgiving case and surrounding space."
+  def demo_code?(code) when is_binary(code),
+    do: String.downcase(String.trim(code)) == String.downcase(demo_code())
+
+  def demo_code?(_), do: false
+
+  @doc "The shared demo presenter, registered and named on first use."
+  def demo_presenter do
+    with {:ok, user} <- register("demo@quorum.app") do
+      user |> Ash.Changeset.for_update(:set_name, %{name: "Demo presenter"}) |> Ash.update()
+    end
+  end
 
   @doc "Seconds a presenter waits before they can ask for another link."
   def cooldown_seconds, do: @cooldown_seconds

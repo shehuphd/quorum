@@ -1,91 +1,46 @@
 defmodule QuorumWeb.SessionControllerTest do
   use QuorumWeb.ConnCase
 
-  import Swoosh.TestAssertions
-
   alias Quorum.Accounts
   alias QuorumWeb.CurrentUser
 
-  test "the sign-in page offers the email link and holds SSO back honestly", %{conn: conn} do
+  test "the sign-in page shows the access code as its own field placeholder", %{conn: conn} do
     html = conn |> get(~p"/sign-in") |> html_response(200)
 
     assert html =~ "Sign in"
-    assert html =~ ~s(for="email")
-    assert html =~ "Email me a sign-in link"
+    assert html =~ ~s(for="code")
+    # The placeholder is the code, so the hint and the key are one value.
+    assert html =~ ~s(placeholder="#{Accounts.demo_code()}")
     # The SSO control is disabled rather than inert-looking, and says what turns it on.
     assert html =~ ~s(disabled="disabled")
     assert html =~ "Single sign-on turns on once your institution"
     assert html =~ "Join a session with a code"
   end
 
-  test "asking for a link emails one and moves to the check-your-email screen", %{conn: conn} do
-    conn = post(conn, ~p"/sign-in", %{"email" => "a.adeyemi@university.ac.uk"})
-
-    assert redirected_to(conn) =~ "/sign-in/sent"
-
-    assert_email_sent(fn email ->
-      assert {_, "a.adeyemi@university.ac.uk"} = hd(email.to)
-      assert email.subject == "Your Quorum sign-in link"
-      assert email.text_body =~ "/sign-in/"
-    end)
-  end
-
-  test "a bad address is refused on the page rather than silently accepted", %{conn: conn} do
-    html = conn |> post(~p"/sign-in", %{"email" => "nope"}) |> html_response(422)
-
-    assert html =~ "That doesn&#39;t look like an email address."
-    assert_no_email_sent()
-  end
-
-  test "the check-your-email screen names the address and the wait", %{conn: conn} do
-    post(conn, ~p"/sign-in", %{"email" => "a.adeyemi@university.ac.uk"})
-    html = conn |> get(~p"/sign-in/sent?email=a.adeyemi@university.ac.uk") |> html_response(200)
-
-    assert html =~ "Check your email"
-    assert html =~ "a.adeyemi@university.ac.uk"
-    assert html =~ "Send it again"
-    assert html =~ "You can ask for a new link in"
-  end
-
-  test "a second request inside the cooldown sends no second email", %{conn: conn} do
-    post(conn, ~p"/sign-in", %{"email" => "a.adeyemi@university.ac.uk"})
-    assert_email_sent()
-
-    conn = post(conn, ~p"/sign-in", %{"email" => "a.adeyemi@university.ac.uk"})
-
-    assert redirected_to(conn) =~ "/sign-in/sent"
-    assert_no_email_sent()
-  end
-
-  test "clicking the link signs the presenter in and opens their rooms", %{conn: conn} do
-    {:ok, user, token} = Accounts.request_link("a.adeyemi@university.ac.uk")
-
-    conn = get(conn, ~p"/sign-in/#{token.token}")
+  test "the code opens the demo presenter and their rooms", %{conn: conn} do
+    conn = post(conn, ~p"/sign-in", %{"code" => Accounts.demo_code()})
 
     assert redirected_to(conn) == ~p"/rooms"
-    assert get_session(conn, CurrentUser.session_key()) == user.id
+    assert get_session(conn, CurrentUser.session_key())
   end
 
-  test "a used link says so rather than signing anyone in", %{conn: conn} do
-    {:ok, _user, token} = Accounts.request_link("a.adeyemi@university.ac.uk")
-    get(conn, ~p"/sign-in/#{token.token}")
+  test "the code is forgiven its case and surrounding space", %{conn: conn} do
+    padded = "  " <> String.upcase(Accounts.demo_code()) <> "  "
+    conn = post(conn, ~p"/sign-in", %{"code" => padded})
 
-    html = build_conn() |> get(~p"/sign-in/#{token.token}") |> html_response(200)
-
-    assert html =~ "That link has been used"
-    assert html =~ "Ask for a new link"
+    assert redirected_to(conn) == ~p"/rooms"
   end
 
-  test "a token that never existed says so", %{conn: conn} do
-    html = conn |> get(~p"/sign-in/not-a-token") |> html_response(200)
+  test "a wrong code is refused on the page, with no session started", %{conn: conn} do
+    conn = post(conn, ~p"/sign-in", %{"code" => "nope"})
+    html = html_response(conn, 422)
 
-    assert html =~ "That link doesn&#39;t work"
+    assert html =~ "That code doesn&#39;t open the demo."
+    refute get_session(conn, CurrentUser.session_key())
   end
 
   test "signing out drops the session", %{conn: conn} do
-    {:ok, _user, token} = Accounts.request_link("a.adeyemi@university.ac.uk")
-    conn = get(conn, ~p"/sign-in/#{token.token}")
-
+    conn = post(conn, ~p"/sign-in", %{"code" => Accounts.demo_code()})
     assert get_session(conn, CurrentUser.session_key())
 
     conn = delete(conn, ~p"/sign-out")
@@ -100,8 +55,7 @@ defmodule QuorumWeb.SessionControllerTest do
   end
 
   test "a signed-in presenter sees the rooms they opened, and not other people's", %{conn: conn} do
-    {:ok, _user, token} = Accounts.request_link("a.adeyemi@university.ac.uk")
-    conn = get(conn, ~p"/sign-in/#{token.token}")
+    conn = post(conn, ~p"/sign-in", %{"code" => Accounts.demo_code()})
 
     conn = get(conn, ~p"/start")
     {:ok, _other} = Quorum.Sessions.open_room("Someone else's session")

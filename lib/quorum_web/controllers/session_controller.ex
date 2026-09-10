@@ -1,34 +1,34 @@
 defmodule QuorumWeb.SessionController do
   @moduledoc """
-  Magic-link sign-in for presenters. Students never come through here.
+  Demo sign-in for presenters. Students never come through here.
 
-  The "check your email" screen says the same thing whether or not the address
-  was already known, so the page can't be used to find out who has an account.
+  Sign-in is a stub for the demo build: one access code, shown as the field's own
+  placeholder, opens the shared demo presenter. No email is sent. The magic-link
+  actions below stay for a later build that authenticates presenters.
   """
   use QuorumWeb, :controller
 
   alias Quorum.Accounts
-  alias Quorum.Accounts.Notifier
   alias QuorumWeb.CurrentUser
 
-  def new(conn, _params), do: render(conn, :new, email: "", error: nil)
+  def new(conn, _params), do: render(conn, :new, code: "", error: nil)
 
   def create(conn, params) do
-    email = params |> Map.get("email", "") |> String.trim()
+    code = Map.get(params, "code", "")
 
-    case Accounts.request_link(email) do
-      {:ok, user, token} ->
-        Notifier.deliver_sign_in_link(user, url(~p"/sign-in/#{token.token}"))
-        redirect(conn, to: ~p"/sign-in/sent?#{[email: user.email]}")
+    if Accounts.demo_code?(code) do
+      {:ok, user} = Accounts.demo_presenter()
 
-      {:wait, _seconds} ->
-        # Already sent one moments ago. Show the same screen rather than saying so.
-        redirect(conn, to: ~p"/sign-in/sent?#{[email: String.downcase(email)]}")
-
-      {:error, _} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> render(:new, email: email, error: "That doesn't look like an email address.")
+      conn
+      |> CurrentUser.sign_in(user)
+      |> redirect(to: ~p"/rooms")
+    else
+      conn
+      |> put_status(:unprocessable_entity)
+      |> render(:new,
+        code: String.trim(code),
+        error: "That code doesn't open the demo. It's the one shown in the box."
+      )
     end
   end
 

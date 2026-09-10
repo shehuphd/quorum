@@ -11,7 +11,9 @@
     <section class="q-signin-form">
       <div class="q-signin-form-inner">
         <h1>Sign in</h1>
-        <p class="q-signin-lead">Use your university account or get a link via email.</p>
+        <p class="q-signin-lead">
+          Use your university account, or the access code for this demo.
+        </p>
 
         <button
           type="button"
@@ -23,7 +25,7 @@
           Continue with your university account
         </button>
         <p id="sso-note" class="q-meta" style="margin:8px 0 0;">
-          Single sign-on turns on once your institution's provider is connected. Use the email link
+          Single sign-on turns on once your institution's provider is connected. Use the access code
           below in the meantime.
         </p>
 
@@ -31,23 +33,25 @@
 
         <form action={~p"/sign-in"} method="post">
           <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-          <label class="q-label" for="email" style="display:block;margin-bottom:8px;">Work email</label>
+          <label class="q-label" for="code" style="display:block;margin-bottom:8px;">Access code</label>
           <input
-            id="email"
-            name="email"
-            type="email"
+            id="code"
+            name="code"
+            type="text"
             class="q-input"
-            value={@email}
-            required
-            autocomplete="email"
-            placeholder="a.adeyemi@university.ac.uk"
+            value={@code}
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            placeholder={Quorum.Accounts.demo_code()}
           />
           <p :if={@error} class="q-status" style="color:var(--q-destructive);">{@error}</p>
           <button type="submit" class="q-button q-button--secondary" style="margin-top:12px;">
-            Email me a sign-in link
+            Enter
           </button>
           <p class="q-meta" style="margin:8px 0 0;">
-            Single-use link, and it expires after {Quorum.Accounts.link_ttl_minutes()} minutes.
+            Demo access, no email needed. The code is the word shown in the box.
           </p>
         </form>
 
