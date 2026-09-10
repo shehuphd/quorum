@@ -1,6 +1,6 @@
 # Quorum manifest
 
-Last updated: 2026-09-10 21:43:06 UTC
+Last updated: 2026-09-10 21:45:56 UTC
 
 Map of every source file: what it defines and what it touches. The Ash resources
 are grouped under the `Quorum.Sessions` domain; the LiveViews are the five live
@@ -65,6 +65,7 @@ screens, and the landing page is a plain controller.
 | File | Role |
 |---|---|
 | `lib/quorum_web/brand.ex` | The Quorum logo as an HTML component, in light and on-dark variants. HTML rather than an SVG file, because an SVG loaded through `<img>` cannot resolve the page's webfonts. |
+| `lib/quorum_web/wording.ex` | View helpers several screens share: vote and question pluralisation, the wall clock, the asker line, the QR code, and the hall gradient. One definition each, imported where a screen draws it. |
 | `lib/quorum_web/browser_token.ex` | Plug that gives each browser an opaque session token. That token is what makes a vote idempotent and lets a student retract their own question, with no sign-up. |
 | `lib/quorum_web/landing_examples.ex` | The twenty sample questions the landing page's feed card cycles through, half named and half anonymous, plus the phrasing for an age between 30 seconds and 15 minutes. |
 | `lib/quorum/contact.ex` | The contact form's validation and delivery. Mail goes from an address the provider has confirmed, set per deployment, with the person who wrote in on `reply-to`, so it isn't forged from their address and refused at the receiving end. `deliver/1` returns an error for a mailer that raises or exits, which a missing provider does, so the page says the message didn't send rather than failing on it. |
