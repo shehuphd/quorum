@@ -151,7 +151,9 @@ defmodule QuorumWeb.JoinLive do
       style={hall(@room)}
     >
       <header class="q-join-top">
-        <Brand.logo on_dark={dark?(@room)} size={22} />
+        <.link navigate={~p"/"} aria-label="Quorum home">
+          <Brand.logo on_dark={dark?(@room)} size={22} />
+        </.link>
         <span class="q-join-badge">{badge(@name)}</span>
       </header>
 

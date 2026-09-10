@@ -166,6 +166,8 @@ To keep track of one question through that, press the pin to the left of its vot
 
 **Post question** stays grey until there's something in the box.
 
+The feed carries the site header and footer, so the Quorum mark goes home and **Enter a code** goes to another session.
+
 Pressing **Post question** doesn't write it yet. The composer is replaced by the question, a bar that burns down over ten seconds, and a **Cancel** button counting the seconds off. That window is for the student who spots the same question already in the list, catches a typo, or thinks better of it. Cancelling writes nothing at all: the text goes back in the composer, and nobody saw it. **Send it now** skips the wait.
 
 Students can retract their own questions.

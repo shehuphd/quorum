@@ -13,7 +13,8 @@ defmodule QuorumWeb.Shell do
 
   @doc """
   The site header. `variant` is `:app` for a signed-in page, `:guest` for the
-  sign-in screens, which offer students a way out instead of nav.
+  sign-in screens, which offer students a way out instead of nav, and `:student`
+  for a room, where the only two places to go are home and another code.
   """
   attr :current_user, :any, default: nil
   attr :variant, :atom, default: :app
@@ -37,6 +38,10 @@ defmodule QuorumWeb.Shell do
           Sign in
         </.link>
       </nav>
+
+      <div :if={@variant == :student} class="q-shell-nav">
+        <.link navigate={~p"/join"} class="q-button q-button--secondary">Enter a code</.link>
+      </div>
 
       <div :if={@variant == :guest} class="q-shell-nav">
         <span class="q-shell-aside">Joining a session as a student?</span>
