@@ -162,7 +162,9 @@ A held question is invisible to the room and to the projection. Its own asker se
 
 Students post a question, optionally with a name, and upvote anything already asked. A vote fills the vote box and moves the count, and that's all it does: the list ranks live, so a row can move as the room votes.
 
-To keep track of one question through that, press the pin beside its vote box. Pinned questions sit at the top of that student's own list, marked, and the pin is one browser's own: it changes nothing about the ranking anyone else sees. It appears on hover on a pointer, and stands there on a phone.
+To keep track of one question through that, press the pin to the left of its vote box. Pinned questions rise to the top of that student's own list, ranked among themselves by votes, and the only mark on them is the pin itself, filled in: nothing else about the row changes, and nobody else's ranking does either. The pin appears on hover where there's a pointer, and stands there on a phone.
+
+**Post question** stays grey until there's something in the box.
 
 Pressing **Post question** doesn't write it yet. The composer is replaced by the question, a bar that burns down over ten seconds, and a **Cancel** button counting the seconds off. That window is for the student who spots the same question already in the list, catches a typo, or thinks better of it. Cancelling writes nothing at all: the text goes back in the composer, and nobody saw it. **Send it now** skips the wait.
 

@@ -58,3 +58,5 @@ All notable changes to Quorum are recorded here, dated per release.
 - A vote fills the vote box and moves the count, and nothing else: no held row, no resort control, no line saying what was already pressed.
 - A pin beside each vote box, one browser's own, lifting a question to the top of that student's list without touching the ranking anyone else sees.
 - The projection's gradient drifted nowhere: an inline `background` shorthand was resetting the background size the animation moves across.
+- **Post question** is grey until the box has something in it.
+- The answered list holds the pin's column too, so it lines up with the questions above it.

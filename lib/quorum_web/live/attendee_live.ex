@@ -351,7 +351,6 @@ defmodule QuorumWeb.AttendeeLive do
               rows="3"
               maxlength={@room.question_max_length}
               placeholder="What would you like explained?"
-              phx-debounce="400"
             >{@draft}</textarea>
             <div
               :if={@show_name and @room.allow_display_name?}
@@ -382,7 +381,9 @@ defmodule QuorumWeb.AttendeeLive do
               <span :if={!@room.allow_display_name?} class="q-meta">
                 Every question here is anonymous.
               </span>
-              <button type="submit" class="q-button">Post question</button>
+              <button type="submit" class="q-button" disabled={String.trim(@draft) == ""}>
+                Post question
+              </button>
             </div>
           </form>
           <p :if={@room.hold_for_review?} class="q-meta">
@@ -430,7 +431,7 @@ defmodule QuorumWeb.AttendeeLive do
         <div :for={question <- @visible}>
           <% voted = MapSet.member?(@voted, question.id) %>
           <% pinned = MapSet.member?(@pinned, question.id) %>
-          <div class={["q-row", pinned && "q-row--pinned"]}>
+          <div class="q-row">
             <div class="q-row-controls">
               <button
                 type="button"
@@ -500,17 +501,24 @@ defmodule QuorumWeb.AttendeeLive do
         <div :if={@answered != []}>
           <div class="q-label" style="margin:8px 0 14px;">Answered, {length(@answered)}</div>
           <div :for={question <- @answered} class="q-row" style="margin-bottom:14px;">
-            <button
-              type="button"
-              class="q-vote q-vote--closed"
-              disabled="disabled"
-              aria-label={"Voting closed, #{question.vote_count} #{votes(question.vote_count)}"}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                <path d="M2 7 L6 11 L12 3" stroke="currentColor" stroke-width="2" fill="none" />
-              </svg>
-              <span style="font:700 14px var(--q-font-sans);margin-top:2px;">{question.vote_count}</span>
-            </button>
+            <div class="q-row-controls">
+              <button
+                type="button"
+                class="q-vote q-vote--closed"
+                disabled="disabled"
+                aria-label={"Voting closed, #{question.vote_count} #{votes(question.vote_count)}"}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                  <path d="M2 7 L6 11 L12 3" stroke="currentColor" stroke-width="2" fill="none" />
+                </svg>
+                <span style="font:700 14px var(--q-font-sans);margin-top:2px;">
+                  {question.vote_count}
+                </span>
+              </button>
+              <%!-- An answered question can't be pinned, but it holds the pin's
+              column so the answered list lines up with the one above it. --%>
+              <span class="q-pin-space" aria-hidden="true"></span>
+            </div>
             <div style="flex:1;min-width:0;">
               <p class="q-question">{question.body}</p>
               <div class="q-meta" style="margin-top:6px;">

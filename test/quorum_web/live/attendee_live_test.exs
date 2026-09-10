@@ -116,7 +116,10 @@ defmodule QuorumWeb.AttendeeLiveTest do
     html = view |> element(~s(.q-pin[phx-value-id="#{other.id}"])) |> render_click()
 
     assert above?(html, other.body, top.body)
-    assert has_element?(view, ".q-row--pinned")
+
+    # The row is unchanged apart from the pin, which fills in.
+    assert has_element?(view, ~s(.q-pin--on[phx-value-id="#{other.id}"]))
+    refute has_element?(view, ~s(.q-pin--on[phx-value-id="#{top.id}"]))
 
     # The pin is one browser's own. Another student sees the room's ranking.
     {:ok, _view, html} = live(build_conn(), ~p"/r/#{room.join_code}")

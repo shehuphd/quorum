@@ -36,8 +36,10 @@
 .q-vote--closed { background: var(--q-surface-sunken); border-color: var(--q-hairline); color: var(--q-ink-muted); cursor: not-allowed; }
 
 .q-row { display: flex; gap: 14px; align-items: flex-start; }
-.q-row--pinned { border: 1px solid var(--q-accent); border-radius: var(--q-radius-input); padding: 12px; }
-.q-row-controls { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+/* Reversed, so the pin draws to the left of the vote box while the vote keeps
+   its place first in the tab order. The 10px gap keeps the pin's 44px target,
+   which overhangs its 28px box by 8px a side, off the vote button. */
+.q-row-controls { flex: none; display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; }
 
 /* One student's own bookmark, kept out of the way until the pointer is on the
    row it belongs to. A pinned one stays lit, and a phone with no pointer at all
@@ -48,6 +50,7 @@
 .q-pin::after { content: ""; position: absolute; left: 50%; top: 50%; width: var(--q-touch); height: var(--q-touch); transform: translate(-50%, -50%); }
 .q-row:hover .q-pin, .q-pin:focus-visible, .q-pin--on { opacity: 1; }
 .q-pin--on { color: var(--q-accent); }
+.q-pin-space { flex: none; width: 28px; }
 @media (hover: none) { .q-pin { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .q-pin { transition: none; } }
 /* The window between pressing Post and the question being written. */
