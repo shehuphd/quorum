@@ -1,6 +1,6 @@
 # Quorum usage
 
-Last updated: 2026-09-10 13:50:00 UTC
+Last updated: 2026-09-10 16:10:13 UTC
 
 Quorum runs one live session at a time as a room. A presenter opens the room, projects it, and answers the questions students rank from their seats.
 
@@ -24,6 +24,25 @@ mix setup       # fetch deps, create and migrate the database, build assets
 mix test        # run the test suite
 mix phx.server  # start the app on http://localhost:4000
 ```
+
+## Set up with your coding agent
+
+Hand a fresh clone to your coding agent with this block and it takes the app to a
+running state with the AI features on. The one step it hands back to you is the API
+keys, which are secrets you paste.
+
+1. Make sure PostgreSQL is running (or run `./launch.sh` once, which starts it), then
+   run `mix setup` (fetch deps, create and migrate the database, build assets).
+2. Create `project/keys.toml` (gitignored) and ask me for one or more provider API
+   keys to put in it, in KeyCall's `[[targets]]` shape. These are secrets I paste in;
+   don't generate them.
+3. Start the sidecar with `./sidecar/run.sh`. It installs its Python deps on first run
+   and prints a `QUORUM_SIDECAR_TOKEN`. Keep that value.
+4. Start the app with that token: `QUORUM_SIDECAR_TOKEN=<token> mix phx.server`, then
+   open http://localhost:4000.
+
+Skip steps 2 and 3 and the app still runs; the AI features stay off until the sidecar
+is up.
 
 ## A demo session
 

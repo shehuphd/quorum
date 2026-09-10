@@ -28,13 +28,32 @@ mix test        # run the test suite
 mix phx.server  # start the app on http://localhost:4000
 ```
 
+## Set up with your coding agent
+
+Hand a fresh clone to your coding agent with this block and it takes the app to a
+running state with the AI features on. The one step it hands back to you is the API
+keys, which are secrets you paste.
+
+1. Make sure PostgreSQL is running (or run `./launch.sh` once, which starts it), then
+   run `mix setup` (fetch deps, create and migrate the database, build assets).
+2. Create `project/keys.toml` (gitignored) and ask me for one or more provider API
+   keys to put in it, in KeyCall's `[[targets]]` shape. These are secrets I paste in;
+   don't generate them.
+3. Start the sidecar with `./sidecar/run.sh`. It installs its Python deps on first run
+   and prints a `QUORUM_SIDECAR_TOKEN`. Keep that value.
+4. Start the app with that token: `QUORUM_SIDECAR_TOKEN=<token> mix phx.server`, then
+   open http://localhost:4000.
+
+Skip steps 2 and 3 and the app still runs; the AI features stay off until the sidecar
+is up.
+
 ## Using it
 
 The quickest look is the demo session. From the landing page, the demo band opens the same seeded room in any of three roles, or go straight to `/demo`, `/demo/host`, or `/demo/project`.
 
 For a room of your own, `/start` opens one and redirects to the presenter's console at a secret host URL, which links to the projection screen for the projector and to the room's settings. Students go to `/join` and type the five-character code, or scan the QR code on the projection.
 
-Presenters can sign in at `/sign-in` to keep a list of their rooms. Sign-in is a single-use email link; in development the email goes to the local mailbox at `/dev/mailbox` rather than out to the internet, so the whole loop works with no mail provider. A room still opens without an account, and its host link keeps working either way.
+Presenters can sign in at `/sign-in` to keep a list of their rooms. Sign-in is a demo stub: one access code, shown as the field's own placeholder, opens a shared demo presenter, so no email or mail provider is needed. A room still opens without an account, and its host link keeps working either way.
 
 [USAGE.md](USAGE.md) covers each screen and its keyboard shortcuts.
 
