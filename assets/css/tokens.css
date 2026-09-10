@@ -32,4 +32,7 @@
 
   --q-touch: 44px;
   --q-vote-size: 56px;
+  /* The pin and its gap, ahead of every vote box. Anything that lines up with
+     the boxes rather than the edge of the list clears this first. */
+  --q-pin-column: 38px;
 }

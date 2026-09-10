@@ -51,6 +51,7 @@
 .q-row:hover .q-pin, .q-pin:focus-visible, .q-pin--on { opacity: 1; }
 .q-pin--on { color: var(--q-accent); }
 .q-pin-space { flex: none; width: 28px; }
+.q-list-label { margin-left: var(--q-pin-column); }
 @media (hover: none) { .q-pin { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .q-pin { transition: none; } }
 /* The window between pressing Post and the question being written. */

@@ -243,12 +243,13 @@ defmodule QuorumWeb.AttendeeLive do
   defp held_back(socket, attrs, message),
     do: assign(socket, draft: attrs[:body] || "", status: message)
 
-  # Pinned rows keep their rank among themselves and sit above the rest.
+  # Pinned rows keep their rank among themselves and sit above the rest, with a
+  # line under them once there is anything below to separate.
   defp order_pinned(socket) do
     {pinned, rest} =
       Enum.split_with(socket.assigns.visible, &MapSet.member?(socket.assigns.pinned, &1.id))
 
-    assign(socket, visible: pinned ++ rest)
+    assign(socket, visible: pinned ++ rest, pinned_count: length(pinned))
   end
 
   defp mine?(question, token), do: question.submitter_token == token
@@ -428,78 +429,84 @@ defmodule QuorumWeb.AttendeeLive do
           <p class="q-meta">Be the first. Ask what you'd like explained.</p>
         </div>
 
-        <div :for={question <- @visible}>
+        <%= for {question, i} <- Enum.with_index(@visible) do %>
           <% voted = MapSet.member?(@voted, question.id) %>
           <% pinned = MapSet.member?(@pinned, question.id) %>
-          <div class="q-row">
-            <div class="q-row-controls">
-              <button
-                type="button"
-                class={["q-vote", voted && "q-vote--voted"]}
-                phx-click="toggle_vote"
-                phx-value-id={question.id}
-                aria-pressed={to_string(voted)}
-                aria-label={vote_label(voted, question.vote_count)}
-              >
-                <svg width="15" height="12" viewBox="0 0 15 12" aria-hidden="true">
-                  <path d="M7.5 1 L14 11 L1 11 Z" fill="currentColor" />
-                </svg>
-                <span style="font:700 15px var(--q-font-sans);margin-top:2px;">{question.vote_count}</span>
-              </button>
-              <button
-                type="button"
-                class={["q-pin", pinned && "q-pin--on"]}
-                phx-click="toggle_pin"
-                phx-value-id={question.id}
-                aria-pressed={to_string(pinned)}
-                aria-label={
-                  if pinned,
-                    do: "Pinned to the top of your list. Press to unpin",
-                    else: "Pin for me, to keep this at the top of your list"
-                }
-              >
-                <svg width="13" height="16" viewBox="0 0 13 16" aria-hidden="true">
-                  <path
-                    d="M4 1h5l-.6 4.2 2.4 2.3H2.2l2.4-2.3z"
-                    fill={if pinned, do: "currentColor", else: "none"}
-                    stroke="currentColor"
-                    stroke-width="1.2"
-                    stroke-linejoin="round"
-                  />
-                  <path d="M6.5 7.5V15" stroke="currentColor" stroke-width="1.2" />
-                </svg>
-              </button>
-            </div>
-            <div style="flex:1;min-width:0;">
-              <p class="q-question">{question.body}</p>
-
-              <div
-                :if={mine?(question, @token)}
-                class="q-meta"
-                style="margin-top:6px;display:flex;gap:14px;align-items:center;"
-              >
-                <span class="q-label">Your question</span>
+          <div>
+            <div class="q-row">
+              <div class="q-row-controls">
                 <button
                   type="button"
-                  class="q-button--link"
-                  style="color:var(--q-destructive);"
-                  phx-click="retract"
+                  class={["q-vote", voted && "q-vote--voted"]}
+                  phx-click="toggle_vote"
                   phx-value-id={question.id}
+                  aria-pressed={to_string(voted)}
+                  aria-label={vote_label(voted, question.vote_count)}
                 >
-                  Retract it
+                  <svg width="15" height="12" viewBox="0 0 15 12" aria-hidden="true">
+                    <path d="M7.5 1 L14 11 L1 11 Z" fill="currentColor" />
+                  </svg>
+                  <span style="font:700 15px var(--q-font-sans);margin-top:2px;">{question.vote_count}</span>
+                </button>
+                <button
+                  type="button"
+                  class={["q-pin", pinned && "q-pin--on"]}
+                  phx-click="toggle_pin"
+                  phx-value-id={question.id}
+                  aria-pressed={to_string(pinned)}
+                  aria-label={
+                    if pinned,
+                      do: "Pinned to the top of your list. Press to unpin",
+                      else: "Pin for me, to keep this at the top of your list"
+                  }
+                >
+                  <svg width="13" height="16" viewBox="0 0 13 16" aria-hidden="true">
+                    <path
+                      d="M4 1h5l-.6 4.2 2.4 2.3H2.2l2.4-2.3z"
+                      fill={if pinned, do: "currentColor", else: "none"}
+                      stroke="currentColor"
+                      stroke-width="1.2"
+                      stroke-linejoin="round"
+                    />
+                    <path d="M6.5 7.5V15" stroke="currentColor" stroke-width="1.2" />
+                  </svg>
                 </button>
               </div>
-              <div :if={!mine?(question, @token)} class="q-meta" style="margin-top:6px;">
-                {if question.display_name, do: question.display_name, else: "Anonymous"}, {ago(
-                  question.inserted_at
-                )}
+              <div style="flex:1;min-width:0;">
+                <p class="q-question">{question.body}</p>
+
+                <div
+                  :if={mine?(question, @token)}
+                  class="q-meta"
+                  style="margin-top:6px;display:flex;gap:14px;align-items:center;"
+                >
+                  <span class="q-label">Your question</span>
+                  <button
+                    type="button"
+                    class="q-button--link"
+                    style="color:var(--q-destructive);"
+                    phx-click="retract"
+                    phx-value-id={question.id}
+                  >
+                    Retract it
+                  </button>
+                </div>
+                <div :if={!mine?(question, @token)} class="q-meta" style="margin-top:6px;">
+                  {if question.display_name, do: question.display_name, else: "Anonymous"}, {ago(
+                    question.inserted_at
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+          <hr :if={i + 1 == @pinned_count and i + 1 < length(@visible)} class="q-divider" />
+        <% end %>
 
         <div :if={@answered != []}>
-          <div class="q-label" style="margin:8px 0 14px;">Answered, {length(@answered)}</div>
+          <hr class="q-divider" style="margin-bottom:18px;" />
+          <div class="q-label q-list-label" style="margin-bottom:14px;">
+            Answered, {length(@answered)}
+          </div>
           <div :for={question <- @answered} class="q-row" style="margin-bottom:14px;">
             <div class="q-row-controls">
               <button

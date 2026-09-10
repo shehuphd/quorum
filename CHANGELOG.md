@@ -60,3 +60,4 @@ All notable changes to Quorum are recorded here, dated per release.
 - The projection's gradient drifted nowhere: an inline `background` shorthand was resetting the background size the animation moves across.
 - **Post question** is grey until the box has something in it.
 - The answered list holds the pin's column too, so it lines up with the questions above it.
+- A line under the pinned questions, and another above the answered list, which now starts where the vote boxes do.
