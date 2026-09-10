@@ -20,7 +20,7 @@ A new room starts with twenty held words so it isn't ungated on day one; the lis
 
 Questions outlive the session. A term of them is the record of which material didn't land, which is what a room is kept for rather than a default nobody chose, so retention is on unless a room turns it off. A room that does has its questions and votes deleted when the session closes.
 
-Presenter accounts are optional and sit beside the host token rather than replacing it: a room opened while signed in belongs to that presenter and appears in their list, and every host link keeps working with or without an account. Students never have an account at all.
+Presenter accounts are optional and stand beside the host token rather than replacing it: a room opened while signed in belongs to that presenter and appears in their list, and every host link keeps working with or without an account. Students never have an account at all. Signing in is a demo stub for now, one access code shown as the field's own placeholder, with the magic-link machinery kept underneath it for a build that authenticates presenters.
 
 A landing page at `/` fronts all of it, and a seeded demo session behind `/demo`, `/demo/host`, and `/demo/project` opens the same room in each of the three roles, so the product can be looked at without a room of your own to run.
 
@@ -36,7 +36,9 @@ A landing page at `/` fronts all of it, and a seeded demo session behind `/demo`
 - A bespoke CSS design system (tokens plus `q-*` components) with Archivo and Literata self-hosted as woff2
 - Oban for scheduled and background jobs: one queue, a cron entry that closes rooms whose own clock has run out, and the three AI jobs (pointer, draft, screen)
 - AI provider calls through a localhost Python sidecar built on KeyCall (`sidecar/`): Quorum holds no provider keys, speaks HTTP to one normalized `/generate` plus a small key-management API the settings screen drives, and records every call's spend in `ai_calls`, priced in dollars through the rates ledger where it knows the model
-- Deployment target: not chosen
+- Contact mail through Swoosh, its adapter chosen at boot from what the environment carries: Brevo, Mailgun, or the log when neither has credentials
+- Deployed as one container on Azure Container Apps (UK South), image in GHCR, scaled to zero between demos. The Phoenix release runs in the foreground and the Python sidecar in the background of the same container, sharing localhost the way they do on a development machine
+- PostgreSQL is Neon's serverless tier in London, over TLS verified against the system CA store, reached on its direct connection string rather than the pooled one
 
 ### Run details
 
@@ -99,6 +101,11 @@ Settings ride the same path, which is what lets them do without a save button. C
 | A settings write fails | The status line stays on "Saving" rather than claiming a save that didn't happen, because it only reports saved once the write returns |
 | A key event in a text field triggers a shortcut | An element carrying its own `phx-keyup` takes the event and the window binding doesn't fire, so typing "j" in a search box filters instead of moving the queue. Fields without one stop the event themselves |
 | Database unreachable | Ash returns a transport error from the action; nothing is silently swallowed |
+| A mail provider is unreachable, refuses the key, or has no process behind it | `Contact.deliver/1` catches exits as well as exceptions, so a send that fails returns an error instead of taking the request down. The page says the message didn't send and keeps what was typed, and the log carries the provider's own words |
+| A provider accepts the API call and rejects the send later | Nothing synchronous can catch this: the call returns a message id and the rejection follows, so the page says sent. The provider's own event log is where it shows, which is the first place to look when a message never arrives |
+| The contact form is used repeatedly, or from many sessions | A honeypot answers a bot with success and sends nothing. Beyond that the wait is held server-side in `Quorum.Contact.Limit`, keyed on the address the ingress recorded, so clearing cookies doesn't reset it: one message per address every five minutes, and twenty an hour across everyone, which also keeps a flood inside a provider's free allowance |
+| Migrations run against a pooled Postgres connection | They'd hang or fail on the advisory lock a transaction-mode pooler can't hold, so the deployment uses Neon's direct connection string |
+| The deployed host doesn't match `PHX_HOST` | The endpoint's origin check refuses the websocket, which reads as a page that loads and never goes live, so the host is computed from the Container Apps environment when the app is created |
 
 ### Observability
 
@@ -107,4 +114,6 @@ Settings ride the same path, which is what lets them do without a save button. C
 - Sign-in emails land in the local mailbox at `/dev/mailbox` in development, so the link is readable without a mail provider
 - Every page is measured at 375px, 768px, 1280px, and 1600px, asserting `scrollWidth <= clientWidth` and that no control's target falls under 44px, rather than eyeballed. `Phoenix.LiveViewTest` dispatches events straight to the server, so anything that can go wrong between a browser's key press and the socket has to be measured in a browser
 - `Phoenix.LiveDashboard` is mounted for process, memory, and query inspection
+- In the deployed container both processes log to the same stream, so the Phoenix release and the Python sidecar interleave under `az containerapp logs show` and a boot problem in either is visible in one place
+- Contact mail that a provider refuses is logged with the provider's reason. What a provider accepts and then rejects is only in the provider's own event log, so that log is part of checking mail works rather than an afterthought
 - Telemetry handlers that record each handler's decision arrive when there are decisions to record; today every screen's state is one reload of the same query, which the query log already shows
