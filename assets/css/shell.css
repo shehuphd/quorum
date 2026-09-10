@@ -76,6 +76,26 @@
   margin: 0;
 }
 
+/* The suggested answer in the console rail: presenter-only, visibly so. */
+.q-draft {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--q-accent-tint);
+  border: 1px solid var(--q-hairline);
+  border-radius: var(--q-radius-card);
+}
+.q-draft p {
+  font: 400 14px/1.5 var(--q-font-serif);
+  margin: 6px 0 0;
+}
+.q-draft .q-meta {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.q-draft-wait {
+  margin-top: 12px;
+}
+
 /* The room bar: name, live counts, and the two room-level actions. */
 
 .q-room-bar {

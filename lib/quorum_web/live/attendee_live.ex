@@ -178,7 +178,8 @@ defmodule QuorumWeb.AttendeeLive do
       # waiting, so they don't take the silence for a failure and post again.
       waiting: Enum.filter(held, &mine?(&1, token)),
       left: Sessions.questions_left(room, token),
-      voted: voted
+      voted: voted,
+      readings: readings_by_id(room)
     )
     |> order_pinned()
     |> drop_pending_if_closed()
@@ -253,6 +254,16 @@ defmodule QuorumWeb.AttendeeLive do
   end
 
   defp mine?(question, token), do: question.submitter_token == token
+
+  # The reading list, by id, for resolving what the pointer matched. Loaded
+  # only while the room points students at it.
+  defp readings_by_id(%{readings_pointer?: true} = room),
+    do: room.id |> Sessions.list_readings() |> Map.new(&{&1.id, &1})
+
+  defp readings_by_id(_room), do: %{}
+
+  defp pointed(question, readings),
+    do: question.pointer_reading_ids |> Enum.map(&Map.get(readings, &1)) |> Enum.reject(&is_nil/1)
 
   defp clock(dt), do: Calendar.strftime(dt, "%H:%M")
 
@@ -407,7 +418,10 @@ defmodule QuorumWeb.AttendeeLive do
           <div :for={question <- @waiting} class="q-row q-row--waiting">
             <div style="min-width:0;flex:1;">
               <p class="q-question">{question.body}</p>
-              <p class="q-meta" style="margin:6px 0 0;">
+              <p :if={question.held_reason == :screening} class="q-meta" style="margin:6px 0 0;">
+                Being checked. This usually takes a few seconds.
+              </p>
+              <p :if={question.held_reason != :screening} class="q-meta" style="margin:6px 0 0;">
                 Nobody else can see this yet. Your presenter decides whether it reaches the room.
               </p>
             </div>
@@ -477,6 +491,20 @@ defmodule QuorumWeb.AttendeeLive do
                 </div>
                 <div style="flex:1;min-width:0;">
                   <p class="q-question">{question.body}</p>
+
+                  <div
+                    :if={mine?(question, @token) and pointed(question, @readings) != []}
+                    class="q-pointer"
+                  >
+                    <span class="q-label">While you wait, the reading list has this:</span>
+                    <span :for={reading <- pointed(question, @readings)} class="q-pointer-item">
+                      <a :if={reading.url} href={reading.url} target="_blank" rel="noopener">
+                        {reading.title}
+                      </a>
+                      <span :if={!reading.url}>{reading.title}</span>
+                      <span :if={reading.detail} class="q-meta">{reading.detail}</span>
+                    </span>
+                  </div>
 
                   <div
                     :if={mine?(question, @token)}

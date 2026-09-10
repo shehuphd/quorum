@@ -6,7 +6,7 @@ Built with Elixir and Phoenix LiveView, so the interactive UI renders server-sid
 
 ## Development status
 
-The landing page, presenter sign-in, and the five screens are built and driven by the live data layer: the join screen, the student feed, the presenter's console, the projection, and the settings. All six settings categories are drawn. A presenter's own archive at `/archive` reads a term of sessions back, in the browser or as a CSV. Single sign-on and the matching behind the reading pointer are designed but not built.
+The landing page, presenter sign-in, and the five screens are built and driven by the live data layer: the join screen, the student feed, the presenter's console, the projection, and the settings. All six settings categories are drawn. A presenter's own archive at `/archive` reads a term of sessions back, in the browser or as a CSV. The AI features run through a small keyed sidecar and stand down without it: the reading pointer under a student's question, a presenter-only suggested answer on spotlight, and a fifth moderation trigger that holds questions aimed at the AI. Single sign-on is designed but not built.
 
 ## Local development
 
@@ -52,6 +52,7 @@ Presenters can sign in at `/sign-in` to keep a list of their rooms. Sign-in is a
 - Ash for the domain layer, on Ecto and PostgreSQL
 - Phoenix Presence and PubSub for live counts and broadcasts
 - eqrcode for the projected join code
+- A Python sidecar on KeyCall for every provider call, holding the keys so the app never does
 - Archivo and Literata, self-hosted as woff2
 
 ## License

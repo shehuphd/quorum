@@ -1,6 +1,6 @@
 # Quorum usage
 
-Last updated: 2026-09-10 11:05:00 UTC
+Last updated: 2026-09-10 13:50:00 UTC
 
 Quorum runs one live session at a time as a room. A presenter opens the room, projects it, and answers the questions students rank from their seats.
 
@@ -98,6 +98,8 @@ The room bar carries the room's name with a Rename control, the live counts, Ope
 
 The queue is ranked by votes, oldest first within a tie. Each row carries three controls: **Spotlight** puts the question on the projection, **Mark answered** moves it to the answered list and closes voting on it, and **Hide** takes it off both lists. Answered questions can be reopened.
 
+With the AI service running, spotlighting a question also starts a suggested answer drafting. It appears in the rail beside the queue, marked as the AI's, and nobody but you ever sees it: the model advises, you answer. A question keeps its draft, so a second spotlight costs nothing.
+
 The search field filters the queue as you type and reports how many of the room's questions match. Escape clears it. The queue shortcuts below don't fire while you're typing in it.
 
 Keyboard shortcuts, with no modifier:
@@ -112,7 +114,7 @@ Keyboard shortcuts, with no modifier:
 
 Closing the session stops posting and voting. Students keep reading what's there. The dialog asks first, and Escape or **Keep it open** backs out.
 
-A room can also close itself. **Close automatically at** on the Room settings tab takes a time on your own clock, and the room closes on the same terms as the button: posting and voting stop, and a room set not to keep its questions loses them then. It's checked every minute, so closing lands within a minute of the time you set.
+A room can also close itself. **Close automatically at** on the Room settings tab takes a time on your own clock, and the room closes on the same terms as the button: posting and voting stop, and a room set not to keep its questions loses them then. It's checked every minute, so the close comes within a minute of the time you set.
 
 ### Projection
 
@@ -148,7 +150,7 @@ The same tab decides what happens to the questions when the session ends. **Keep
 
 **Projection** sets what the screen at the front shows. Question size runs from Small, for a seminar room or a question you'd rather not have wrapping, through Standard, which is readable from the back of a full hall, to Largest. Under the question you can show or hide who asked and how many voted; with both off there's no line at all. Around it, the join code can stay in a rail beside a spotlighted question for anyone arriving late, and the connected and asked counts can come off the bottom. Colours are on the Appearance tab. Every change reaches the projection live, so you can leave it running while you set it.
 
-**Moderation** decides what reaches the room. Four things can hold a question, and any one of them is enough:
+**Moderation** decides what reaches the room. Five things can hold a question, and any one of them is enough:
 
 | Trigger | Holds when |
 |---|---|
@@ -156,6 +158,7 @@ The same tab decides what happens to the questions when the session ends. **Keep
 | Hold a student's first question | The asker has had nothing approved in this room yet |
 | Hold anything with a link | The question carries a web address or a bare domain |
 | Held words | The question uses a word you've put on the room's list |
+| Reads as aimed at the AI | A model reads the text as instructions to an AI system, rather than a question for you |
 
 A room starts with a list of twenty held words, profanity and insults, so it isn't ungated on day one. It's a starting point, not a policy: remove them one at a time, or all at once.
 
@@ -165,11 +168,13 @@ Holding a student's first question reads trust per room, because students have n
 
 If you're signed in, **Start the rooms I open with the first of these on** makes holding your default. It seeds a new room only, so changing it never rewrites a session already running.
 
-A held question is invisible to the room and to the projection. Its own asker sees it waiting, and can retract it, so nobody posts the same question twice thinking the first one failed. While anything is held, the console carries a review queue above the ranked queue, with **Approve** to send a question to the room and **Refuse** to hide it. A refused question is hidden rather than deleted, so you can restore it.
+The fifth trigger needs the AI service running, and it works the other way around from the rest: every question is held for a moment while a model reads it, a clean read releases it on its own within a few seconds, and only the ones read as aimed at the AI stay for you. Questions about AI go straight through; it's instructions to the machine the screen is for. While the service is down the switch holds nothing.
+
+A held question is invisible to the room and to the projection. Its own asker sees it waiting, and can retract it, so nobody posts the same question twice thinking the first one failed. While anything is held, the console carries a review queue above the ranked queue, with **Approve** to send a question to the room and **Refuse** to hide it, and each row says why it's waiting. A refused question is hidden rather than deleted, so you can restore it.
 
 **Appearance** sets the two gradients the projection uses, one for a lit hall and one for a dark one, the angle between them, and whether the gradient drifts. A preview stands beside the controls, and one link puts the whole tab back to its defaults. Drift stops on its own for anyone who has asked for reduced motion.
 
-**Readings and AI** holds the room's approved reading list: a title, optionally where in it, and optionally a link. When the reading pointer is on, a student who posts a question is shown items from this list and nothing else. Matching arrives with the model work; the list is stored and ready for it. The list belongs to the room and goes when the room does.
+**Readings and AI** holds the room's approved reading list: a title, optionally where in it, and optionally a link. When the reading pointer is on and the AI service is running, a student who posts a question is shown up to two items from this list under their own question, and nothing else: the list is the only corpus the model may pick from, and picking nothing is allowed. The list belongs to the room and goes when the room does.
 
 **Deleting a room** needs the session closed first, and then the room's name typed to confirm. It takes the room, its questions, and its votes. The server checks both conditions rather than trusting the disabled button.
 
@@ -188,6 +193,22 @@ Pressing **Post question** doesn't write it yet. The composer is replaced by the
 Students can retract their own questions.
 
 When the room holds questions for review, a student's own held question appears under "Waiting for your presenter" with a note that nobody else can see it yet. They can retract it from there.
+
+## The AI service
+
+Everything above that mentions the AI runs through one small service beside the app, and none of it happens without it: no keys in Quorum, no calls from Quorum, and every feature off until the service is up.
+
+```bash
+# 1. Put a provider key in project/keys.toml (the file is gitignored)
+# 2. Start the sidecar; it prints the token Quorum needs
+./sidecar/run.sh
+# 3. Start Quorum with that token in the same variable
+QUORUM_SIDECAR_TOKEN=<printed value> ./launch.sh
+```
+
+The key file is KeyCall's own TOML shape, so `keycall verify --source ./project/keys.toml` checks the same file the sidecar reads. Providers are data: add a `[[targets]]` entry and it's available, and no provider is named anywhere in Quorum.
+
+Every model call is recorded: what it was for, which provider and model answered, the tokens it spent, and how long it took, kept per presenter. Costs are priced later from rates data; the tokens are the durable fact.
 
 ## The domain
 

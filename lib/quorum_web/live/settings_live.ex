@@ -684,8 +684,8 @@ defmodule QuorumWeb.SettingsLive do
       <h2>Moderation</h2>
 
       <p class="q-meta" style="margin-top:0;">
-        Four things can hold a question. Any one of them is enough, and every one holds rather than
-        refuses, so the worst a mistake costs an asker is a wait.
+        Five things can hold a question. Any one of them is enough, and every one holds rather
+        than refuses, so the worst a mistake costs an asker is a wait.
       </p>
 
       <.hold_switch
@@ -711,6 +711,17 @@ defmodule QuorumWeb.SettingsLive do
       <.hold_switch field="hold_links?" on={@room.hold_links?} label="Hold anything with a link">
         A link is how a room full of phones gets advertised at. Web addresses count, and so does a
         bare domain; file names like Node.js don't.
+      </.hold_switch>
+
+      <.hold_switch
+        field="hold_injection?"
+        on={@room.hold_injection?}
+        label="Hold anything that reads as aimed at the AI"
+      >
+        A model reads each question and holds the ones written to instruct an AI system rather
+        than ask you something. A clean read releases the question on its own, usually within a
+        few seconds. Questions <em>about</em> AI go straight through, and while the AI service
+        isn't running this switch holds nothing.
       </.hold_switch>
 
       <div :if={@current_user} class="q-field">
@@ -739,7 +750,7 @@ defmodule QuorumWeb.SettingsLive do
 
       <h3>Hold anything using these words</h3>
       <p class="q-meta" style="margin-top:0;">
-        The fourth trigger, and the only one you edit yourself. A room starts with a short list of
+        The only trigger you edit yourself. A room starts with a short list of
         profanity and insults so it isn't ungated on day one; it's a starting point, not a policy,
         and every word comes off. A word matches whole, so "class" doesn't trip on "ass".
       </p>

@@ -4,6 +4,10 @@ config :ash, disable_async?: true
 # The worker is called directly in tests, so nothing is queued or scheduled.
 config :quorum, Oban, testing: :manual
 
+# The AI features call a closure instead of the sidecar. Each test provides
+# its own through :ai_stub, and flips :ai_enabled on where a feature gates.
+config :quorum, :ai_client, Quorum.AIStub
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

@@ -67,6 +67,7 @@ defmodule Quorum.Sessions.Room do
         :hold_for_review?,
         :hold_links?,
         :hold_first_question?,
+        :hold_injection?,
         :held_words
       ])
     end
@@ -270,6 +271,15 @@ defmodule Quorum.Sessions.Room do
     # A question carrying a link waits, whatever the toggle above says. Links
     # are how a live room gets used to advertise at a captive audience.
     attribute :hold_links?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(false)
+    end
+
+    # Hold anything that reads as an attempt to instruct the AI rather than
+    # ask the presenter. Screened by a model through the sidecar, so the
+    # switch only does anything while one is running.
+    attribute :hold_injection?, :boolean do
       allow_nil?(false)
       public?(true)
       default(false)

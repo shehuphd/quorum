@@ -1,6 +1,6 @@
 # Quorum manifest
 
-Last updated: 2026-09-10 11:05:00 UTC
+Last updated: 2026-09-10 13:50:00 UTC
 
 Map of every source file: what it defines and what it touches. The Ash resources
 are grouped under the `Quorum.Sessions` domain; the LiveViews are the five live
@@ -28,6 +28,20 @@ screens, and the landing page is a plain controller.
 | `lib/quorum/sessions/demo.ex` | The seeded demo session the landing page points at. Holds the question set, keeps one open demo room at a time, and exposes `current/0` (read only), `ensure_room/0` (seeds if needed), `seed/1`, and `clear/0`. |
 | `lib/quorum/sessions/auto_close.ex` | The minute hand behind **Close automatically at**. An Oban cron job, run every minute, closing every open room whose time has passed on the same terms as the button, questions included. Reads only open rooms, so it never closes one twice. |
 | `lib/quorum/sessions/broadcaster.ex` | Ash notifier. On any room, question, or vote change, broadcasts `{:room_changed, room_id}` on the room's PubSub topic so every watching LiveView reloads. Reads the database to resolve a vote's room, since a vote carries only a question id. |
+
+## Domain: Quorum.AI
+
+| File | Role |
+|---|---|
+| `lib/quorum/ai.ex` | The `Quorum.AI` domain and the one door to the sidecar: `enabled?/0` for every feature to gate on, `generate/3` and `generate_json/3` which make the call and record what it spent, and `calls/1` for a presenter's spend. Quorum holds no provider keys and never speaks to a provider. |
+| `lib/quorum/ai/call.ex` | `Call` resource: one model call as a record. Purpose, provider, model, tokens, elapsed time, and whether it worked, written on success and failure alike. Plain ids rather than foreign keys, so the spend record outlives the room it was spent on. Postgres table `ai_calls`. |
+| `lib/quorum/ai/client.ex` | The behaviour a sidecar client answers; tests swap in a closure-backed stub. |
+| `lib/quorum/ai/sidecar.ex` | The Req client for the sidecar: one POST to /generate on localhost with the shared token, every failure mapped to a plain reason. |
+| `lib/quorum/ai/pointer_job.ex` | Matches a fresh question to the room's reading list, at most two picks from numbered entries, stored on the question for the asker alone. The list is the only corpus offered. |
+| `lib/quorum/ai/draft_job.ex` | Drafts a suggested answer when a question is spotlighted, presenter-only, three to five spoken sentences. A question keeps its draft, so a re-spotlight bills nothing. |
+| `lib/quorum/ai/screen_job.ex` | The injection screen: one boolean from the model. Clean releases the question; flagged stays held, marked `:injection`; every failure leaves it held for the presenter. |
+| `sidecar/quorum_sidecar.py` | The Python service that holds the keys and drives every provider through KeyCall. `/health` names targets, `/generate` makes one normalized call; a shared token guards the port and providers are data from the key file, named nowhere in code. |
+| `sidecar/run.sh` | Starts the sidecar: installs its requirements on first run, generates the shared token when none is set, and prints it for the app. |
 
 ## Web: the five screens
 

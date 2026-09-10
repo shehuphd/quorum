@@ -400,4 +400,29 @@ defmodule QuorumWeb.AttendeeLiveTest do
       assert html =~ "Held question"
     end
   end
+
+  describe "the reading pointer" do
+    test "what the pointer matched shows under the asker's own question, and only theirs", %{
+      conn: conn
+    } do
+      room = room()
+      {:ok, _} = Sessions.update_settings(room, %{readings_pointer?: true})
+      {:ok, reading} = Sessions.add_reading(room.id, %{title: "CSP, chapter 2"})
+
+      {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
+      view |> form("#ask-form", %{"body" => "Why channels?"}) |> render_submit()
+      view |> element("button", "Send it now") |> render_click()
+
+      [question] = Sessions.list_questions(room.id)
+      {:ok, _} = Sessions.point(question, [reading.id])
+
+      assert render(view) =~ "the reading list has this"
+      assert render(view) =~ "CSP, chapter 2"
+
+      # A different student sees the question, not the pointer.
+      {:ok, _view, html} = live(build_conn(), ~p"/r/#{room.join_code}")
+      assert html =~ "Why channels?"
+      refute html =~ "the reading list has this"
+    end
+  end
 end

@@ -196,7 +196,8 @@ defmodule QuorumWeb.HostLive do
       answered: answered,
       question_count: length(visible) + length(answered),
       connected: connected,
-      selected_id: selected
+      selected_id: selected,
+      ai?: Quorum.AI.enabled?()
     )
   end
 
@@ -227,6 +228,15 @@ defmodule QuorumWeb.HostLive do
   defp spotlighted?(spotlight, id), do: spotlight.id == id
 
   defp clock(dt), do: Calendar.strftime(dt, "%H:%M")
+
+  # Why a question is in this queue, in the presenter's terms.
+  defp held_because(%{held_reason: :room}), do: "held because everything is"
+  defp held_because(%{held_reason: :first}), do: "their first question here"
+  defp held_because(%{held_reason: :word}), do: "uses a held word"
+  defp held_because(%{held_reason: :link}), do: "carries a link"
+  defp held_because(%{held_reason: :screening}), do: "being checked by the AI"
+  defp held_because(%{held_reason: :injection}), do: "the AI read this as aimed at itself"
+  defp held_because(_), do: "held"
 
   defp asker(%{display_name: name}) when is_binary(name) and name != "", do: "Asked by #{name}"
   defp asker(_), do: "Anonymous"
@@ -425,7 +435,7 @@ defmodule QuorumWeb.HostLive do
               <div style="flex:1;min-width:0;">
                 <p class="q-question">{question.body}</p>
                 <p class="q-meta" style="margin:6px 0 0;">
-                  {asker(question)}, {clock(question.inserted_at)}
+                  {asker(question)}, {clock(question.inserted_at)} &middot; {held_because(question)}
                 </p>
               </div>
               <div class="q-queue-actions">
@@ -594,6 +604,15 @@ defmodule QuorumWeb.HostLive do
             >
               Clear the spotlight
             </button>
+
+            <div :if={@spotlight && @spotlight.answer_draft} class="q-draft">
+              <div class="q-label">Suggested answer</div>
+              <p>{@spotlight.answer_draft}</p>
+              <p class="q-meta">Drafted by the AI. The hall never sees this; you decide.</p>
+            </div>
+            <p :if={@spotlight && !@spotlight.answer_draft && @ai?} class="q-meta q-draft-wait">
+              Drafting a suggested answer&hellip;
+            </p>
           </div>
 
           <div class="q-rail-block">

@@ -91,14 +91,29 @@ defmodule Quorum.Sessions do
   """
   def spotlight(room, question_id) do
     case get_question(question_id) do
-      {:ok, %{room_id: id, status: :visible}} when id == room.id ->
-        room
-        |> Ash.Changeset.for_update(:spotlight, %{spotlight_question_id: question_id})
-        |> Ash.update()
+      {:ok, %{room_id: id, status: :visible} = question} when id == room.id ->
+        with {:ok, updated} <-
+               room
+               |> Ash.Changeset.for_update(:spotlight, %{spotlight_question_id: question_id})
+               |> Ash.update() do
+          draft_answer(room, question)
+          {:ok, updated}
+        end
 
       _ ->
         {:error, :not_projectable}
     end
+  end
+
+  # A suggested answer starts drafting the moment the presenter picks the
+  # question, so it's usually there by the time they've read it aloud. Once
+  # drafted it stays; a re-spotlight doesn't bill a second call.
+  defp draft_answer(room, question) do
+    if Quorum.AI.enabled?() and is_nil(question.answer_draft) do
+      Oban.insert(Quorum.AI.DraftJob.new(%{question_id: question.id, room_id: room.id}))
+    end
+
+    :ok
   end
 
   def clear_spotlight(room),
@@ -222,13 +237,33 @@ defmodule Quorum.Sessions do
       true ->
         attrs =
           attrs
-          |> Map.drop([:status, "status", :held?, "held?"])
+          |> Map.drop([:status, "status", :held_reason, "held_reason"])
           |> Map.put(:room_id, room_id)
-          |> Map.put(:held?, held?(room, body, Map.get(attrs, :submitter_token)))
+          |> Map.put(:held_reason, hold_reason(room, body, Map.get(attrs, :submitter_token)))
           |> drop_name_if_anonymous(room)
 
-        Question |> Ash.Changeset.for_create(:ask, attrs) |> Ash.create()
+        with {:ok, question} <- Question |> Ash.Changeset.for_create(:ask, attrs) |> Ash.create() do
+          follow_up(room, question)
+          {:ok, question}
+        end
     end
+  end
+
+  # What a freshly posted question sets in motion: the injection screen where
+  # that's what held it, and the reading pointer once the room can see it.
+  defp follow_up(room, %{held_reason: :screening} = question),
+    do: Oban.insert(Quorum.AI.ScreenJob.new(%{question_id: question.id, room_id: room.id}))
+
+  defp follow_up(room, %{status: :visible} = question), do: point_at_readings(room, question)
+  defp follow_up(_room, _question), do: :ok
+
+  @doc false
+  def point_at_readings(room, question) do
+    if room.readings_pointer? and Quorum.AI.enabled?() do
+      Oban.insert(Quorum.AI.PointerJob.new(%{question_id: question.id, room_id: room.id}))
+    end
+
+    :ok
   end
 
   @doc "How many questions this student still has waiting, or nil when there's no limit."
@@ -274,6 +309,7 @@ defmodule Quorum.Sessions do
       room.hold_first_question? and newcomer?(room.id, submitter_token) -> :first
       held_word?(room.held_words, body) -> :word
       room.hold_links? and link?(body) -> :link
+      room.hold_injection? and Quorum.AI.enabled?() -> :screening
       true -> nil
     end
   end
@@ -329,7 +365,28 @@ defmodule Quorum.Sessions do
   def hide(question), do: question |> Ash.Changeset.for_update(:hide) |> Ash.update()
 
   @doc "Release a held question into the live queue."
-  def approve(question), do: question |> Ash.Changeset.for_update(:approve) |> Ash.update()
+  def approve(question) do
+    with {:ok, approved} <- question |> Ash.Changeset.for_update(:approve) |> Ash.update(),
+         {:ok, room} <- get_room(approved.room_id) do
+      point_at_readings(room, approved)
+      {:ok, approved}
+    end
+  end
+
+  @doc "Store what the pointer matched on a question."
+  def point(question, reading_ids),
+    do:
+      question
+      |> Ash.Changeset.for_update(:point, %{pointer_reading_ids: reading_ids})
+      |> Ash.update()
+
+  @doc "Store the suggested answer only the presenter sees."
+  def store_draft(question, draft),
+    do: question |> Ash.Changeset.for_update(:draft, %{answer_draft: draft}) |> Ash.update()
+
+  @doc "The screen read a held question as an instruction to the AI. Mark it so."
+  def confirm_injection(question),
+    do: question |> Ash.Changeset.for_update(:confirm_injection) |> Ash.update()
 
   @doc "Refuse a held question. It's hidden rather than deleted, so it can be restored."
   def reject(question), do: hide(question)
@@ -458,6 +515,7 @@ defmodule Quorum.Sessions do
       hold_for_review?: false,
       hold_links?: false,
       hold_first_question?: false,
+      hold_injection?: false,
       held_words: @default_held_words
     }
   end

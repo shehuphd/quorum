@@ -29,18 +29,23 @@ defmodule Quorum.Sessions.Question do
       description("A student posts a question to a room.")
       accept([:body, :display_name, :room_id, :submitter_token])
 
-      argument :held?, :boolean do
-        description("Whether the room's moderation settings hold this one for review.")
-        default(false)
+      argument :held_reason, :atom do
+        description("Which moderation trigger holds this one for review, or nil for none.")
+        constraints(one_of: [:room, :first, :word, :link, :screening])
       end
 
       # Status is never accepted from the client, only derived here, so no
-      # crafted request can post a question straight past a review queue.
+      # crafted request can post a question straight past a review queue. The
+      # reason is kept on the row, so the review queue can say why.
       change(fn changeset, _context ->
-        if Ash.Changeset.get_argument(changeset, :held?) do
-          Ash.Changeset.force_change_attribute(changeset, :status, :pending)
-        else
-          changeset
+        case Ash.Changeset.get_argument(changeset, :held_reason) do
+          nil ->
+            changeset
+
+          reason ->
+            changeset
+            |> Ash.Changeset.force_change_attribute(:status, :pending)
+            |> Ash.Changeset.force_change_attribute(:held_reason, reason)
         end
       end)
     end
@@ -49,6 +54,22 @@ defmodule Quorum.Sessions.Question do
       description("Release a held question into the live queue.")
       accept([])
       change(set_attribute(:status, :visible))
+    end
+
+    update :confirm_injection do
+      description("The screen read this as an instruction to the AI. It stays held, marked.")
+      accept([])
+      change(set_attribute(:held_reason, :injection))
+    end
+
+    update :point do
+      description("Attach the reading-list items the pointer matched to this question.")
+      accept([:pointer_reading_ids])
+    end
+
+    update :draft do
+      description("Store the suggested answer only the presenter sees.")
+      accept([:answer_draft])
     end
 
     update :answer do
@@ -96,6 +117,28 @@ defmodule Quorum.Sessions.Question do
       public?(true)
       default(:visible)
       constraints(one_of: [:pending, :visible, :answered, :hidden])
+    end
+
+    # Why a pending question is waiting: which trigger held it, `:screening`
+    # while the injection check runs, `:injection` once it has confirmed.
+    # History rather than state after approval, so it survives the release.
+    attribute :held_reason, :atom do
+      public?(true)
+      constraints(one_of: [:room, :first, :word, :link, :screening, :injection])
+    end
+
+    # The reading-list items the pointer matched, shown to the asker alone.
+    attribute :pointer_reading_ids, {:array, :uuid} do
+      allow_nil?(false)
+      public?(true)
+      default([])
+    end
+
+    # A suggested answer, drafted when the presenter spotlights the question,
+    # and shown to nobody but them.
+    attribute :answer_draft, :string do
+      public?(true)
+      constraints(max_length: 4000)
     end
 
     create_timestamp(:inserted_at)

@@ -67,3 +67,9 @@ All notable changes to Quorum are recorded here, dated per release.
 - The question archive at `/archive`: every session a presenter has run, with what it drew ranked the way the hall ranked it, a search that runs across a whole term at once, a filter down to one session, and a CSV of the lot.
 - Deleting a room with questions in it used to fail on a foreign key. Questions now go with the room they belong to.
 - The site header drops the presenter's name on a phone, where it was pushing Sign out onto a second line.
+- The AI arrives, behind a sidecar: a small Python service built on KeyCall holds the provider keys and answers one normalized call, so Quorum itself holds no keys and names no provider. Every feature gates on it being up and stands down when it isn't.
+- The reading pointer: a posted question is matched against the room's approved list, at most two picks, shown under the asker's own question and nobody else's. The list is the only corpus the model may pick from.
+- A suggested answer drafts when a question is spotlighted, in the console rail, for the presenter alone. The hall never sees it; a question keeps its draft so a re-spotlight bills nothing.
+- A fifth moderation trigger: hold anything a model reads as aimed at the AI rather than the presenter. A clean read releases the question by itself within seconds; a flagged one stays for review, marked. Every failure leaves the question held, never released.
+- The review queue says why each question is waiting.
+- Every model call is recorded, success or failure: purpose, provider, model, tokens, elapsed time, kept per presenter. Pricing waits on rates data; the tokens are the durable fact.

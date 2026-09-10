@@ -402,4 +402,14 @@ defmodule QuorumWeb.HostLiveTest do
       assert render(view) =~ "Arrived mid-session"
     end
   end
+
+  test "the review queue says why each question waits", %{conn: conn} do
+    room = room()
+    {:ok, _} = Sessions.update_settings(room, %{hold_for_review?: true})
+    question(room, "Why is this held?")
+
+    {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
+
+    assert html =~ "held because everything is"
+  end
 end

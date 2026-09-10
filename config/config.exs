@@ -11,7 +11,7 @@ config :spark, formatter: ["Ash.Resource": [section_order: [:postgres]]]
 
 config :quorum,
   ecto_repos: [Quorum.Repo],
-  ash_domains: [Quorum.Sessions, Quorum.Accounts],
+  ash_domains: [Quorum.Sessions, Quorum.Accounts, Quorum.AI],
   generators: [timestamp_type: :utc_datetime]
 
 # Ash counts string length by unicode codepoints, matching how SQL data layers
@@ -69,6 +69,10 @@ config :tailwind,
     cd: Path.expand("..", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
+
+# The AI sidecar: where it answers, and how long a call may take. The shared
+# token comes from QUORUM_SIDECAR_TOKEN at call time, never from config.
+config :quorum, Quorum.AI, base_url: "http://127.0.0.1:4747"
 
 # Background work. One queue and one job: the minute hand that closes a room
 # whose own clock has run out.
