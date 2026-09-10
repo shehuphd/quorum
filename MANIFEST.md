@@ -104,11 +104,11 @@ screens, and the landing page is a plain controller.
 | `assets/css/quorum.css` | The `q-*` component classes: buttons, inputs, surfaces, rows, the vote control, status lines, the projection backgrounds. |
 | `assets/css/shell.css` | The page shell: site header and footer, the room bar, the console's two-column frame, the joining panel and strip, the queue rows, the sign-in split, the standing pages' prose column, and the settings rail, panes, switch, colour pickers, reading list, and API keys rows. Carries the breakpoints that collapse all of them to one column, where the settings rail becomes a scrolling strip with a faded trailing edge. |
 | `assets/css/join.css` | The join screen: the two halls as one set of `--j-*` colours, the five code slots and the caret, the skeleton status line, and the centred laptop layout. |
-| `assets/css/archive.css` | The archive: the strip of figures, the search and filter bar, and the session panels with their question rows. |
-| `assets/css/landing.css` | The landing page's bands and grids (`q-l-*`), plus `q-button--ink` for the nav call to action. Carries the sticky top bar, which shows no ground until the page has moved under it and then takes a translucent one, and the scroll clearance that keeps a jumped-to section from hiding beneath it. Everything else on that page reuses the product's components. |
+| `assets/css/archive.css` | The archive: the strip of figures, the search and filter bar, and the session panels with their question rows, in the page gutter so its edges match the chrome above. |
+| `assets/css/landing.css` | The landing page's bands and grids (`q-l-*`), plus `q-button--ink` for the nav call to action. The top bar sticks to the top of the window, keeping its own ground, and a section the nav jumps to reserves clearance so it doesn't hide beneath it. Everything else on that page reuses the product's components. |
 | `assets/css/fonts.css` | 33 `@font-face` rules pointing at the self-hosted woff2 files. |
 | `priv/static/fonts/*.woff2` | 17 font files: Archivo for interface type, Literata for question bodies. Self-hosted so the app never depends on a font CDN. |
-| `assets/js/app.js` | LiveView socket setup, plus the copy-to-clipboard handler, the landing page's example rotation, and the class that tells the top bar the page has scrolled. The rotation holds still under `prefers-reduced-motion` and pauses when the tab is hidden. |
+| `assets/js/app.js` | LiveView socket setup, plus the copy-to-clipboard handler and the landing page's example rotation. The rotation holds still under `prefers-reduced-motion` and pauses when the tab is hidden. |
 
 ## Migrations
 

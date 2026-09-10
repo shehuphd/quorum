@@ -15,8 +15,6 @@
   --q-destructive: #A32B1C;
   --q-destructive-border: #E0B8B2;
   --q-disabled-surface: #EDEFF0;
-  /* The sticky bar's ground: the raised surface, thinned so the page reads through it. */
-  --q-veil: rgba(255, 255, 255, 0.78);
 
   --q-projection-light: linear-gradient(60deg, #E9E9E9, #FAFAFA);
   --q-projection-dark: linear-gradient(60deg, #1A1A1A, #313131);

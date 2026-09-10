@@ -4,13 +4,8 @@
 
 .q-archive {
   flex: 1;
-  padding: 26px 32px 44px;
+  padding: 26px var(--q-gutter) 44px;
   border-top: 1px solid var(--q-hairline);
-}
-
-.q-archive > * {
-  max-width: 940px;
-  margin-inline: auto;
 }
 
 .q-archive-empty {

@@ -8,9 +8,10 @@
   background: var(--q-surface-raised);
 }
 
-/* The site chrome keeps the same gutter as the landing page's column, so the
-   mark sits in one place whichever page you are on, and collapses to a flat
-   32px once the window is narrower than that column. */
+/* One gutter for the whole app: the chrome, and every page body under it, share
+   the landing page's column, so the logo, the room title, and the content below
+   them keep one left edge whichever page you are on. It collapses to a flat 32px
+   once the window is narrower than that column. */
 :root {
   --q-gutter: max(32px, calc((100% - 1180px) / 2 + 32px));
 }
@@ -249,14 +250,20 @@
 
 /* The console body: queue on the left, guidance rail on the right. */
 
+/* The two columns carry the page gutter between them and the window, so the
+   queue starts under the room title and the rail ends under the header's own
+   right edge. The inner edges keep their own padding, which is the space
+   either side of the divider. */
 .q-console {
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
   border-top: 1px solid var(--q-hairline);
+  padding-left: var(--q-gutter);
+  padding-right: var(--q-gutter);
 }
 .q-console-main {
-  padding: 24px 32px 40px;
+  padding: 24px 32px 40px 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -264,7 +271,7 @@
 }
 .q-console-rail {
   border-left: 1px solid var(--q-hairline);
-  padding: 24px 28px 40px;
+  padding: 24px 0 40px 28px;
   display: flex;
   flex-direction: column;
   gap: 26px;
@@ -455,6 +462,15 @@
   .q-signin {
     grid-template-columns: 1fr;
   }
+  .q-console,
+  .q-settings {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .q-page-body {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
   .q-console-rail {
     border-left: 0;
     border-top: 1px solid var(--q-hairline);
@@ -503,6 +519,15 @@
 }
 
 /* Standing pages: privacy, accessibility, contact. One readable column. */
+
+/* A one-column page body under the room bar, carrying the same gutter as the
+   chrome above it. The console and the settings screens have their own grids;
+   this is for the pages that are a single column. */
+.q-page-body {
+  flex: 1;
+  padding: 8px var(--q-gutter) 40px;
+  border-top: 1px solid var(--q-hairline);
+}
 
 .q-prose {
   flex: 1;
@@ -611,6 +636,8 @@
   display: grid;
   grid-template-columns: 244px minmax(0, 1fr);
   border-top: 1px solid var(--q-hairline);
+  padding-left: var(--q-gutter);
+  padding-right: var(--q-gutter);
 }
 .q-settings-rail {
   border-right: 1px solid var(--q-hairline);
@@ -623,7 +650,7 @@
   flex-direction: column;
   justify-content: center;
   text-decoration: none;
-  padding-left: 32px;
+  padding-left: 0;
   padding-right: 20px;
 }
 .q-tab-note {
@@ -632,7 +659,7 @@
   margin-top: 2px;
 }
 .q-settings-pane {
-  padding: 28px 32px 48px;
+  padding: 28px 0 48px 32px;
   min-width: 0;
 }
 
@@ -933,6 +960,10 @@
     padding-left: 18px;
     padding-right: 18px;
     white-space: nowrap;
+  }
+  .q-settings-pane {
+    padding-left: 22px;
+    padding-right: 22px;
   }
   .q-settings-pane {
     padding: 24px 22px 40px;
