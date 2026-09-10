@@ -107,3 +107,4 @@ All notable changes to Quorum are recorded here, dated per release.
 - The switches say their state through the toggle rather than repeating it in words, so a label reads "Show join code" instead of "Show join code, on". Each switch carries its own accessible name now, which the trailing words had been standing in for.
 - The readings toggle is "Show readings", and the paragraph under it is gone.
 - The contact page drops the line about every message reaching a person.
+- The sidecar says when the rates ledger fails to load and when a provider and model pair has no rate, rather than leaving a call unpriced without a word. An unpriced call counts as nothing against the dollar ceiling, so this failing in silence was the one that could cost money.

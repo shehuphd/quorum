@@ -181,8 +181,11 @@ class Pricing:
             self._registry = registry
             self._loaded_at = time.time()
             self._pairs = {}
-        except Exception:
-            pass
+        except Exception as error:
+            # Say so. A ledger that never loads leaves every call unpriced, and
+            # an unpriced call counts as nothing against a dollar ceiling, so
+            # this failing quietly is the one that costs money.
+            print(f"pricing: the rates ledger didn't load: {error!r}", flush=True)
         finally:
             self._loading.release()
 
@@ -193,6 +196,10 @@ class Pricing:
             threading.Thread(target=self._load, daemon=True).start()
         pair = self._pair(provider, model)
         if pair is None:
+            print(
+                f"pricing: no rate for {provider}/{model}, recording tokens only",
+                flush=True,
+            )
             return None
         input_rate, output_rate = pair
         dollars = (input_tokens or 0) / 1e6 * input_rate + (output_tokens or 0) / 1e6 * output_rate
