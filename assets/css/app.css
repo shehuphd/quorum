@@ -8,6 +8,7 @@
 @import "./quorum.css";
 @import "./landing.css";
 @import "./join.css";
+@import "./archive.css";
 @import "./shell.css";
 @source "../css";
 @source "../js";

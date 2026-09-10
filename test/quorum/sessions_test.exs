@@ -676,4 +676,21 @@ defmodule Quorum.SessionsTest do
                Sessions.ask(room.id, %{body: "What the fuck was that", submitter_token: "a"})
     end
   end
+
+  describe "deleting a room" do
+    test "takes its questions and their votes with it" do
+      room = open_room()
+
+      {:ok, question} =
+        Sessions.ask(room.id, %{body: "Does this go when the room does?", submitter_token: "a"})
+
+      Sessions.vote(question.id, "voter-1")
+      Sessions.vote(question.id, "voter-2")
+
+      assert {:ok, _} = Sessions.close_room(room)
+      assert :ok = Sessions.delete_room(room)
+      assert {:ok, nil} = Sessions.get_room_by_code(room.join_code)
+      assert Sessions.list_questions(room.id) == []
+    end
+  end
 end

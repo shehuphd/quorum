@@ -346,6 +346,36 @@ defmodule Quorum.Sessions do
     |> Ash.read!()
   end
 
+  @doc """
+  Every session a presenter has run, newest first, each carrying the questions
+  it drew. This is the term's record: what the room asked, week by week, which
+  is what the next term's plan is built from.
+
+  Held and hidden questions are left out. A question that never reached the room
+  isn't part of what the room asked.
+  """
+  def archive(owner_id) do
+    rooms = list_rooms(owner_id)
+    by_room = questions_by_room(Enum.map(rooms, & &1.id))
+
+    Enum.map(rooms, fn room ->
+      %{visible: visible, answered: answered} =
+        by_room |> Map.get(room.id, []) |> partition()
+
+      Map.merge(room, %{questions: visible ++ answered, answered_count: length(answered)})
+    end)
+  end
+
+  defp questions_by_room([]), do: %{}
+
+  defp questions_by_room(room_ids) do
+    Question
+    |> Ash.Query.filter(room_id in ^room_ids)
+    |> Ash.Query.load(:vote_count)
+    |> Ash.read!()
+    |> Enum.group_by(& &1.room_id)
+  end
+
   ## Votes
 
   def vote(question_id, voter_token),

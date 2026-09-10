@@ -13,6 +13,12 @@ defmodule Quorum.Sessions.Question do
   postgres do
     table "questions"
     repo Quorum.Repo
+
+    references do
+      # A question belongs to its room and outlives nothing. Without this, a
+      # room with anything in it can't be deleted at all.
+      reference :room, on_delete: :delete
+    end
   end
 
   actions do

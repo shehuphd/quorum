@@ -46,6 +46,24 @@
   font: 400 15px var(--q-font-sans);
   color: var(--q-ink-secondary);
 }
+
+/* A phone has room for the pages, not for the name beside them. Sign out keeps
+   its words on one line rather than breaking against the edge. */
+@media (max-width: 560px) {
+  .q-shell-header {
+    gap: 12px;
+  }
+  .q-shell-nav {
+    gap: 16px;
+  }
+  .q-shell-user,
+  .q-shell-aside {
+    display: none;
+  }
+  .q-shell-nav a {
+    white-space: nowrap;
+  }
+}
 .q-shell-footer {
   display: flex;
   align-items: center;

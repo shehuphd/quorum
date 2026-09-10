@@ -64,3 +64,6 @@ All notable changes to Quorum are recorded here, dated per release.
 - The student feed carries the site header and footer, so the Quorum mark goes home and **Change room** reaches another session. The join screen's mark goes home too.
 - **Close automatically at** closes the room. It had been stored and never acted on: an Oban job now sweeps every minute, closing rooms whose time has passed on the same terms as the button.
 - That time is read and written on the presenter's own clock. The browser reports its offset at connect, so a time typed in Johannesburg no longer means the same wall clock in UTC.
+- The question archive at `/archive`: every session a presenter has run, with what it drew ranked the way the hall ranked it, a search that runs across a whole term at once, a filter down to one session, and a CSV of the lot.
+- Deleting a room with questions in it used to fail on a foreign key. Questions now go with the room they belong to.
+- The site header drops the presenter's name on a phone, where it was pushing Sign out onto a second line.

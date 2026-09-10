@@ -26,6 +26,7 @@ defmodule QuorumWeb.Shell do
 
       <nav :if={@variant == :app} class="q-shell-nav">
         <.link :if={@current_user} navigate={~p"/rooms"}>Rooms</.link>
+        <.link :if={@current_user} navigate={~p"/archive"}>Archive</.link>
         <span :if={@current_user} class="q-shell-user">{Accounts.display_name(@current_user)}</span>
         <.link :if={@current_user} href={~p"/sign-out"} method="delete" class="q-shell-signout">
           Sign out

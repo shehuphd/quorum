@@ -36,6 +36,8 @@ defmodule QuorumWeb.Router do
     delete "/sign-out", SessionController, :delete
 
     get "/rooms", RoomController, :index
+    get "/archive/export", ArchiveController, :export
+    live "/archive", ArchiveLive, :index
     live "/join", JoinLive, :index
     post "/join", RoomController, :join
     live "/r/:code", AttendeeLive, :show

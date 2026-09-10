@@ -1,0 +1,187 @@
+/* The question archive: a term of sessions and what each one drew. Built from
+   the same panel, input, and question type as the rest of the app, with only
+   the strip of figures and the question rows added here. */
+
+.q-archive {
+  flex: 1;
+  padding: 26px 32px 44px;
+  border-top: 1px solid var(--q-hairline);
+}
+
+.q-archive > * {
+  max-width: 940px;
+  margin-inline: auto;
+}
+
+.q-archive-empty {
+  text-align: center;
+  padding: 34px;
+}
+
+/* The figures. Four cards on a laptop, two on a phone, and the widest one takes
+   the whole row rather than being squeezed by its own sentence. */
+.q-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.q-stat {
+  background: var(--q-surface);
+  border: 1px solid var(--q-hairline);
+  border-radius: var(--q-radius-card);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.q-stat-figure {
+  font: 700 30px var(--q-font-sans);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.q-stat-label {
+  font: 400 13px/1.35 var(--q-font-sans);
+  color: var(--q-ink-muted);
+}
+
+/* The session behind a figure. One line, cut with an ellipsis rather than
+   wrapping the card taller than the three beside it. */
+.q-stat-note {
+  font: 500 13px var(--q-font-sans);
+  color: var(--q-ink-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.q-archive-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.q-archive-search {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.q-archive-search .q-button--link {
+  position: absolute;
+  right: 12px;
+  padding: 0;
+  font-size: 13px;
+}
+
+.q-archive-bar .q-select {
+  width: auto;
+  min-width: 172px;
+  flex: none;
+}
+
+.q-archive-count {
+  margin: 0 0 16px;
+}
+
+.q-archive-session {
+  padding: 20px 22px 18px;
+  margin-bottom: 14px;
+}
+
+.q-archive-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--q-hairline);
+}
+
+.q-archive-head h2 {
+  font: 600 19px var(--q-font-sans);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.q-archive-head .q-meta {
+  margin: 4px 0 0;
+}
+
+.q-archive-none {
+  margin: 14px 0 0;
+}
+
+.q-archive-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.q-archive-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--q-hairline);
+}
+
+.q-archive-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+
+/* The vote count reads as a figure, not a control: this is the record of what
+   the hall wanted, and there is nothing left to press. */
+.q-archive-votes {
+  flex: none;
+  width: 44px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--q-hairline);
+  border-radius: var(--q-radius-input);
+  background: var(--q-surface-raised);
+  font: 700 15px var(--q-font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--q-ink-secondary);
+  margin-top: 1px;
+}
+
+.q-archive-row .q-meta {
+  margin: 5px 0 0;
+}
+
+@media (max-width: 900px) {
+  .q-archive {
+    padding: 22px 22px 36px;
+  }
+
+  .q-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .q-archive-bar {
+    flex-wrap: wrap;
+  }
+
+  .q-archive-search {
+    flex: 1 1 100%;
+  }
+
+  .q-archive-bar .q-select {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}

@@ -1,6 +1,6 @@
 # Quorum usage
 
-Last updated: 2026-09-10 10:10:00 UTC
+Last updated: 2026-09-10 11:05:00 UTC
 
 Quorum runs one live session at a time as a room. A presenter opens the room, projects it, and answers the questions students rank from their seats.
 
@@ -52,6 +52,7 @@ That prints the demo session's join code and its three links, seeding the room i
 | Landing | `/` | Anyone |
 | Sign in | `/sign-in` | Presenters, optional |
 | Your rooms | `/rooms` | Signed-in presenters |
+| Archive | `/archive` | Signed-in presenters |
 | Demo session | `/demo`, `/demo/host`, `/demo/project` | Anyone, in any of the three roles |
 | Join | `/join` | Students without the QR code |
 | Student feed | `/r/:code` | Students, usually by scanning |
@@ -78,6 +79,18 @@ The fifth character resolves the room, and the screen changes to it: the session
 **Add a display name** signs what the student posts. The name reaches the feed's composer already filled in, so it's asked for once rather than per question, and it never appears in a URL. Without one, every question is anonymous. The badge in the corner reads back whichever it is.
 
 **See demo** opens the seeded session for anyone with no code to type.
+
+### The archive
+
+`/archive` is what a term of sessions adds up to. Every session you have run is listed newest first, with the questions it drew ranked the way the hall ranked them, so the page reads as the record of what didn't get through: which weeks drew nothing, which drew the same question five times, what belongs in the next tutorial.
+
+Above them, four figures: sessions run, questions asked, how many you answered in the room, and the most any one session drew, with the session named.
+
+The search runs over every question in every session at once, because the point is the thread that runs through a term rather than one week's list. Beside it, a filter down to one session and an order: most voted, or newest. A session with more than five questions shows its top five and expands.
+
+Questions held for review and never approved, and questions you hid, are left out. A question the room never saw isn't part of what the room asked.
+
+**Download CSV** hands over the same thing as a file: one row per question, with its session, date, votes, status, and who asked.
 
 ### Host console
 
