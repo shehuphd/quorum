@@ -145,7 +145,9 @@ defmodule QuorumWeb.ProjectionLive do
             :if={@room.projection_show_joining?}
             style={"width:268px;flex:none;padding:28px 22px;display:flex;flex-direction:column;gap:12px;#{rail_fill(@room, @dark)}"}
           >
-            <Brand.logo on_dark={@dark} size={22} />
+            <.link navigate={~p"/"} aria-label="Quorum home">
+              <Brand.logo on_dark={@dark} size={22} />
+            </.link>
             <p style={"font:400 15px var(--q-font-sans);margin:14px 0 0;#{muted(@dark)}"}>
               Scan to ask a question
             </p>
@@ -173,7 +175,9 @@ defmodule QuorumWeb.ProjectionLive do
         </main>
       <% else %>
         <header style="padding:28px 32px;">
-          <Brand.logo on_dark={@dark} size={26} />
+          <.link navigate={~p"/"} aria-label="Quorum home">
+            <Brand.logo on_dark={@dark} size={26} />
+          </.link>
         </header>
 
         <main style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:22px;padding:0 32px;">
