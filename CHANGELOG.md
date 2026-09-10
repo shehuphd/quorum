@@ -108,3 +108,4 @@ All notable changes to Quorum are recorded here, dated per release.
 - The readings toggle is "Show readings", and the paragraph under it is gone.
 - The contact page drops the line about every message reaching a person.
 - The sidecar says when the rates ledger fails to load and when a provider and model pair has no rate, rather than leaving a call unpriced without a word. An unpriced call counts as nothing against the dollar ceiling, so this failing in silence was the one that could cost money.
+- The container gets a writable home. It runs as `nobody`, whose home is `/nonexistent`, so the rates ledger couldn't write a cache, couldn't fetch live prices, and fell back to the snapshot bundled in the package. A model newer than that snapshot went unpriced, and an unpriced call counts as nothing against the AI's dollar ceiling.

@@ -108,6 +108,13 @@ RUN pip3 install --break-system-packages --no-cache-dir -r sidecar/requirements.
 
 USER nobody
 
+# `nobody` has HOME=/nonexistent, so anything wanting a cache directory throws
+# a permission error. The rates ledger does: without this it can't fetch its
+# live prices, falls back to the snapshot bundled in the package, and a model
+# newer than that snapshot goes unpriced. An unpriced call counts as nothing
+# against the AI's dollar ceiling, so the cost of this is money, not tidiness.
+ENV HOME=/tmp
+
 # If using an environment that doesn't automatically reap zombie processes, it is
 # advised to add an init process such as tini via `apt-get install`
 # above and adding an entrypoint. See https://github.com/krallin/tini for details
