@@ -18,6 +18,14 @@ defmodule Quorum.Contact do
   def recipient, do: Application.get_env(:quorum, :contact_email, "mo@mohammedshehu.com")
 
   @doc """
+  The address the mail comes from.
+
+  A provider will only send from a domain the account holds, so this follows the
+  sending domain rather than being written down once.
+  """
+  def sender, do: Application.get_env(:quorum, :contact_from, "no-reply@quorum.app")
+
+  @doc """
   Check a submitted message.
 
   Returns `{:ok, message}` or `{:error, errors}`, a keyword list of field to
@@ -63,7 +71,7 @@ defmodule Quorum.Contact do
     email =
       new()
       |> to(recipient())
-      |> from({"Quorum", "no-reply@quorum.app"})
+      |> from({"Quorum", sender()})
       |> reply_to({name, email})
       |> subject("Quorum contact from #{name}")
       |> text_body("""

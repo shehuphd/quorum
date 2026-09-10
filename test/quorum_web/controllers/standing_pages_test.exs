@@ -17,6 +17,7 @@ defmodule QuorumWeb.StandingPagesTest do
   import Swoosh.TestAssertions
 
   alias Quorum.Contact
+  alias Quorum.Contact.Limit
 
   @valid %{
     "name" => "Ada Lovelace",
@@ -59,6 +60,12 @@ defmodule QuorumWeb.StandingPagesTest do
   end
 
   describe "the contact form" do
+    # The server-side wait outlives a request, so each test starts from nothing.
+    setup do
+      Quorum.Contact.Limit.reset()
+      :ok
+    end
+
     test "renders a labelled field for every input", %{conn: conn} do
       html = conn |> get(~p"/contact") |> html_response(200)
 
@@ -156,7 +163,52 @@ defmodule QuorumWeb.StandingPagesTest do
         |> post(~p"/contact", %{@valid | "message" => "Another one"})
         |> html_response(200)
 
-      assert html =~ "Give it a minute before sending another."
+      assert html =~ "Give it a few minutes before sending another."
+      assert_no_email_sent()
+    end
+
+    test "dropping the session doesn't get a second message through", %{conn: conn} do
+      post(conn, ~p"/contact", @valid)
+      assert_email_sent()
+
+      # A fresh conn is a sender who cleared their cookies. The wait is held on
+      # the server against their address, so it applies to them all the same.
+      html =
+        build_conn()
+        |> post(~p"/contact", %{@valid | "message" => "Another one"})
+        |> html_response(200)
+
+      assert html =~ "Give it a few minutes before sending another."
+      assert_no_email_sent()
+    end
+
+    test "the form stops taking messages once the hour's worth is in", %{conn: conn} do
+      # Fill the window from addresses that aren't this sender's, so what stops
+      # the next message is the ceiling on everyone rather than their own wait.
+      for n <- 1..Limit.window_limit(), do: Limit.record("198.51.100.#{n}")
+
+      html = conn |> post(~p"/contact", @valid) |> html_response(200)
+
+      assert html =~ "The form has taken all it can for now."
+      assert_no_email_sent()
+    end
+
+    test "the address counted is the one the proxy saw, not the one sent", %{conn: conn} do
+      # A sender who forges the front of the forwarded list is still counted by
+      # the entry the proxy appended, so the wait can't be typed around.
+      conn
+      |> put_req_header("x-forwarded-for", "203.0.113.9")
+      |> post(~p"/contact", @valid)
+
+      assert_email_sent()
+
+      html =
+        build_conn()
+        |> put_req_header("x-forwarded-for", "10.0.0.1, 203.0.113.9")
+        |> post(~p"/contact", %{@valid | "message" => "Another one"})
+        |> html_response(200)
+
+      assert html =~ "Give it a few minutes before sending another."
       assert_no_email_sent()
     end
   end

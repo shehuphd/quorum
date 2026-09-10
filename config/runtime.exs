@@ -142,6 +142,12 @@ if config_env() == :prod do
       adapter: Swoosh.Adapters.Mailgun,
       api_key: mailgun_key,
       domain: mailgun_domain
+
+    # Mailgun sends only from a domain the account holds, the sandbox one
+    # included, so the from address follows the sending domain unless it's set.
+    config :quorum,
+           :contact_from,
+           System.get_env("CONTACT_FROM") || "no-reply@#{mailgun_domain}"
   else
     # The whole message, not only who it was for, so a form submission is still
     # readable back out of the log.

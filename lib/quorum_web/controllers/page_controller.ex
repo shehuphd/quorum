@@ -8,6 +8,7 @@ defmodule QuorumWeb.PageController do
   use QuorumWeb, :controller
 
   alias Quorum.Contact
+  alias Quorum.Contact.Limit
   alias Quorum.Sessions
   alias Quorum.Sessions.Demo
   alias QuorumWeb.LandingExamples
@@ -45,15 +46,53 @@ defmodule QuorumWeb.PageController do
         render_sent(conn)
 
       seconds_remaining(conn) > 0 ->
-        render(conn, :contact,
-          page_title: "Contact",
-          params: params,
-          errors: [message: "You just sent one. Give it a minute before sending another."],
-          sent: false
-        )
+        too_soon(conn, params)
 
       true ->
-        submit(conn, params)
+        case Limit.check(sender_key(conn)) do
+          :ok -> submit(conn, params)
+          {:wait, _seconds} -> too_soon(conn, params)
+          :busy -> too_busy(conn, params)
+        end
+    end
+  end
+
+  defp too_soon(conn, params) do
+    render(conn, :contact,
+      page_title: "Contact",
+      params: params,
+      errors: [message: "You just sent one. Give it a few minutes before sending another."],
+      sent: false
+    )
+  end
+
+  defp too_busy(conn, params) do
+    render(conn, :contact,
+      page_title: "Contact",
+      params: params,
+      errors: [
+        message:
+          "The form has taken all it can for now. Try again in an hour, or email us directly."
+      ],
+      sent: false
+    )
+  end
+
+  # Who the wait applies to. Behind the ingress every request arrives from the
+  # proxy, so the address to count is the one the proxy recorded: the last entry
+  # of the forwarded list, which is what it observed rather than anything the
+  # sender put there themselves.
+  defp sender_key(conn) do
+    case Plug.Conn.get_req_header(conn, "x-forwarded-for") do
+      [] ->
+        conn.remote_ip |> :inet.ntoa() |> to_string()
+
+      values ->
+        values
+        |> Enum.join(",")
+        |> String.split(",")
+        |> List.last()
+        |> String.trim()
     end
   end
 
@@ -62,6 +101,8 @@ defmodule QuorumWeb.PageController do
       {:ok, message} ->
         case Contact.deliver(message) do
           {:ok, _} ->
+            Limit.record(sender_key(conn))
+
             conn
             |> put_session(@cooldown_key, System.system_time(:second))
             |> render_sent()

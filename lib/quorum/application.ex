@@ -12,6 +12,7 @@ defmodule Quorum.Application do
       Quorum.Repo,
       {DNSCluster, query: Application.get_env(:quorum, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Quorum.PubSub},
+      Quorum.Contact.Limit,
       QuorumWeb.Presence,
       {Oban, Application.fetch_env!(:quorum, Oban)},
       # Start to serve requests, typically the last entry
