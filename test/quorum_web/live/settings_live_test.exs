@@ -878,14 +878,13 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert html =~ "2</strong> calls"
       assert html =~ "200</strong> tokens in"
       assert html =~ "14</strong> tokens out"
-      assert html =~ "1 reading pointers, 1 drafts"
 
       html = view |> element("button", "Clear the counter") |> render_click()
       assert html =~ "0</strong> calls"
-      assert html =~ "Nothing spent yet."
+      assert html =~ "0</strong> tokens in"
     end
 
-    test "priced calls show dollars, and a mixed set says what they cover", %{conn: conn} do
+    test "a priced call shows dollars, and an unpriced one still counts its tokens", %{conn: conn} do
       ai_api(%{targets: fn -> {:ok, []} end, providers: fn -> {:ok, []} end})
 
       Application.put_env(:quorum, :ai_stub, fn _request ->
@@ -904,7 +903,8 @@ defmodule QuorumWeb.SettingsLiveTest do
       {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
 
       assert html =~ "$0.0012</strong> spent"
-      assert html =~ "Dollars cover 1 of 2 calls; the rest count tokens only."
+      assert html =~ "2</strong> calls"
+      assert html =~ "20</strong> tokens in"
     end
   end
 end

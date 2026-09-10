@@ -145,7 +145,7 @@
   gap: 26px;
   font: 400 15px var(--q-font-sans);
   flex-wrap: wrap;
-  padding: 14px 0 4px;
+  padding: 14px 0 18px;
 }
 
 /* The suggested answer in the console rail: presenter-only, visibly so. */

@@ -749,7 +749,7 @@ defmodule QuorumWeb.SettingsLive do
         on={@room.keep_questions?}
         label="Keep this room's questions"
       >
-        A term of questions is the record of what didn't land: which weeks drew nothing, which
+        A term of questions is the record of what a room heard: which weeks drew nothing, which
         drew the same question forty times, what to put in the next tutorial. Turning this off
         deletes every question in this room, and its votes, the moment you close the session.
         There's no undo.
@@ -875,9 +875,6 @@ defmodule QuorumWeb.SettingsLive do
             <span><strong>{@spend.output}</strong> tokens out</span>
             <span :if={Decimal.gt?(@spend.cost, 0)}><strong>{dollars(@spend.cost)}</strong> spent</span>
           </div>
-          <p class="q-meta" style="margin:6px 0 12px;">
-            {spend_line(@spend.by_purpose)}{priced_note(@spend)}
-          </p>
           <button type="button" class="q-button q-button--secondary" phx-click="ai_clear_spend">
             Clear the counter
           </button>
@@ -885,16 +882,6 @@ defmodule QuorumWeb.SettingsLive do
       </div>
     </section>
     """
-  end
-
-  defp spend_line(by_purpose) when map_size(by_purpose) == 0,
-    do: "Nothing spent yet."
-
-  defp spend_line(by_purpose) do
-    [pointer: "reading pointers", draft: "drafts", screen: "screens"]
-    |> Enum.map(fn {key, word} -> {Map.get(by_purpose, key, 0), word} end)
-    |> Enum.reject(fn {count, _} -> count == 0 end)
-    |> Enum.map_join(", ", fn {count, word} -> "#{count} #{word}" end)
   end
 
   # A fraction of a cent still reads as money, not as zero.
@@ -905,12 +892,6 @@ defmodule QuorumWeb.SettingsLive do
       do: "under $0.0001",
       else: "$" <> Decimal.to_string(rounded, :normal)
   end
-
-  defp priced_note(%{calls: calls, priced: priced})
-       when priced > 0 and priced < calls,
-       do: ". Dollars cover #{priced} of #{calls} calls; the rest count tokens only."
-
-  defp priced_note(_), do: ""
 
   attr :field, :string, required: true
   attr :on, :boolean, required: true

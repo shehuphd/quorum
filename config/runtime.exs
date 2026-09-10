@@ -182,10 +182,15 @@ if config_env() == :prod do
     config :quorum, :contact_from, from
   end
 
-  # The AI's daily ceiling, in dollars. The provider keys behind the sidecar are
-  # live, so this is what stops an open demo drawing an account down.
+  # The AI's daily ceilings. The provider keys behind the sidecar are live, so
+  # these are what stop an open demo drawing an account down: a dollar limit,
+  # and a count of calls beside it for models the ledger can't price yet.
   if budget = System.get_env("QUORUM_AI_DAILY_BUDGET") do
     config :quorum, :ai_daily_budget, budget
+  end
+
+  if calls = System.get_env("QUORUM_AI_DAILY_CALLS") do
+    config :quorum, :ai_daily_calls, calls
   end
 
   # Where the contact form's mail goes.

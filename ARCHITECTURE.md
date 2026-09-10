@@ -2,9 +2,9 @@
 
 This document describes how Quorum is built: its structure, the domain resources, the data store, and the path a change takes through the system.
 
-## STRuFO
+## STRuFOL
 
-[S]hape, [T]echnical stack, [Ru]n details, [F]ailure modes, [O]bservability.
+[S]hape, [T]echnical stack, [Ru]n details, [F]ailure modes, [O]bservability, [L]imitations.
 
 ### Shape
 
@@ -118,3 +118,11 @@ Settings ride the same path, which is what lets them do without a save button. C
 - In the deployed container both processes log to the same stream, so the Phoenix release and the Python sidecar interleave under `az containerapp logs show` and a boot problem in either is visible in one place
 - Contact mail that a provider refuses is logged with the provider's reason. What a provider accepts and then rejects is only in the provider's own event log, so that log is part of checking mail works rather than an afterthought
 - Telemetry handlers that record each handler's decision arrive when there are decisions to record; today every screen's state is one reload of the same query, which the query log already shows
+
+### Limitations
+
+- Presenter sign-in is a demo stub: one shared access code opens a shared demo presenter. Single sign-on is designed but not built, and the magic-link machinery underneath doesn't send to arbitrary addresses.
+- Students have no accounts at all: identity, votes, retraction rights, and per-room trust all hang off an opaque token in the browser's session cookie, so a cleared cookie or a different device is a new student.
+- The AI features depend on the localhost Python sidecar holding the provider keys; when it's down or unkeyed they stand down to nothing rather than degrading.
+- The deployment is one container scaled to zero between demos, so it isn't provisioned for continuous production load, and the first visit after idle waits for the container to start.
+- Mail delivery is only observable up to the provider's acceptance: a send the provider accepts and rejects later shows nowhere but the provider's own event log.

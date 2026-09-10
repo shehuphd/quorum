@@ -28,7 +28,7 @@ defmodule Quorum.AI do
     end
   end
 
-  # A day's worth of model use. The keys behind the sidecar are live and the demo
+  # A day of model use. The keys behind the sidecar are live and the demo
   # is open to anyone with the link, so this is the ceiling that stops a room
   # full of questions, or someone poking at it, from drawing an account down.
   #
@@ -38,7 +38,7 @@ defmodule Quorum.AI do
   # rather than resetting on a calendar day, so they recover without anything
   # having to run.
   @default_daily_budget "2.00"
-  @default_daily_calls 200
+  @default_daily_calls 1000
 
   @doc "The most the AI may spend in a rolling day, in dollars."
   def daily_budget do
