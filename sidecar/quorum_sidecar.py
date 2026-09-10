@@ -78,10 +78,10 @@ def order_candidates(models):
 def strip_additional_properties(schema):
     """The same JSON schema minus every additionalProperties key.
 
-    One provider requires the key and another refuses it at any depth, so a
-    single schema can't satisfy both. KeyCall raises before the network when a
-    schema won't fly; the retry reacts to that error rather than naming any
-    provider here.
+    Some providers refuse the key at any depth while others demand it, so a
+    single schema can't satisfy every one. KeyCall raises before the network
+    when a schema won't fly; the retries react to the error rather than
+    naming any provider here.
     """
     if isinstance(schema, dict):
         return {
@@ -94,14 +94,35 @@ def strip_additional_properties(schema):
     return schema
 
 
+def close_additional_properties(schema):
+    """The same JSON schema with additionalProperties: false on every object.
+
+    The mirror of the strip above, for the providers whose structured output
+    demands the key be set explicitly on each object node.
+    """
+    if isinstance(schema, dict):
+        out = {k: close_additional_properties(v) for k, v in schema.items()}
+        if out.get("type") == "object":
+            out.setdefault("additionalProperties", False)
+        return out
+    if isinstance(schema, list):
+        return [close_additional_properties(v) for v in schema]
+    return schema
+
+
 def generate_with_schema_fallback(client, model, messages, kwargs):
     try:
         return client.generate_text(model=model, messages=messages, **kwargs)
     except KeyCallError as error:
         schema = kwargs.get("response_schema")
-        if schema is None or "additionalProperties" not in str(error):
+        message = str(error)
+        if schema is None or "additionalProperties" not in message:
             raise
-        retry = dict(kwargs, response_schema=strip_additional_properties(schema))
+        if "must be explicitly set to false" in message or "required" in message:
+            reshaped = close_additional_properties(schema)
+        else:
+            reshaped = strip_additional_properties(schema)
+        retry = dict(kwargs, response_schema=reshaped)
         return client.generate_text(model=model, messages=messages, **retry)
 
 
@@ -435,7 +456,9 @@ class Handler(BaseHTTPRequestHandler):
             messages.append(Message(role="system", content=[TextInput(text=request["system"])]))
         messages.append(Message(role="user", content=[TextInput(text=prompt)]))
 
-        kwargs = {"max_output_tokens": int(request.get("max_output_tokens", 400))}
+        # A reasoning model spends thinking tokens inside this cap before the
+        # first visible word, so the default leaves it the room it needs.
+        kwargs = {"max_output_tokens": int(request.get("max_output_tokens", 8192))}
         # Sampling is left to the model unless the caller sets it: several
         # current models pin temperature and refuse any other explicit value,
         # so a cross-provider default here would refuse whole providers.

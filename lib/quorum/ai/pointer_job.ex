@@ -50,7 +50,7 @@ defmodule Quorum.AI.PointerJob do
   end
 
   defp opts(room),
-    do: [room: room, system: system(), schema: @schema, max_output_tokens: 2000]
+    do: [room: room, system: system(), schema: @schema, max_output_tokens: 8192]
 
   defp system do
     """

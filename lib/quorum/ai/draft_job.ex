@@ -28,7 +28,7 @@ defmodule Quorum.AI.DraftJob do
 
   # The cap is a ceiling, not the brevity control: the prompt asks for fifty
   # words, and a reasoning model spends thinking tokens before the first one.
-  defp opts(room), do: [room: room, system: system(), max_output_tokens: 2000]
+  defp opts(room), do: [room: room, system: system(), max_output_tokens: 8192]
 
   defp system do
     """

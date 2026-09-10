@@ -48,7 +48,7 @@ defmodule Quorum.AI.ScreenJob do
     :ok
   end
 
-  defp opts(room), do: [room: room, system: system(), schema: @schema, max_output_tokens: 2000]
+  defp opts(room), do: [room: room, system: system(), schema: @schema, max_output_tokens: 8192]
 
   defp system do
     """

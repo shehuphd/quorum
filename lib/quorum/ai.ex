@@ -38,7 +38,7 @@ defmodule Quorum.AI do
       system: opts[:system],
       schema: opts[:schema],
       target: opts[:target],
-      max_output_tokens: opts[:max_output_tokens] || 400
+      max_output_tokens: opts[:max_output_tokens] || 8192
     }
 
     case client().generate(request, config()) do
