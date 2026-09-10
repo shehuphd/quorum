@@ -26,7 +26,7 @@ defmodule Quorum.Contact.Limit do
   Ask whether this sender may send now.
 
   `:ok`, `{:wait, seconds}` while their own window is still open, or `:busy`
-  when the form as a whole has taken its hour's worth.
+  when the form as a whole has used its hour's allowance.
   """
   def check(sender, now \\ System.system_time(:second)) do
     cond do
