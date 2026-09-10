@@ -36,6 +36,7 @@ defmodule QuorumWeb.SettingsLive do
          |> assign(
            current_user: CurrentUser.from_session(session),
            room: room,
+           tz_offset: tz_offset(socket),
            tab: "room",
            status: :idle,
            search: "",
@@ -48,6 +49,16 @@ defmodule QuorumWeb.SettingsLive do
 
       _ ->
         {:ok, assign(socket, room: nil, current_user: nil, page_title: "Settings")}
+    end
+  end
+
+  # Minutes east of UTC, from the browser at connect. The first, static render
+  # has no socket to ask, so it draws the time in UTC and the connected render
+  # replaces it a moment later.
+  defp tz_offset(socket) do
+    case get_connect_params(socket) do
+      %{"tz_offset" => offset} when is_integer(offset) -> offset
+      _ -> 0
     end
   end
 
@@ -77,7 +88,8 @@ defmodule QuorumWeb.SettingsLive do
   def handle_info(_message, socket), do: {:noreply, load(socket)}
 
   @impl true
-  def handle_event("save", params, socket), do: {:noreply, start_save(socket, attrs(params))}
+  def handle_event("save", params, socket),
+    do: {:noreply, start_save(socket, attrs(params, socket.assigns.tz_offset))}
 
   def handle_event("toggle", %{"field" => field}, socket) do
     key = String.to_existing_atom(field)
@@ -221,23 +233,25 @@ defmodule QuorumWeb.SettingsLive do
     assign(socket, status: :saving)
   end
 
-  defp attrs(params) do
+  defp attrs(params, offset) do
     params
     |> Map.take(~w(name auto_close_at projection_light_from projection_light_to
                    projection_dark_from projection_dark_to projection_angle
                    question_max_length questions_per_student projection_question_scale))
     |> Enum.reject(fn {_k, v} -> v == nil end)
-    |> Map.new(fn {k, v} -> {String.to_existing_atom(k), normalise(k, v)} end)
+    |> Map.new(fn {k, v} -> {String.to_existing_atom(k), normalise(k, v, offset)} end)
   end
 
-  defp normalise("auto_close_at", ""), do: nil
+  defp normalise("auto_close_at", "", _offset), do: nil
 
-  defp normalise("auto_close_at", value) do
+  defp normalise("auto_close_at", value, offset) do
     case DateTime.from_iso8601(value <> ":00Z") do
-      {:ok, at, _} -> at
+      {:ok, at, _} -> DateTime.add(at, -offset * 60, :second)
       _ -> nil
     end
   end
+
+  defp normalise(key, value, _offset), do: normalise(key, value)
 
   defp normalise("projection_angle", value), do: whole(value, 60)
   defp normalise("question_max_length", value), do: whole(value, 500)
@@ -289,10 +303,17 @@ defmodule QuorumWeb.SettingsLive do
   defp status_text(:failed), do: "That change didn't save. Try again."
   defp status_text(_), do: ""
 
-  defp local_input(nil), do: ""
+  # A `datetime-local` field speaks the reader's own clock, and the room stores
+  # UTC, so the offset the browser reported at connect carries between them.
+  defp local_input(nil, _offset), do: ""
 
-  defp local_input(at),
-    do: at |> DateTime.truncate(:second) |> DateTime.to_iso8601() |> String.slice(0, 16)
+  defp local_input(at, offset) do
+    at
+    |> DateTime.truncate(:second)
+    |> DateTime.add(offset * 60, :second)
+    |> DateTime.to_iso8601()
+    |> String.slice(0, 16)
+  end
 
   # Named rather than numbered, because a percentage means nothing until it's
   # on a wall. The note beside it says what each one is for.
@@ -383,7 +404,12 @@ defmodule QuorumWeb.SettingsLive do
         <main class="q-settings-pane">
           <%= case @tab do %>
             <% "room" -> %>
-              <.room_pane room={@room} confirm_delete={@confirm_delete} delete_typed={@delete_typed} />
+              <.room_pane
+                room={@room}
+                tz_offset={@tz_offset}
+                confirm_delete={@confirm_delete}
+                delete_typed={@delete_typed}
+              />
             <% "questions" -> %>
               <.questions_pane room={@room} />
             <% "moderation" -> %>
@@ -419,6 +445,7 @@ defmodule QuorumWeb.SettingsLive do
   ## Panes
 
   attr :room, :map, required: true
+  attr :tz_offset, :integer, required: true
   attr :confirm_delete, :boolean, required: true
   attr :delete_typed, :string, required: true
 
@@ -440,10 +467,11 @@ defmodule QuorumWeb.SettingsLive do
           name="auto_close_at"
           type="datetime-local"
           class="q-input"
-          value={local_input(@room.auto_close_at)}
+          value={local_input(@room.auto_close_at, @tz_offset)}
         />
         <p class="q-meta">
-          Leave it empty to keep the room open until you close it yourself.
+          At that time the room closes itself: posting and voting stop, and students keep
+          reading what's there. Leave it empty to close it yourself.
         </p>
       </form>
 

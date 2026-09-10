@@ -44,6 +44,7 @@ defmodule Quorum.MixProject do
       {:ash_postgres, "~> 2.0"},
       {:ash, "~> 3.0"},
       {:eqrcode, "~> 0.2"},
+      {:oban, "~> 2.19"},
       {:igniter, "~> 0.6", only: [:dev, :test]},
       {:phoenix, "~> 1.8.13"},
       {:phoenix_ecto, "~> 4.5"},

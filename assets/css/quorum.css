@@ -14,6 +14,7 @@
   background: var(--q-accent); color: var(--q-accent-ink); border: none;
 }
 .q-button--secondary { background: var(--q-surface-raised); color: var(--q-ink); border: 1px solid var(--q-control-border); }
+.q-button--secondary:hover { border-color: var(--q-accent); color: var(--q-accent); }
 .q-button--destructive { background: var(--q-surface-raised); color: var(--q-destructive); border: 1px solid var(--q-destructive-border); }
 .q-button--destructive-solid { background: var(--q-destructive); color: #FFFFFF; border: none; }
 .q-button[disabled] { background: var(--q-disabled-surface); color: var(--q-ink-muted); border: 1px solid var(--q-hairline); cursor: not-allowed; }

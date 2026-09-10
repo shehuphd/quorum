@@ -712,4 +712,39 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert {:ok, %{}} = Sessions.get_room_by_host_token(room.host_token)
     end
   end
+
+  describe "closing automatically" do
+    test "the time is read and written in the presenter's own clock", %{conn: conn} do
+      room = room()
+
+      # Two hours east of UTC, as a browser in Johannesburg reports it.
+      conn = put_connect_params(conn, %{"tz_offset" => 120})
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/room")
+
+      view
+      |> form("#auto-close-form", %{"auto_close_at" => "2026-09-10T18:00"})
+      |> render_change()
+
+      settle(view)
+      {:ok, room} = Sessions.get_room(room.id)
+
+      # 18:00 there is 16:00 UTC, which is what the sweep will compare against.
+      assert DateTime.to_iso8601(room.auto_close_at) == "2026-09-10T16:00:00Z"
+
+      # And it reads back as the time that was typed, not the one stored.
+      assert render(view) =~ ~s(value="2026-09-10T18:00")
+    end
+
+    test "emptying the field puts the room back to closing by hand", %{conn: conn} do
+      room = room()
+      {:ok, _} = Sessions.update_settings(room, %{auto_close_at: DateTime.utc_now()})
+
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/room")
+      view |> form("#auto-close-form", %{"auto_close_at" => ""}) |> render_change()
+      settle(view)
+
+      {:ok, room} = Sessions.get_room(room.id)
+      assert room.auto_close_at == nil
+    end
+  end
 end

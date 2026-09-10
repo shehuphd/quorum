@@ -13,6 +13,7 @@ defmodule Quorum.Application do
       {DNSCluster, query: Application.get_env(:quorum, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Quorum.PubSub},
       QuorumWeb.Presence,
+      {Oban, Application.fetch_env!(:quorum, Oban)},
       # Start to serve requests, typically the last entry
       QuorumWeb.Endpoint
     ]

@@ -26,6 +26,7 @@ screens, and the landing page is a plain controller.
 | `lib/quorum/sessions/vote.ex` | `Vote` resource: belongs to a question, carries `voter_token`, unique per (question, voter). Action `cast` upserts, so a repeat vote is a no-op. Deleted with the question it's about, so an upvoted question stays retractable. Postgres table `votes`. |
 | `lib/quorum/sessions/codes.ex` | Generators for a room's five-character public join code (ambiguous glyphs removed) and its secret host token. |
 | `lib/quorum/sessions/demo.ex` | The seeded demo session the landing page points at. Holds the question set, keeps one open demo room at a time, and exposes `current/0` (read only), `ensure_room/0` (seeds if needed), `seed/1`, and `clear/0`. |
+| `lib/quorum/sessions/auto_close.ex` | The minute hand behind **Close automatically at**. An Oban cron job, run every minute, closing every open room whose time has passed on the same terms as the button, questions included. Reads only open rooms, so it never closes one twice. |
 | `lib/quorum/sessions/broadcaster.ex` | Ash notifier. On any room, question, or vote change, broadcasts `{:room_changed, room_id}` on the room's PubSub topic so every watching LiveView reloads. Reads the database to resolve a vote's room, since a vote carries only a question id. |
 
 ## Web: the five screens

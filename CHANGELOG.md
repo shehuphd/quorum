@@ -61,4 +61,6 @@ All notable changes to Quorum are recorded here, dated per release.
 - **Post question** is grey until the box has something in it.
 - The answered list holds the pin's column too, so it lines up with the questions above it.
 - A line under the pinned questions, and another above the answered list, which now starts where the vote boxes do.
-- The student feed carries the site header and footer, so the Quorum mark goes home and **Enter a code** reaches another session. The join screen's mark goes home too.
+- The student feed carries the site header and footer, so the Quorum mark goes home and **Change room** reaches another session. The join screen's mark goes home too.
+- **Close automatically at** closes the room. It had been stored and never acted on: an Oban job now sweeps every minute, closing rooms whose time has passed on the same terms as the button.
+- That time is read and written on the presenter's own clock. The browser reports its offset at connect, so a time typed in Johannesburg no longer means the same wall clock in UTC.

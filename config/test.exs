@@ -1,6 +1,9 @@
 import Config
 config :ash, disable_async?: true
 
+# The worker is called directly in tests, so nothing is queued or scheduled.
+config :quorum, Oban, testing: :manual
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

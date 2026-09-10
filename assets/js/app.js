@@ -28,7 +28,9 @@ import topbar from "../vendor/topbar"
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken},
+  // The browser's minutes east of UTC. Settings reads it so "Close automatically
+  // at" means the presenter's own clock rather than the server's.
+  params: {_csrf_token: csrfToken, tz_offset: -new Date().getTimezoneOffset()},
   hooks: {...colocatedHooks},
 })
 

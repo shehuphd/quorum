@@ -34,8 +34,8 @@ A landing page at `/` fronts all of it, and a seeded demo session behind `/demo`
 - Phoenix.Presence for the connected-student count
 - eqrcode for server-rendered QR codes, so the projection needs no client JavaScript to draw one
 - A bespoke CSS design system (tokens plus `q-*` components) with Archivo and Literata self-hosted as woff2
-- Oban for scheduled and background jobs (not added yet; arrives with auto-close and the AI slice)
-- Deployment target: Fly.io
+- Oban for scheduled and background jobs: one queue, and a cron entry that closes rooms whose own clock has run out
+- Deployment target: not chosen
 
 ### Run details
 

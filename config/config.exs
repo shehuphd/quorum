@@ -70,6 +70,15 @@ config :tailwind,
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
+# Background work. One queue and one job: the minute hand that closes a room
+# whose own clock has run out.
+config :quorum, Oban,
+  repo: Quorum.Repo,
+  queues: [default: 5],
+  plugins: [
+    {Oban.Plugins.Cron, crontab: [{"* * * * *", Quorum.Sessions.AutoClose}]}
+  ]
+
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",

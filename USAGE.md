@@ -99,6 +99,8 @@ Keyboard shortcuts, with no modifier:
 
 Closing the session stops posting and voting. Students keep reading what's there. The dialog asks first, and Escape or **Keep it open** backs out.
 
+A room can also close itself. **Close automatically at** on the Room settings tab takes a time on your own clock, and the room closes on the same terms as the button: posting and voting stop, and a room set not to keep its questions loses them then. It's checked every minute, so closing lands within a minute of the time you set.
+
 ### Projection
 
 With nothing spotlighted, the QR code and the five-character join code own the screen. Spotlighting a question shrinks the joining panel to a rail on the left and shows the question at headline scale, with who asked it and its vote count.
@@ -166,7 +168,7 @@ To keep track of one question through that, press the pin to the left of its vot
 
 **Post question** stays grey until there's something in the box.
 
-The feed carries the site header and footer, so the Quorum mark goes home and **Enter a code** goes to another session.
+The feed carries the site header and footer, so the Quorum mark goes home and **Change room** leads to another session's code.
 
 Pressing **Post question** doesn't write it yet. The composer is replaced by the question, a bar that burns down over ten seconds, and a **Cancel** button counting the seconds off. That window is for the student who spots the same question already in the list, catches a typo, or thinks better of it. Cancelling writes nothing at all: the text goes back in the composer, and nobody saw it. **Send it now** skips the wait.
 

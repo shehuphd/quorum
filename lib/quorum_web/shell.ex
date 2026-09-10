@@ -40,7 +40,7 @@ defmodule QuorumWeb.Shell do
       </nav>
 
       <div :if={@variant == :student} class="q-shell-nav">
-        <.link navigate={~p"/join"} class="q-button q-button--secondary">Enter a code</.link>
+        <.link navigate={~p"/join"} class="q-button q-button--secondary">Change room</.link>
       </div>
 
       <div :if={@variant == :guest} class="q-shell-nav">
@@ -54,7 +54,9 @@ defmodule QuorumWeb.Shell do
   def footer(assigns) do
     ~H"""
     <footer class="q-shell-footer">
-      <Brand.logo size={19} />
+      <.link navigate={~p"/"} class="q-shell-brand" aria-label="Quorum home">
+        <Brand.logo size={19} />
+      </.link>
       <nav class="q-shell-nav" aria-label="Site">
         <.link navigate={~p"/privacy"}>Privacy</.link>
         <.link navigate={~p"/accessibility"}>Accessibility</.link>
