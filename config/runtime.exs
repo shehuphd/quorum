@@ -50,8 +50,16 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
+  # Neon and most managed Postgres require TLS. Verify against the system CA
+  # store (the runtime image carries ca-certificates) and send SNI so the
+  # endpoint presents the right certificate for its host.
+  db_host = database_url |> URI.parse() |> Map.fetch!(:host)
+
   config :quorum, Quorum.Repo,
-    # ssl: true,
+    ssl: [
+      cacerts: :public_key.cacerts_get(),
+      server_name_indication: String.to_charlist(db_host)
+    ],
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     # For machines with several cores, consider starting multiple pools of `pool_size`
