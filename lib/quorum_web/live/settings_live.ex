@@ -1069,8 +1069,9 @@ defmodule QuorumWeb.SettingsLive do
           </span>
         </div>
         <p class="q-meta">
-          When it's on, a student who posts a question is shown items from the list below and
-          nothing else. Matching arrives with the model work; the list is stored and ready for it.
+          When it's on, a student who posts a question is shown up to two items from the list
+          below and nothing else, matched by a model that can pick from this list or pick
+          nothing. Only the asker sees them, and the AI service has to be running.
         </p>
       </div>
 
