@@ -49,12 +49,32 @@ def load_targets(path):
     return targets
 
 
-class Target:
-    """One credential, its client, and the model chosen for it.
+def order_candidates(models):
+    """KeyCall verify's own ordering, restated: newest first where the provider
+    dates every model it lists, and otherwise provider-maintained `-latest`
+    aliases ahead of the provider's raw order, because an undated list's front
+    can be entirely retired models. sorted() is stable, so ties keep the
+    provider's order and the result is deterministic per list."""
+    dated = [m for m in models if m.released_at is not None]
+    if dated and len(dated) == len(models):
+        return sorted(models, key=lambda m: m.released_at, reverse=True)
+    return sorted(models, key=lambda m: not m.id.lower().endswith("-latest"))
 
-    The model comes from the target's own `model =` line when given, and
-    otherwise from the provider's live list, newest first where the provider
-    says when models appeared. Nothing here names a model in code.
+
+# A refused credential ends the walk: no other model fares better with a key
+# the provider rejects. Every other error is treated as model-scoped and the
+# next candidate gets its turn, which is the rule KeyCall's verify applies.
+CREDENTIAL_FAILURES = {"INVALID_API_KEY", "PERMISSION_DENIED"}
+MAX_MODEL_ATTEMPTS = 4
+
+
+class Target:
+    """One credential, its client, and the models to try for it, in order.
+
+    A `model =` line in the key file pins the choice outright. Otherwise the
+    provider's live list is walked front to back per request kind, and the
+    first model that answers is remembered — a model can serve plain text yet
+    refuse structured output, so plain and schema calls each keep their own.
     """
 
     def __init__(self, entry):
@@ -63,7 +83,8 @@ class Target:
         self.pinned_model = entry.get("model")
         self._entry = entry
         self._client = None
-        self._model = None
+        self._candidates = None
+        self._working = {}
         self._lock = threading.Lock()
 
     def client(self):
@@ -75,21 +96,54 @@ class Target:
             self._client = KeyCall(**kwargs)
         return self._client
 
-    def model(self):
+    def candidates(self, kind):
         with self._lock:
-            if self._model is None:
+            if self._candidates is None:
                 if self.pinned_model:
-                    self._model = self.pinned_model
+                    self._candidates = [self.pinned_model]
                 else:
                     models = self.client().list_models().models
                     if not models:
                         raise LookupError(f"target {self.name} lists no text models")
-                    dated = [m for m in models if m.released_at is not None]
-                    if dated:
-                        self._model = max(dated, key=lambda m: m.released_at).id
-                    else:
-                        self._model = models[0].id
-            return self._model
+                    self._candidates = [m.id for m in order_candidates(models)]
+
+            working = self._working.get(kind)
+            rest = [c for c in self._candidates if c != working]
+            return ([working] + rest if working else rest)[:MAX_MODEL_ATTEMPTS]
+
+    def remember(self, kind, model_id):
+        with self._lock:
+            self._working[kind] = model_id
+
+
+def strip_additional_properties(schema):
+    """The same JSON schema minus every additionalProperties key.
+
+    One provider requires the key and another refuses it at any depth, so a
+    single schema can't satisfy both. KeyCall raises before the network when a
+    schema won't fly; the retry reacts to that error rather than naming any
+    provider here.
+    """
+    if isinstance(schema, dict):
+        return {
+            k: strip_additional_properties(v)
+            for k, v in schema.items()
+            if k != "additionalProperties"
+        }
+    if isinstance(schema, list):
+        return [strip_additional_properties(v) for v in schema]
+    return schema
+
+
+def generate_with_schema_fallback(client, model, messages, kwargs):
+    try:
+        return client.generate_text(model=model, messages=messages, **kwargs)
+    except KeyCallError as error:
+        schema = kwargs.get("response_schema")
+        if schema is None or "additionalProperties" not in str(error):
+            raise
+        retry = dict(kwargs, response_schema=strip_additional_properties(schema))
+        return client.generate_text(model=model, messages=messages, **retry)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -165,13 +219,27 @@ class Handler(BaseHTTPRequestHandler):
         if request.get("schema") is not None:
             kwargs["response_schema"] = request["schema"]
 
+        kind = "schema" if request.get("schema") is not None else "plain"
+        result = model = None
+        last_error = None
         try:
-            model = target.model()
-            result = target.client().generate_text(model=model, messages=messages, **kwargs)
-        except KeyCallError as error:
-            return self._send(502, {"error": "provider", "message": str(error)})
+            for model_id in target.candidates(kind):
+                try:
+                    result = generate_with_schema_fallback(
+                        target.client(), model_id, messages, kwargs
+                    )
+                    model = model_id
+                    target.remember(kind, model_id)
+                    break
+                except KeyCallError as error:
+                    last_error = error
+                    if error.code.name in CREDENTIAL_FAILURES:
+                        break
         except Exception as error:  # a target that can't list, a dead socket
             return self._send(502, {"error": "sidecar", "message": str(error)})
+
+        if result is None:
+            return self._send(502, {"error": "provider", "message": str(last_error)})
 
         usage = result.usage
         return self._send(

@@ -73,3 +73,4 @@ All notable changes to Quorum are recorded here, dated per release.
 - A fifth moderation trigger: hold anything a model reads as aimed at the AI rather than the presenter. A clean read releases the question by itself within seconds; a flagged one stays for review, marked. Every failure leaves the question held, never released.
 - The review queue says why each question is waiting.
 - Every model call is recorded, success or failure: purpose, provider, model, tokens, elapsed time, kept per presenter. Pricing waits on rates data; the tokens are the durable fact.
+- The sidecar walks a provider's models in KeyCall verify's own order and remembers the first that answers, per request kind, so a listed-but-retired model or one that refuses structured output costs one attempt rather than the feature.

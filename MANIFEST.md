@@ -40,7 +40,7 @@ screens, and the landing page is a plain controller.
 | `lib/quorum/ai/pointer_job.ex` | Matches a fresh question to the room's reading list, at most two picks from numbered entries, stored on the question for the asker alone. The list is the only corpus offered. |
 | `lib/quorum/ai/draft_job.ex` | Drafts a suggested answer when a question is spotlighted, presenter-only, three to five spoken sentences. A question keeps its draft, so a re-spotlight bills nothing. |
 | `lib/quorum/ai/screen_job.ex` | The injection screen: one boolean from the model. Clean releases the question; flagged stays held, marked `:injection`; every failure leaves it held for the presenter. |
-| `sidecar/quorum_sidecar.py` | The Python service that holds the keys and drives every provider through KeyCall. `/health` names targets, `/generate` makes one normalized call; a shared token guards the port and providers are data from the key file, named nowhere in code. |
+| `sidecar/quorum_sidecar.py` | The Python service that holds the keys and drives every provider through KeyCall. `/health` names targets, `/generate` makes one normalized call; a shared token guards the port and providers are data from the key file, named nowhere in code. Models aren't chosen so much as survived: candidates are walked in KeyCall verify's order and the first that answers is remembered per request kind, and a schema a provider refuses wholesale is retried without its additionalProperties keys. |
 | `sidecar/run.sh` | Starts the sidecar: installs its requirements on first run, generates the shared token when none is set, and prints it for the app. |
 
 ## Web: the five screens
