@@ -93,3 +93,4 @@ All notable changes to Quorum are recorded here, dated per release.
 - Everything pressable shows the hand pointer now, including the switches, the tabs, the vote control, and the colour swatches. Before, some buttons did and some didn't.
 - The site header, footer, and room bar share one gutter, so the page chrome lines up with itself at every width.
 - More room in the Appearance pane and the token spend block, the readings result count is clear of the search field above it, and "All changes saved" is centred against the button beside it.
+- The console and the projection name the host students should type, read from the endpoint, rather than a written-in address. The QR code beside it already pointed at the running host, so the two now agree wherever the app is deployed.

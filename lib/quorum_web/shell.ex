@@ -12,6 +12,17 @@ defmodule QuorumWeb.Shell do
   alias QuorumWeb.Brand
 
   @doc """
+  Where to type a join code, without the scheme, for a screen to read out.
+
+  Taken from the endpoint rather than written down, so the console and the
+  projection name the host they're being served from and match the QR code
+  beside them wherever the app is running.
+  """
+  def join_hint do
+    ~p"/join" |> url() |> String.replace(~r{^https?://}, "")
+  end
+
+  @doc """
   The site header. `variant` is `:app` for a signed-in page, `:guest` for the
   sign-in screens, which offer students a way out instead of nav, and `:student`
   for a room, where the only two places to go are home and another code.

@@ -399,7 +399,7 @@ defmodule QuorumWeb.HostLive do
               <div class="q-join-qr">{raw(qr(@room.join_code, 150))}</div>
               <div style="min-width:0;">
                 <p class="q-meta" style="font-size:15px;margin:0;">
-                  Students join at quorum.app/join with
+                  Students join at {QuorumWeb.Shell.join_hint()} with
                 </p>
                 <p class="q-code">{@room.join_code}</p>
                 <div class="q-join-actions">
@@ -423,7 +423,7 @@ defmodule QuorumWeb.HostLive do
             <section class="q-join-strip">
               <div class="q-join-qr">{raw(qr(@room.join_code, 46))}</div>
               <div style="flex:1;min-width:0;">
-                <p class="q-meta" style="margin:0;">Still joining at quorum.app/join</p>
+                <p class="q-meta" style="margin:0;">Still joining at {QuorumWeb.Shell.join_hint()}</p>
                 <p class="q-code">{@room.join_code}</p>
               </div>
               <button

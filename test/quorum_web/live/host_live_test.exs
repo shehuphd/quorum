@@ -88,7 +88,7 @@ defmodule QuorumWeb.HostLiveTest do
     refute html =~ "Off topic entirely"
     # The room is empty again, so the joining panel takes the space back.
     assert html =~ "No questions yet"
-    assert html =~ "Students join at quorum.app/join with"
+    assert html =~ "Students join at #{QuorumWeb.Shell.join_hint()} with"
   end
 
   test "search filters the queue and reports the tally", %{conn: conn} do
@@ -232,7 +232,7 @@ defmodule QuorumWeb.HostLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}")
 
-    assert html =~ "Students join at quorum.app/join with"
+    assert html =~ "Students join at #{QuorumWeb.Shell.join_hint()} with"
     assert html =~ room.join_code
     assert html =~ "Copy student link"
     assert html =~ "New code"
@@ -249,8 +249,8 @@ defmodule QuorumWeb.HostLiveTest do
     question(room, "First of the session")
     html = render(view)
 
-    assert html =~ "Still joining at quorum.app/join"
-    refute html =~ "Students join at quorum.app/join with"
+    assert html =~ "Still joining at #{QuorumWeb.Shell.join_hint()}"
+    refute html =~ "Students join at #{QuorumWeb.Shell.join_hint()} with"
     assert html =~ "Search questions"
   end
 
