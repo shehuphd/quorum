@@ -81,3 +81,4 @@ All notable changes to Quorum are recorded here, dated per release.
 - The sidecar grew the key-management API behind that tab, and rewrites the key file itself: adding, pinning, and removing keys no longer means editing TOML by hand.
 - The three jobs' output caps rise to 8192 tokens, the room a reasoning model needs: it spends thinking tokens inside the cap, so the draft's tight one came back as billed tokens and no text. The prompt is what keeps the answer short.
 - A model that answers with no text now counts as a failed candidate in the sidecar's walk, so the next one gets the question instead of the feature silently doing nothing.
+- The spend has a dollar figure: the sidecar prices each call from the rates ledger the moment it answers, matched on the exact model id, and the AI keys tab shows what's been spent beside the tokens. A model the ledger doesn't know yet counts tokens only, and the tab says how many calls the dollars cover.

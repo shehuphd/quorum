@@ -4,7 +4,8 @@ defmodule Quorum.AI.Call do
   answered, the tokens it spent, and how long it took. Written for every call,
   successful or not, so nothing the app spends is ever untracked.
 
-  `cost` stays empty until a rates table prices it; the tokens are the durable
+  `cost` is dollars from the rates ledger, where it knows the exact model the
+  call ran on, and empty where it doesn't; the tokens are the durable
   fact, and prices change under them.
   """
   use Ash.Resource,
@@ -31,6 +32,7 @@ defmodule Quorum.AI.Call do
         :input_tokens,
         :output_tokens,
         :elapsed_ms,
+        :cost,
         :ok?,
         :error
       ])

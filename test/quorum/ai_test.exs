@@ -205,4 +205,32 @@ defmodule Quorum.AITest do
       assert [_only_one] = all_enqueued(worker: DraftJob)
     end
   end
+
+  describe "the dollar side of the spend" do
+    test "a priced reply records its cost and spend adds it up" do
+      Application.put_env(:quorum, :ai_stub, fn _request ->
+        {:ok, %{"text" => "x", "input_tokens" => 10, "output_tokens" => 5, "cost" => "0.001200"}}
+      end)
+
+      {:ok, _} = Quorum.AI.generate(:draft, "a")
+      {:ok, _} = Quorum.AI.generate(:screen, "b")
+
+      spend = Quorum.AI.spend()
+      assert spend.priced == 2
+      assert Decimal.eq?(spend.cost, Decimal.new("0.002400"))
+    end
+
+    test "a reply the ledger can't price keeps its tokens and no cost" do
+      Application.put_env(:quorum, :ai_stub, fn _request ->
+        {:ok, %{"text" => "x", "input_tokens" => 10, "output_tokens" => 5}}
+      end)
+
+      {:ok, _} = Quorum.AI.generate(:draft, "a")
+
+      spend = Quorum.AI.spend()
+      assert spend.priced == 0
+      assert Decimal.eq?(spend.cost, 0)
+      assert spend.input == 10
+    end
+  end
 end

@@ -894,5 +894,27 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert html =~ "0</strong> calls"
       assert html =~ "Nothing spent yet."
     end
+
+    test "priced calls show dollars, and a mixed set says what they cover", %{conn: conn} do
+      ai_api(%{targets: fn -> {:ok, []} end, providers: fn -> {:ok, []} end})
+
+      Application.put_env(:quorum, :ai_stub, fn _request ->
+        {:ok, %{"text" => "x", "input_tokens" => 10, "output_tokens" => 5, "cost" => "0.001200"}}
+      end)
+
+      {:ok, _} = Quorum.AI.generate(:draft, "a")
+
+      Application.put_env(:quorum, :ai_stub, fn _request ->
+        {:ok, %{"text" => "x", "input_tokens" => 10, "output_tokens" => 5}}
+      end)
+
+      {:ok, _} = Quorum.AI.generate(:screen, "b")
+
+      room = room()
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      assert html =~ "$0.0012</strong> spent"
+      assert html =~ "Dollars cover 1 of 2 calls; the rest count tokens only."
+    end
   end
 end

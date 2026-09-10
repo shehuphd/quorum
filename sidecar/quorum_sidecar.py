@@ -23,6 +23,7 @@ import os
 import re
 import sys
 import threading
+import time
 
 try:
     import tomllib
@@ -32,6 +33,23 @@ except ModuleNotFoundError:  # tomllib arrived in Python 3.11
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from keycall import KeyCall, KeyCallError, Message, TextInput
+
+try:
+    import rates.ai as rates_ai
+except ImportError:  # rates is optional; without it calls go unpriced
+    rates_ai = None
+
+try:
+    # rates records traces through traceact when it's installed, and an
+    # unconfigured process gets them printed to the console. Route them to a
+    # file instead so the sidecar's log stays its own.
+    import traceact
+
+    traceact.configure(
+        sinks=[traceact.JsonlSink(os.path.expanduser("~/.traceact/quorum-sidecar.jsonl"))]
+    )
+except Exception:
+    pass
 
 MAX_BODY_BYTES = 64 * 1024
 
@@ -124,6 +142,86 @@ def generate_with_schema_fallback(client, model, messages, kwargs):
             reshaped = strip_additional_properties(schema)
         retry = dict(kwargs, response_schema=reshaped)
         return client.generate_text(model=model, messages=messages, **retry)
+
+
+# The rates ledger and KeyCall name one provider differently. One data row
+# per difference; nothing else in this file knows a provider by name.
+RATES_SLUGS = {"gemini": "google"}
+
+
+class Pricing:
+    """Dollar figures for a (provider, model) pair, from the rates ledger.
+
+    The live-fused ledger knows current models and caches itself for a day;
+    when it can't be reached, the newest local snapshot answers instead. The
+    ledger loads in the background so no call ever waits on it, and a model
+    it doesn't know stays unpriced: the tokens are recorded regardless.
+    Prices are matched on the exact model id the provider answered with,
+    never a guess across naming conventions.
+    """
+
+    REFRESH_SECONDS = 24 * 3600
+
+    def __init__(self):
+        self._registry = None
+        self._loaded_at = 0.0
+        self._loading = threading.Lock()
+        self._pairs = {}
+        if rates_ai is not None:
+            threading.Thread(target=self._load, daemon=True).start()
+
+    def _load(self):
+        if rates_ai is None or not self._loading.acquire(blocking=False):
+            return
+        try:
+            try:
+                registry = rates_ai.load(fetch="live")
+            except Exception:
+                registry = rates_ai.load()
+            self._registry = registry
+            self._loaded_at = time.time()
+            self._pairs = {}
+        except Exception:
+            pass
+        finally:
+            self._loading.release()
+
+    def cost(self, provider, model, input_tokens, output_tokens):
+        if input_tokens is None and output_tokens is None:
+            return None
+        if self._registry is not None and time.time() - self._loaded_at > self.REFRESH_SECONDS:
+            threading.Thread(target=self._load, daemon=True).start()
+        pair = self._pair(provider, model)
+        if pair is None:
+            return None
+        input_rate, output_rate = pair
+        dollars = (input_tokens or 0) / 1e6 * input_rate + (output_tokens or 0) / 1e6 * output_rate
+        return f"{dollars:.6f}"
+
+    def _pair(self, provider, model):
+        registry = self._registry
+        if registry is None or model is None:
+            return None
+        key = (provider, model)
+        if key in self._pairs:
+            return self._pairs[key]
+        pair = None
+        try:
+            slug = RATES_SLUGS.get(provider, provider)
+            hits = list(registry.filter(provider=slug, model=model))
+            if hits:
+                price = hits[0].price
+                input_rate = price.get("input_mtok")
+                output_rate = price.get("output_mtok")
+                if input_rate is not None and output_rate is not None:
+                    pair = (float(input_rate), float(output_rate))
+        except Exception:
+            pair = None
+        self._pairs[key] = pair
+        return pair
+
+
+PRICING = Pricing()
 
 
 class Target:
@@ -498,6 +596,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(502, {"error": "provider", "message": str(last_error)})
 
         usage = result.usage
+        input_tokens = getattr(usage, "input_tokens", None) if usage else None
+        output_tokens = getattr(usage, "output_tokens", None) if usage else None
         return self._send(
             200,
             {
@@ -505,8 +605,9 @@ class Handler(BaseHTTPRequestHandler):
                 "target": target.name,
                 "provider": target.provider,
                 "model": model,
-                "input_tokens": getattr(usage, "input_tokens", None) if usage else None,
-                "output_tokens": getattr(usage, "output_tokens", None) if usage else None,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost": PRICING.cost(target.provider, model, input_tokens, output_tokens),
                 "elapsed_ms": result.round_trip_duration_ms,
                 "finish_reason": str(result.finish_reason) if result.finish_reason else None,
             },

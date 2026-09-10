@@ -873,9 +873,10 @@ defmodule QuorumWeb.SettingsLive do
             <span><strong>{@spend.calls}</strong> {if @spend.calls == 1, do: "call", else: "calls"}</span>
             <span><strong>{@spend.input}</strong> tokens in</span>
             <span><strong>{@spend.output}</strong> tokens out</span>
+            <span :if={Decimal.gt?(@spend.cost, 0)}><strong>{dollars(@spend.cost)}</strong> spent</span>
           </div>
           <p class="q-meta" style="margin:6px 0 12px;">
-            {spend_line(@spend.by_purpose)}
+            {spend_line(@spend.by_purpose)}{priced_note(@spend)}
           </p>
           <button type="button" class="q-button q-button--secondary" phx-click="ai_clear_spend">
             Clear the counter
@@ -895,6 +896,21 @@ defmodule QuorumWeb.SettingsLive do
     |> Enum.reject(fn {count, _} -> count == 0 end)
     |> Enum.map_join(", ", fn {count, word} -> "#{count} #{word}" end)
   end
+
+  # A fraction of a cent still reads as money, not as zero.
+  defp dollars(cost) do
+    rounded = Decimal.round(cost, 4)
+
+    if Decimal.eq?(rounded, 0),
+      do: "under $0.0001",
+      else: "$" <> Decimal.to_string(rounded, :normal)
+  end
+
+  defp priced_note(%{calls: calls, priced: priced})
+       when priced > 0 and priced < calls,
+       do: ". Dollars cover #{priced} of #{calls} calls; the rest count tokens only."
+
+  defp priced_note(_), do: ""
 
   attr :field, :string, required: true
   attr :on, :boolean, required: true

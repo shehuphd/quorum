@@ -213,7 +213,7 @@ You don't have to edit the file by hand. The **AI keys** settings tab manages it
 
 Each key normally runs on the newest model that answers, chosen from the provider's live catalog. The picker beside a key pins one instead, offering only models the key can use for text: nothing deprecated, no image or embedding models.
 
-Every model call is recorded: what it was for, which provider and model answered, the tokens it spent, and how long it took, kept per presenter. The same tab shows the running total, calls, tokens in, tokens out, split by purpose, with a button that clears the counter. Costs are priced later from rates data; the tokens are the durable fact.
+Every model call is recorded: what it was for, which provider and model answered, the tokens it spent, what those tokens cost in dollars, and how long it took, kept per presenter. The same tab shows the running total, calls, tokens in, tokens out, dollars, split by purpose, with a button that clears the counter. Prices come from the [rates](https://pypi.org/project/rates/) ledger, matched on the exact model id the provider answered with; a model the ledger doesn't know yet counts tokens only, and the tab says how many calls the dollar figure covers.
 
 ## The domain
 

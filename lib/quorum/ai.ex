@@ -86,14 +86,21 @@ defmodule Quorum.AI do
 
   ## The spend
 
-  @doc "What the AI has spent so far: calls and tokens, in total and per purpose."
+  @doc """
+  What the AI has spent so far: calls, tokens, and dollars, in total and per
+  purpose. Dollars cover only the calls the rates ledger could price, so
+  `priced` says how many of the calls the figure spans.
+  """
   def spend do
     calls = Ash.read!(Quorum.AI.Call)
+    priced = Enum.reject(calls, &is_nil(&1.cost))
 
     %{
       calls: length(calls),
       input: calls |> Enum.map(&(&1.input_tokens || 0)) |> Enum.sum(),
       output: calls |> Enum.map(&(&1.output_tokens || 0)) |> Enum.sum(),
+      cost: priced |> Enum.map(& &1.cost) |> Enum.reduce(Decimal.new(0), &Decimal.add/2),
+      priced: length(priced),
       by_purpose: Enum.frequencies_by(calls, & &1.purpose)
     }
   end
@@ -124,6 +131,7 @@ defmodule Quorum.AI do
       input_tokens: reply["input_tokens"],
       output_tokens: reply["output_tokens"],
       elapsed_ms: round_ms(reply["elapsed_ms"]),
+      cost: reply["cost"],
       ok?: ok?,
       error: error
     }
