@@ -1,6 +1,6 @@
 # Quorum
 
-See demo at mohammedshehu.com/quorum.
+See demo at [mohammedshehu.com/quorum](mohammedshehu.com/quorum).
 
 Quorum is a live audience engagement tool, built first for university teaching. The presenter projects a QR code; students scan it to join the session in one tap, then post and upvote questions from their seats. The top questions rank live over a websocket with no page refresh, so quieter students take part instead of being cold-called. The presenter answers questions and closes the session. Questions are anonymous to peers by default. The same primitives serve any live audience, so company all-hands and streamed talks remain options later.
 
