@@ -8,6 +8,8 @@ defmodule Quorum.Contact do
   """
   import Swoosh.Email
 
+  require Logger
+
   alias Quorum.Mailer
 
   @max_message 4000
@@ -80,11 +82,20 @@ defmodule Quorum.Contact do
       #{body}
       """)
 
-    try do
-      Mailer.deliver(email)
-    catch
-      :exit, reason -> {:error, {:exit, reason}}
-      kind, reason -> {:error, {kind, reason}}
+    result =
+      try do
+        Mailer.deliver(email)
+      catch
+        :exit, reason -> {:error, {:exit, reason}}
+        kind, reason -> {:error, {kind, reason}}
+      end
+
+    # The sender is told the message didn't send; this is the half that says
+    # why, since a provider refusing a key or an unconfirmed address is the
+    # kind of thing you find out from a log rather than from the form.
+    with {:error, reason} <- result do
+      Logger.warning("Contact mail didn't send: #{inspect(reason)}")
+      {:error, reason}
     end
   end
 
