@@ -74,8 +74,4 @@ Presenters can sign in at `/sign-in` to keep a list of their rooms. Sign-in is a
 - A Python sidecar on KeyCall for every provider call, holding the keys so the app never does
 - Archivo and Literata, self-hosted as woff2
 
-## License
-
-To be decided.
-
 By [Mo Shehu](https://mohammedshehu.com)
