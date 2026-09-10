@@ -14,7 +14,7 @@ defmodule QuorumWeb.ProjectionLive do
     case Sessions.get_room_by_host_token(token) do
       {:ok, %{} = room} ->
         if connected?(socket), do: Sessions.subscribe(room.id)
-        {:ok, socket |> assign(dark: true, page_title: "Projection") |> load(room)}
+        {:ok, socket |> assign(page_title: "Projection") |> load(room)}
 
       _ ->
         {:ok, assign(socket, room: nil, dark: true, page_title: "Projection")}
@@ -26,10 +26,13 @@ defmodule QuorumWeb.ProjectionLive do
   def handle_info(_message, socket), do: {:noreply, load(socket, socket.assigns.room)}
 
   # Either key flips the hall light, so a presenter who reaches for the wrong one
-  # still gets the switch rather than nothing.
+  # still gets the switch rather than nothing. The room holds which hall it is,
+  # so a second screen and the students' join pages follow.
   @impl true
-  def handle_event("key", %{"key" => key}, socket) when key in ["l", "L", "d", "D"],
-    do: {:noreply, assign(socket, dark: !socket.assigns.dark)}
+  def handle_event("key", %{"key" => key}, socket) when key in ["l", "L", "d", "D"] do
+    Sessions.set_hall(socket.assigns.room, !socket.assigns.dark)
+    {:noreply, socket}
+  end
 
   def handle_event("key", %{"key" => key}, socket) when key in ["q", "Q"] do
     room = socket.assigns.room
@@ -46,6 +49,7 @@ defmodule QuorumWeb.ProjectionLive do
 
     assign(socket,
       room: room,
+      dark: room.projection_dark?,
       spotlight: room.spotlight_question,
       connected: connected,
       question_count: length(questions)
@@ -74,7 +78,9 @@ defmodule QuorumWeb.ProjectionLive do
         do: {room.projection_dark_from, room.projection_dark_to},
         else: {room.projection_light_from, room.projection_light_to}
 
-    "background:linear-gradient(#{room.projection_angle}deg, #{from}, #{to});"
+    # The longhand, not the `background` shorthand: the shorthand resets
+    # background-size, and the drift animates a position across 150% of it.
+    "background-image:linear-gradient(#{room.projection_angle}deg, #{from}, #{to});"
   end
 
   # A white QR card has no edge of its own against a lit hall, so give it one.

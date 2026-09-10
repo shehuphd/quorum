@@ -62,19 +62,21 @@ defmodule QuorumWeb.ProjectionLiveTest do
     assert html =~ "q-projection--dark"
     assert squish(html) =~ "Press <strong>L</strong> or <strong>D</strong> for a lit hall."
 
-    html = render_keyup(view, "key", %{"key" => "l"})
+    html = flip(view, "l")
     refute html =~ "q-projection--dark"
     assert squish(html) =~ "Press <strong>L</strong> or <strong>D</strong> for a dark hall."
 
     # L again toggles back, rather than being a one-way switch to lit.
-    html = render_keyup(view, "key", %{"key" => "l"})
-    assert html =~ "q-projection--dark"
+    assert flip(view, "l") =~ "q-projection--dark"
+    refute flip(view, "d") =~ "q-projection--dark"
+    assert flip(view, "D") =~ "q-projection--dark"
+  end
 
-    html = render_keyup(view, "key", %{"key" => "d"})
-    refute html =~ "q-projection--dark"
-
-    html = render_keyup(view, "key", %{"key" => "D"})
-    assert html =~ "q-projection--dark"
+  # The hall is on the room now, so the switch arrives through the broadcast it
+  # causes rather than from the keyup's own round-trip.
+  defp flip(view, key) do
+    render_keyup(view, "key", %{"key" => key})
+    render(view)
   end
 
   test "the QR card is framed in a lit hall, where white on white has no edge", %{conn: conn} do
@@ -83,7 +85,7 @@ defmodule QuorumWeb.ProjectionLiveTest do
     {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/project")
     refute html =~ "border:1px solid var(--q-ink)"
 
-    assert render_keyup(view, "key", %{"key" => "l"}) =~ "border:1px solid var(--q-ink)"
+    assert flip(view, "l") =~ "border:1px solid var(--q-ink)"
   end
 
   test "Q hides the spotlight and is only offered while one is showing", %{conn: conn} do

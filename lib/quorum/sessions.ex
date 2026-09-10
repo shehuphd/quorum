@@ -27,6 +27,12 @@ defmodule Quorum.Sessions do
   @doc "Subscribe the calling process to a room's live feed."
   def subscribe(room_id), do: Phoenix.PubSub.subscribe(Quorum.PubSub, topic(room_id))
 
+  @doc """
+  Drop a room's live feed. The join page resolves a room on the fifth character,
+  so it can leave one room's feed for another's while the student edits.
+  """
+  def unsubscribe(room_id), do: Phoenix.PubSub.unsubscribe(Quorum.PubSub, topic(room_id))
+
   ## Rooms
 
   def open_room(name, opts \\ []) do
@@ -120,6 +126,14 @@ defmodule Quorum.Sessions do
   """
   def update_settings(room, attrs),
     do: room |> Ash.Changeset.for_update(:settings, attrs) |> Ash.update()
+
+  @doc """
+  Switch the hall between lit and dark. The projection's L and D keys go through
+  here rather than holding the state in their own process, so a second screen
+  and every join page in the room follow the switch.
+  """
+  def set_hall(room, dark?) when is_boolean(dark?),
+    do: update_settings(room, %{projection_dark?: dark?})
 
   @doc "Delete a room and everything in it. Only ever called on a closed room."
   def delete_room(room), do: Ash.destroy(room)

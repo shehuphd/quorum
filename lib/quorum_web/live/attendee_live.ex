@@ -1,8 +1,8 @@
 defmodule QuorumWeb.AttendeeLive do
   @moduledoc """
   The student's phone-first feed: post a question, upvote, and watch the ranking.
-  The list reorders live, but the row a student is reading or voting on is held in
-  place with a resort nudge rather than freezing the whole list.
+  A vote fills the vote box and moves the count, and that's the whole of it: the
+  list ranks live, so a row can move as the room votes.
 
   A posted question waits ten seconds before it's written, counting down where
   the composer was. That window is for the student who spots the same question
@@ -22,6 +22,7 @@ defmodule QuorumWeb.AttendeeLive do
   @impl true
   def mount(%{"code" => code}, session, socket) do
     token = session[QuorumWeb.BrowserToken.session_key()]
+    name = session[QuorumWeb.RoomController.display_name_key()] || ""
 
     case Sessions.get_room_by_code(code) do
       {:ok, %{} = room} ->
@@ -35,10 +36,10 @@ defmodule QuorumWeb.AttendeeLive do
           |> assign(
             token: token,
             room: room,
-            show_name: false,
+            name: name,
+            show_name: name != "",
             draft: "",
-            pinned_id: nil,
-            display_ids: [],
+            pinned: MapSet.new(),
             status: nil,
             pending: nil,
             tick: nil,
@@ -71,15 +72,26 @@ defmodule QuorumWeb.AttendeeLive do
   def handle_info(_message, socket), do: {:noreply, load(socket)}
 
   @impl true
-  def handle_event("draft", params, socket),
-    do: {:noreply, assign(socket, draft: Map.get(params, "body", ""))}
+  def handle_event("draft", params, socket) do
+    {:noreply,
+     assign(socket,
+       draft: Map.get(params, "body", ""),
+       name: params |> Map.get("name", socket.assigns.name) |> String.slice(0, 60)
+     )}
+  end
 
-  def handle_event("toggle_name", _params, socket),
-    do: {:noreply, assign(socket, show_name: !socket.assigns.show_name)}
+  # Turning the name off clears it, so a student who changes their mind isn't
+  # one keystroke away from signing the next question by accident.
+  def handle_event("toggle_name", _params, socket) do
+    show? = !socket.assigns.show_name
+
+    {:noreply,
+     assign(socket, show_name: show?, name: if(show?, do: socket.assigns.name, else: ""))}
+  end
 
   def handle_event("ask", params, socket) do
     body = params |> Map.get("body", "") |> String.trim()
-    name = params |> Map.get("name", "") |> String.trim()
+    name = params |> Map.get("name", socket.assigns.name) |> String.trim()
 
     if body == "" do
       {:noreply, socket}
@@ -92,7 +104,8 @@ defmodule QuorumWeb.AttendeeLive do
        |> assign(
          pending: attrs,
          undo_left: @undo_seconds,
-         show_name: false,
+         name: name,
+         show_name: name != "",
          draft: "",
          status: nil,
          tick: Process.send_after(self(), :tick, 1000)
@@ -119,16 +132,25 @@ defmodule QuorumWeb.AttendeeLive do
   def handle_event("toggle_vote", %{"id" => id}, socket) do
     if MapSet.member?(socket.assigns.voted, id) do
       Sessions.unvote(id, socket.assigns.token)
-      {:noreply, socket |> assign(pinned_id: nil) |> load()}
     else
       Sessions.vote(id, socket.assigns.token)
-      {:noreply, socket |> assign(pinned_id: id) |> load()}
     end
+
+    {:noreply, load(socket)}
   end
 
-  def handle_event("resort", _params, socket) do
-    sorted = Enum.map(socket.assigns.visible, & &1.id)
-    {:noreply, assign(socket, display_ids: sorted, pinned_id: nil, moved: 0)}
+  # A pin is one student's own bookmark. It never leaves this browser and it
+  # doesn't touch the ranking anyone else sees: it lifts the question to the top
+  # of their own list so a row they care about can't be voted out of sight.
+  def handle_event("toggle_pin", %{"id" => id}, socket) do
+    pinned = socket.assigns.pinned
+
+    pinned =
+      if MapSet.member?(pinned, id),
+        do: MapSet.delete(pinned, id),
+        else: MapSet.put(pinned, id)
+
+    {:noreply, socket |> assign(pinned: pinned) |> load()}
   end
 
   def handle_event("retract", %{"id" => id}, socket) do
@@ -148,9 +170,6 @@ defmodule QuorumWeb.AttendeeLive do
     %{visible: visible, held: held, answered: answered} = Sessions.partition(questions)
     voted = Sessions.voted_question_ids(room_id, token)
 
-    sorted_ids = Enum.map(visible, & &1.id)
-    display_ids = reconcile(socket.assigns.display_ids, sorted_ids)
-
     assign(socket,
       room: room,
       visible: visible,
@@ -159,11 +178,9 @@ defmodule QuorumWeb.AttendeeLive do
       # waiting, so they don't take the silence for a failure and post again.
       waiting: Enum.filter(held, &mine?(&1, token)),
       left: Sessions.questions_left(room, token),
-      by_id: Map.new(visible, &{&1.id, &1}),
-      voted: voted,
-      display_ids: display_ids,
-      moved: moved_count(display_ids, sorted_ids)
+      voted: voted
     )
+    |> order_pinned()
     |> drop_pending_if_closed()
   end
 
@@ -226,20 +243,13 @@ defmodule QuorumWeb.AttendeeLive do
   defp held_back(socket, attrs, message),
     do: assign(socket, draft: attrs[:body] || "", status: message)
 
-  # Keep the order the reader is looking at, appending anything new at the end.
-  defp reconcile(display_ids, sorted_ids) do
-    kept = Enum.filter(display_ids, &(&1 in sorted_ids))
-    kept ++ Enum.reject(sorted_ids, &(&1 in kept))
-  end
+  # Pinned rows keep their rank among themselves and sit above the rest.
+  defp order_pinned(socket) do
+    {pinned, rest} =
+      Enum.split_with(socket.assigns.visible, &MapSet.member?(socket.assigns.pinned, &1.id))
 
-  # How many questions would rise if the reader resorted now.
-  defp moved_count(display_ids, sorted_ids) do
-    di = index_map(display_ids)
-    si = index_map(sorted_ids)
-    Enum.count(sorted_ids, fn id -> Map.get(si, id, 0) < Map.get(di, id, 0) end)
+    assign(socket, visible: pinned ++ rest)
   end
-
-  defp index_map(ids), do: ids |> Enum.with_index() |> Map.new()
 
   defp mine?(question, token), do: question.submitter_token == token
 
@@ -330,7 +340,7 @@ defmodule QuorumWeb.AttendeeLive do
 
         <section :if={!@pending} style="padding:22px;">
           <p style="font:400 16px/1.45 var(--q-font-serif);margin:0 0 14px;">
-            Ask the presenter anything, or vote anonymously for a question you want answered.
+            Ask the presenter anything, or vote anonymously for a question below.
           </p>
           <form id="ask-form" phx-submit="ask" phx-change="draft">
             <label class="q-sr-only" for="body">Your question</label>
@@ -348,7 +358,14 @@ defmodule QuorumWeb.AttendeeLive do
               style="margin-top:10px;"
             >
               <label class="q-sr-only" for="name">Your name</label>
-              <input id="name" name="name" class="q-input" maxlength="60" placeholder="Your name" />
+              <input
+                id="name"
+                name="name"
+                class="q-input"
+                value={@name}
+                maxlength="60"
+                placeholder="Your name"
+              />
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:12px;flex-wrap:wrap;">
               <button
@@ -360,7 +377,7 @@ defmodule QuorumWeb.AttendeeLive do
                 Add your name
               </button>
               <span :if={@show_name and @room.allow_display_name?} class="q-meta">
-                Shown on this question only.
+                Shown on the questions you post.
               </span>
               <span :if={!@room.allow_display_name?} class="q-meta">
                 Every question here is anonymous.
@@ -400,16 +417,6 @@ defmodule QuorumWeb.AttendeeLive do
         </div>
       </section>
 
-      <div
-        :if={@moved > 0}
-        style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 22px;background:var(--q-surface-sunken);"
-      >
-        <span class="q-meta">
-          {@moved} {if @moved == 1, do: "question", else: "questions"} moved above
-        </span>
-        <button type="button" class="q-button q-button--secondary" phx-click="resort">Resort list</button>
-      </div>
-
       <section style="padding:16px 22px 32px;display:flex;flex-direction:column;gap:14px;">
         <div
           :if={@visible == [] and @answered == []}
@@ -420,38 +427,50 @@ defmodule QuorumWeb.AttendeeLive do
           <p class="q-meta">Be the first. Ask what you'd like explained.</p>
         </div>
 
-        <div :for={id <- @display_ids} :if={Map.has_key?(@by_id, id)}>
-          <% question = @by_id[id] %>
-          <% voted = MapSet.member?(@voted, id) %>
-          <% pinned = @pinned_id == id %>
+        <div :for={question <- @visible}>
+          <% voted = MapSet.member?(@voted, question.id) %>
+          <% pinned = MapSet.member?(@pinned, question.id) %>
           <div class={["q-row", pinned && "q-row--pinned"]}>
-            <button
-              type="button"
-              class={["q-vote", voted && "q-vote--voted"]}
-              phx-click="toggle_vote"
-              phx-value-id={id}
-              aria-label={vote_label(voted, question.vote_count)}
-            >
-              <svg width="15" height="12" viewBox="0 0 15 12" aria-hidden="true">
-                <path d="M7.5 1 L14 11 L1 11 Z" fill="currentColor" />
-              </svg>
-              <span style="font:700 15px var(--q-font-sans);margin-top:2px;">{question.vote_count}</span>
-            </button>
+            <div class="q-row-controls">
+              <button
+                type="button"
+                class={["q-vote", voted && "q-vote--voted"]}
+                phx-click="toggle_vote"
+                phx-value-id={question.id}
+                aria-pressed={to_string(voted)}
+                aria-label={vote_label(voted, question.vote_count)}
+              >
+                <svg width="15" height="12" viewBox="0 0 15 12" aria-hidden="true">
+                  <path d="M7.5 1 L14 11 L1 11 Z" fill="currentColor" />
+                </svg>
+                <span style="font:700 15px var(--q-font-sans);margin-top:2px;">{question.vote_count}</span>
+              </button>
+              <button
+                type="button"
+                class={["q-pin", pinned && "q-pin--on"]}
+                phx-click="toggle_pin"
+                phx-value-id={question.id}
+                aria-pressed={to_string(pinned)}
+                aria-label={
+                  if pinned,
+                    do: "Pinned to the top of your list. Press to unpin",
+                    else: "Pin for me, to keep this at the top of your list"
+                }
+              >
+                <svg width="13" height="16" viewBox="0 0 13 16" aria-hidden="true">
+                  <path
+                    d="M4 1h5l-.6 4.2 2.4 2.3H2.2l2.4-2.3z"
+                    fill={if pinned, do: "currentColor", else: "none"}
+                    stroke="currentColor"
+                    stroke-width="1.2"
+                    stroke-linejoin="round"
+                  />
+                  <path d="M6.5 7.5V15" stroke="currentColor" stroke-width="1.2" />
+                </svg>
+              </button>
+            </div>
             <div style="flex:1;min-width:0;">
               <p class="q-question">{question.body}</p>
-
-              <div :if={pinned} class="q-status q-status--saved">
-                Voted. Held in place while you read.
-                <button
-                  type="button"
-                  class="q-button--link"
-                  phx-click="resort"
-                  style="margin-left:8px;"
-                >
-                  Let it move
-                </button>
-              </div>
-              <div :if={voted and not pinned} class="q-status q-status--saved">Voted</div>
 
               <div
                 :if={mine?(question, @token)}
@@ -464,7 +483,7 @@ defmodule QuorumWeb.AttendeeLive do
                   class="q-button--link"
                   style="color:var(--q-destructive);"
                   phx-click="retract"
-                  phx-value-id={id}
+                  phx-value-id={question.id}
                 >
                   Retract it
                 </button>

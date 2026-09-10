@@ -1,6 +1,6 @@
 # Quorum usage
 
-Last updated: 2026-09-09 20:30:00 UTC
+Last updated: 2026-09-10 10:10:00 UTC
 
 Quorum runs one live session at a time as a room. A presenter opens the room, projects it, and answers the questions students rank from their seats.
 
@@ -69,6 +69,16 @@ Enter a work email at `/sign-in` and Quorum sends a single-use link that expires
 
 Single sign-on appears on the page but is disabled, with microcopy saying what turns it on: an institution's provider being connected.
 
+### Joining
+
+`/join` asks for the five characters on the wall, one per slot, with the caret on the slot the next character goes in. Scanning the QR code skips the screen; typing `/join?code=K7QM4` fills it in.
+
+The fifth character resolves the room, and the screen changes to it: the session's name at the top, a live line counting who is already in and how many questions they have asked, the room's own gradient behind it all, and only then a way in. A code that matches nothing says so and names what it rejected. A session that has closed says that too, and offers what was asked rather than a way in.
+
+**Add a display name** signs what the student posts. The name reaches the feed's composer already filled in, so it's asked for once rather than per question, and it never appears in a URL. Without one, every question is anonymous. The badge in the corner reads back whichever it is.
+
+**See demo** opens the seeded session for anyone with no code to type.
+
 ### Host console
 
 The room bar carries the room's name with a Rename control, the live counts, Open projection, and Close session. While nobody has posted, the joining panel takes the space with the QR code, the join code, Copy student link, and New code. New code issues a fresh one and the old code stops working, for a code shown to the wrong room. Once a question arrives the panel shrinks to a strip and the queue takes over.
@@ -100,6 +110,8 @@ With nothing spotlighted, the QR code and the five-character join code own the s
 
 The footer counts the students connected and the questions asked.
 
+The hall belongs to the room rather than to the screen showing it, so it survives a reload, a second projector follows the first, and the join page in every student's hand takes the same one.
+
 ### Settings
 
 Settings open from the console at `/host/:host_token/settings`, with six categories on a rail. Each has its own URL, so a tab can be linked or reloaded.
@@ -117,7 +129,7 @@ Every control applies as you change it. There is no save button, and the line be
 
 **Questions** sets the longest a question may be (140, 280, 500, or 1000 characters), how many a student can have waiting at once, and whether students may sign what they post. The composer follows all three. Answered and hidden questions stop counting against their asker, so a student who's been answered can post again. Turning signing off posts every question anonymously, including any name an old page still sends.
 
-The same tab decides what happens to the questions when the session ends. **Keep this room's questions** is on, because a term of them is the record of what didn't land: which weeks drew nothing, which drew the same question forty times, what belongs in the next tutorial. Turning it off deletes every question in the room, and its votes, the moment you close the session, with no undo.
+The same tab decides what happens to the questions when the session ends. **Keep this room's questions** is on, because a term of them is the record of what didn't get through: which weeks drew nothing, which drew the same question forty times, what belongs in the next tutorial. Turning it off deletes every question in the room, and its votes, the moment you close the session, with no undo.
 
 **Projection** sets what the screen at the front shows. Question size runs from Small, for a seminar room or a question you'd rather not have wrapping, through Standard, which is readable from the back of a full hall, to Largest. Under the question you can show or hide who asked and how many voted; with both off there's no line at all. Around it, the join code can stay in a rail beside a spotlighted question for anyone arriving late, and the connected and asked counts can come off the bottom. Colours are on the Appearance tab. Every change reaches the projection live, so you can leave it running while you set it.
 
@@ -148,11 +160,13 @@ A held question is invisible to the room and to the projection. Its own asker se
 
 ### Student feed
 
-Students post a question, optionally with a name, and upvote anything already asked. A vote holds that row in place while they read, with a **Let it move** control and a count of how many questions have risen above it, so the list never reorders under a thumb.
+Students post a question, optionally with a name, and upvote anything already asked. A vote fills the vote box and moves the count, and that's all it does: the list ranks live, so a row can move as the room votes.
+
+To keep track of one question through that, press the pin beside its vote box. Pinned questions sit at the top of that student's own list, marked, and the pin is one browser's own: it changes nothing about the ranking anyone else sees. It appears on hover on a pointer, and stands there on a phone.
 
 Pressing **Post question** doesn't write it yet. The composer is replaced by the question, a bar that burns down over ten seconds, and a **Cancel** button counting the seconds off. That window is for the student who spots the same question already in the list, catches a typo, or thinks better of it. Cancelling writes nothing at all: the text goes back in the composer, and nobody saw it. **Send it now** skips the wait.
 
-Students can retract their own questions. A question they upvoted reads "Voted" in words, not colour alone.
+Students can retract their own questions.
 
 When the room holds questions for review, a student's own held question appears under "Waiting for your presenter" with a note that nobody else can see it yet. They can retract it from there.
 

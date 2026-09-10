@@ -53,6 +53,7 @@ defmodule Quorum.Sessions.Room do
         :projection_dark_to,
         :projection_angle,
         :projection_drift?,
+        :projection_dark?,
         :projection_question_scale,
         :projection_show_asker?,
         :projection_show_votes?,
@@ -165,6 +166,15 @@ defmodule Quorum.Sessions.Room do
     end
 
     attribute :projection_drift?, :boolean do
+      allow_nil?(false)
+      public?(true)
+      default(true)
+    end
+
+    # Which of the two halls the projection is showing. Kept on the room rather
+    # than in the projection's own process, because the join page follows it: a
+    # student's phone reads as a second window on the same wall.
+    attribute :projection_dark?, :boolean do
       allow_nil?(false)
       public?(true)
       default(true)

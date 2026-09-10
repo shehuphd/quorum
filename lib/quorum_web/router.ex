@@ -37,6 +37,7 @@ defmodule QuorumWeb.Router do
 
     get "/rooms", RoomController, :index
     live "/join", JoinLive, :index
+    post "/join", RoomController, :join
     live "/r/:code", AttendeeLive, :show
     live "/host/:host_token", HostLive, :show
     live "/host/:host_token/project", ProjectionLive, :show

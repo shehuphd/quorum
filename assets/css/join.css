@@ -1,0 +1,355 @@
+/* Join by code. The student's phone takes the room's own gradient, so it reads
+   as a second window on the wall they're looking at. Two themes, chosen by the
+   room rather than the device: .q-join is the lit hall, .q-join--dark the dark
+   one. Every colour on the screen comes from the --j-* set below, so the two
+   passes differ by nine declarations rather than by a second stylesheet. */
+
+.q-join {
+  --j-ink: var(--q-ink);
+  --j-muted: var(--q-ink-muted);
+  --j-faint: var(--q-ink-muted);
+  --j-slot: #ffffff;
+  --j-slot-border: var(--q-control-border);
+  --j-accent: var(--q-accent);
+  --j-hairline: var(--q-hairline);
+  --j-skeleton: rgba(20, 23, 26, 0.09);
+  --j-warn: var(--q-destructive);
+  --j-off: rgba(20, 23, 26, 0.06);
+
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  color: var(--j-ink);
+  background: var(--q-projection-light);
+}
+
+.q-join--dark {
+  --j-ink: var(--q-on-dark);
+  --j-muted: var(--q-on-dark-muted);
+  --j-faint: var(--q-on-dark-faint);
+  --j-slot: rgba(79, 191, 155, 0.09);
+  --j-slot-border: rgba(255, 255, 255, 0.16);
+  --j-accent: var(--q-accent-on-dark);
+  --j-hairline: var(--q-on-dark-hairline);
+  --j-skeleton: rgba(255, 255, 255, 0.13);
+  --j-warn: #f0a79c;
+  --j-off: rgba(255, 255, 255, 0.07);
+
+  background: var(--q-projection-dark);
+}
+
+/* The same slow drift the projection uses while it waits. */
+.q-join--drift {
+  background-size: 150% 150%;
+  animation: q-drift 26s ease-in-out infinite alternate;
+}
+
+.q-join-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px;
+}
+
+.q-join-badge {
+  font: 500 12px var(--q-font-sans);
+  color: var(--j-muted);
+  border: 1px solid var(--j-hairline);
+  border-radius: 999px;
+  padding: 5px 11px;
+  white-space: nowrap;
+}
+
+.q-join-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 8px 22px 28px;
+}
+
+.q-join-inner {
+  width: 100%;
+  max-width: 560px;
+}
+
+.q-join-title {
+  font: 700 clamp(30px, 8.5vw, 40px) / 1.1 var(--q-font-sans);
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* The code row. The input is a transparent sheet over the slots: tapping
+   anywhere on the row focuses it and the keyboard comes up, while what the
+   student reads is the five boxes the server draws. */
+.q-slots {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  margin: 26px 0 0;
+}
+
+.q-slots-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 16px; /* anything smaller and iOS zooms the page on focus */
+  z-index: 1;
+}
+
+.q-slots-input:focus {
+  outline: none;
+}
+
+.q-slot {
+  flex: 1 1 0;
+  min-width: 0;
+  aspect-ratio: 5 / 6;
+  max-height: 108px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--j-slot);
+  border: 1px solid var(--j-slot-border);
+  border-radius: 8px;
+  font: 700 clamp(26px, 7.4vw, 44px) var(--q-font-sans);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.q-slot--caret {
+  border-color: var(--j-accent);
+  box-shadow: inset 0 0 0 1px var(--j-accent);
+  background: none;
+}
+
+/* The caret itself only blinks while the field has focus, so a screen sitting
+   idle isn't a blinking bar in someone's eyeline. */
+.q-slots:focus-within .q-slot--caret::after {
+  content: "";
+  width: 2px;
+  height: 44%;
+  background: var(--j-accent);
+  animation: q-caret 1.06s step-end infinite;
+}
+
+@keyframes q-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.q-join-status {
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+  font: 400 13px var(--q-font-sans);
+  color: var(--j-muted);
+}
+
+.q-join-status--warn {
+  color: var(--j-warn);
+}
+
+.q-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--j-accent);
+  flex: none;
+}
+
+.q-dot--off {
+  background: var(--j-faint);
+}
+
+.q-skeleton {
+  height: 9px;
+  border-radius: 999px;
+  background: var(--j-skeleton);
+  animation: q-skeleton 2.4s ease-in-out infinite;
+}
+
+@keyframes q-skeleton {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.q-join-name {
+  margin: 16px 0 0;
+}
+
+.q-join-name input {
+  width: 100%;
+  background: var(--j-slot);
+  border: 1px solid var(--j-slot-border);
+  border-radius: var(--q-radius-input);
+  color: var(--j-ink);
+  font: 400 16px var(--q-font-sans);
+  min-height: var(--q-touch);
+  padding: 0 14px;
+}
+
+.q-join-name input::placeholder {
+  color: var(--j-faint);
+}
+
+.q-join-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin: 20px 0 0;
+}
+
+.q-join-go {
+  flex: 1;
+  font-size: 16px;
+}
+
+/* The way into the seeded session, for anyone who has no code to type. It
+   reads as the quieter of the two, since a student with a code wants the
+   other one. */
+.q-join-demo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--q-touch);
+  padding: 0 18px;
+  border: 1px solid var(--j-hairline);
+  border-radius: var(--q-radius-input);
+  background: none;
+  color: var(--j-ink);
+  font: 600 16px var(--q-font-sans);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.q-join-demo:hover {
+  border-color: var(--j-accent);
+  color: var(--j-accent);
+}
+
+.q-join-go[disabled] {
+  background: var(--j-off);
+  border-color: transparent;
+  color: var(--j-faint);
+  cursor: not-allowed;
+}
+
+.q-join-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 22px 26px;
+  font: 400 12px/1.5 var(--q-font-sans);
+  color: var(--j-faint);
+}
+
+.q-join-foot p {
+  margin: 0;
+  max-width: 34em;
+}
+
+/* A text link needs a 44px target without the sentence around it growing. */
+.q-join-link {
+  position: relative;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: 500 12px var(--q-font-sans);
+  color: var(--j-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.q-join-link::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, var(--q-touch));
+  height: var(--q-touch);
+  transform: translate(-50%, -50%);
+}
+
+/* Laptop and up: the code centres, the way it does on the wall. */
+@media (min-width: 900px) {
+  .q-join-top,
+  .q-join-main,
+  .q-join-foot {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  .q-join-inner {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .q-join-title {
+    font-size: clamp(40px, 4.4vw, 58px);
+  }
+
+  .q-slots {
+    gap: 14px;
+    margin-top: 34px;
+    justify-content: center;
+  }
+
+  .q-slot {
+    flex: 0 0 auto;
+    width: 92px;
+    height: 106px;
+    aspect-ratio: auto;
+    font-size: 46px;
+  }
+
+  .q-join-status {
+    justify-content: center;
+  }
+
+  .q-join-foot {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+  }
+
+  .q-join-actions {
+    justify-content: center;
+    margin-top: 26px;
+  }
+
+  .q-join-go {
+    flex: 0 0 auto;
+    min-width: 240px;
+  }
+
+  .q-join-name {
+    max-width: 320px;
+    margin-inline: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-join--drift,
+  .q-skeleton,
+  .q-slots:focus-within .q-slot--caret::after {
+    animation: none;
+  }
+}

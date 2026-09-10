@@ -84,35 +84,53 @@ defmodule QuorumWeb.AttendeeLiveTest do
     assert html =~ "Anonymous"
   end
 
-  test "voting says Voted in words, not colour alone, and unvoting reverses it", %{conn: conn} do
+  test "voting moves the count and fills the box, and says so to a screen reader", %{conn: conn} do
     room = room()
     question = question(room, "Why does the BEAM preempt?")
 
     {:ok, view, html} = live(conn, ~p"/r/#{room.join_code}")
     assert html =~ "Upvote, 0 votes"
 
-    html = view |> element(~s(button[phx-value-id="#{question.id}"])) |> render_click()
+    html = vote(view, question)
 
+    # The box fills and the count moves. That's the whole of what a vote does.
     assert html =~ "Voted, 1 vote. Press to remove your vote"
-    assert html =~ "Voted. Held in place while you read."
+    assert has_element?(view, ".q-vote--voted")
+    refute html =~ "Held in place"
 
-    html = view |> element(~s(button[phx-value-id="#{question.id}"])) |> render_click()
+    html = vote(view, question)
 
     assert html =~ "Upvote, 0 votes"
+    refute has_element?(view, ".q-vote--voted")
   end
 
-  test "a voted row that is no longer pinned still says Voted", %{conn: conn} do
+  test "a pin lifts one student's question to the top of their own list", %{conn: conn} do
     room = room()
-    question = question(room, "Does the word survive a resort?")
+    top = question(room, "The one the room wants")
+    votes(top, 3)
+    other = question(room, "The one this student is watching")
 
-    {:ok, view, _html} = live(conn, ~p"/r/#{room.join_code}")
-    view |> element(~s(button[phx-value-id="#{question.id}"])) |> render_click()
+    {:ok, view, html} = live(conn, ~p"/r/#{room.join_code}")
+    assert above?(html, top.body, other.body)
 
-    view |> element("button", "Let it move") |> render_click()
+    html = view |> element(~s(.q-pin[phx-value-id="#{other.id}"])) |> render_click()
 
-    assert has_element?(view, ".q-status--saved", "Voted")
-    refute has_element?(view, ".q-status--saved", "Held in place")
-    assert render(view) =~ "Voted, 1 vote. Press to remove your vote"
+    assert above?(html, other.body, top.body)
+    assert has_element?(view, ".q-row--pinned")
+
+    # The pin is one browser's own. Another student sees the room's ranking.
+    {:ok, _view, html} = live(build_conn(), ~p"/r/#{room.join_code}")
+    assert above?(html, top.body, other.body)
+  end
+
+  defp vote(view, question),
+    do: view |> element(~s(.q-vote[phx-value-id="#{question.id}"])) |> render_click()
+
+  # Which of two questions the list draws first.
+  defp above?(html, first, second) do
+    {a, _} = :binary.match(html, first)
+    {b, _} = :binary.match(html, second)
+    a < b
   end
 
   test "an answered question moves to the answered list with voting closed", %{conn: conn} do

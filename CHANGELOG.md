@@ -40,7 +40,7 @@ All notable changes to Quorum are recorded here, dated per release.
 - Four things can hold a question: the room holds everything, the asker has had nothing approved here yet, the body uses a held word, or the body carries a link. Any one is enough, and each holds rather than refuses.
 - Holding a student's first question reads trust per room, since students have no accounts. Once one of their questions is approved, the rest go straight through.
 - A signed-in presenter can have the rooms they open start with holding on. It seeds a new room only, so changing it never rewrites a session already running.
-- Questions outlive the session by default, because a term of them is the record of what didn't land. A room can be set to delete them, with their votes, the moment the session closes.
+- Questions outlive the session by default, because a term of them is the record of what didn't get through. A room can be set to delete them, with their votes, the moment the session closes.
 - Retracting a question that anyone had upvoted used to fail on a foreign key. Votes now go with the question they're about.
 - A question can only reach the projection if the room can already see it. The check moved to the domain, so holding a question back means the whole hall, not just the queue.
 - A posted question waits ten seconds before it's written, counting down where the composer was, with a bar that burns to nothing. Cancelling writes nothing at all and hands the text back, so there's no question to retract and nobody saw it.
@@ -51,3 +51,10 @@ All notable changes to Quorum are recorded here, dated per release.
 - Every page is checked at 375px, 768px, 1280px, and 1600px, and none of them scrolls sideways.
 - LiveView test suite over all five screens, covering ranking, voting, spotlight, search, the close dialog, keyboard shortcuts, settings and readings, and live arrival of questions.
 - The launcher starts PostgreSQL when it's installed but stopped: Postgres.app's own server, a Homebrew service, or a cluster named by `PGDATA`, in that order. It never uses sudo, so where a privileged service manager is the only route it prints the command instead. `launch.bat` does the same on Windows.
+- The join screen is the code, rather than a form asking for it: five slots with the caret on the next one, the room's own gradient behind them, and the session named the moment the fifth character resolves it, with a live count of who is already in and what they have asked. A closed session says so. Both halls, lit and dark, and the room chooses which.
+- Which hall the projection is showing belongs to the room now, so it survives a reload, a second screen follows the first, and every join page in the room takes the same one.
+- A display name can be given once on the way in, and the feed's composer opens with it. It goes through the session cookie, never a URL.
+- **See demo** beside the way in, for anyone with no code to type.
+- A vote fills the vote box and moves the count, and nothing else: no held row, no resort control, no line saying what was already pressed.
+- A pin beside each vote box, one browser's own, lifting a question to the top of that student's list without touching the ranking anyone else sees.
+- The projection's gradient drifted nowhere: an inline `background` shorthand was resetting the background size the animation moves across.

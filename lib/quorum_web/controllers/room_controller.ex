@@ -26,6 +26,32 @@ defmodule QuorumWeb.RoomController do
     end
   end
 
+  @display_name_key "quorum_display_name"
+
+  @doc "The key the join page's display name is kept under, for the feed to read."
+  def display_name_key, do: @display_name_key
+
+  @doc """
+  The way in from the join page. It's a plain form post rather than a live
+  navigation so a display name can reach the session cookie: the feed reads it
+  there and signs the student's questions with it, and the name is never put in
+  a URL.
+  """
+  def join(conn, params) do
+    code = params |> Map.get("code", "") |> to_string() |> String.trim() |> String.upcase()
+    name = params |> Map.get("name", "") |> to_string() |> String.trim() |> String.slice(0, 60)
+
+    case Sessions.get_room_by_code(code) do
+      {:ok, %{} = room} ->
+        conn
+        |> put_session(@display_name_key, name)
+        |> redirect(to: ~p"/r/#{room.join_code}")
+
+      _ ->
+        redirect(conn, to: ~p"/join?code=#{code}")
+    end
+  end
+
   def index(conn, _params) do
     case conn.assigns[:current_user] do
       nil ->

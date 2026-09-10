@@ -7,6 +7,7 @@
 @import "./tokens.css";
 @import "./quorum.css";
 @import "./landing.css";
+@import "./join.css";
 @import "./shell.css";
 @source "../css";
 @source "../js";
