@@ -50,3 +50,4 @@ All notable changes to Quorum are recorded here, dated per release.
 - All six settings tabs are drawn.
 - Every page is checked at 375px, 768px, 1280px, and 1600px, and none of them scrolls sideways.
 - LiveView test suite over all five screens, covering ranking, voting, spotlight, search, the close dialog, keyboard shortcuts, settings and readings, and live arrival of questions.
+- The launcher starts PostgreSQL when it's installed but stopped: Postgres.app's own server, a Homebrew service, or a cluster named by `PGDATA`, in that order. It never uses sudo, so where a privileged service manager is the only route it prints the command instead. `launch.bat` does the same on Windows.

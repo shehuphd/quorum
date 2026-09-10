@@ -7,7 +7,7 @@ Quorum runs one live session at a time as a room. A presenter opens the room, pr
 ## Prerequisites
 
 - Elixir (`elixir --version`)
-- PostgreSQL, running and reachable (`pg_isready`)
+- PostgreSQL, installed (`pg_isready`). The launcher starts it if it isn't running.
 
 ## Setup and run
 
@@ -15,7 +15,7 @@ Quorum runs one live session at a time as a room. A presenter opens the room, pr
 ./launch.sh
 ```
 
-The launcher checks both prerequisites, fetches dependencies, creates and migrates the database, frees a port, and opens a browser. macOS users can double-click `launch.command` instead; Windows users can double-click `launch.bat`.
+The launcher checks both prerequisites, fetches dependencies, creates and migrates the database, frees a port, and opens a browser. If PostgreSQL is installed but stopped, it starts it: Postgres.app's own server, a Homebrew service, or a cluster named by `PGDATA`, in that order. It never uses sudo, so where a privileged service manager is the only route it prints the command instead of running it. macOS users can double-click `launch.command` instead; Windows users can double-click `launch.bat`.
 
 To run the steps by hand:
 

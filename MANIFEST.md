@@ -1,6 +1,6 @@
 # Quorum manifest
 
-Last updated: 2026-09-09 22:00:00 UTC
+Last updated: 2026-09-10 08:20:00 UTC
 
 Map of every source file: what it defines and what it touches. The Ash resources
 are grouped under the `Quorum.Sessions` domain; the LiveViews are the five live
@@ -111,9 +111,9 @@ screens, and the landing page is a plain controller.
 
 | File | Role |
 |---|---|
-| `launch.sh` | Checks Elixir and PostgreSQL, stops a stale server started from this directory, fetches deps, sets up the database, finds a free port, opens a browser, and runs the server. |
+| `launch.sh` | Checks Elixir, starts PostgreSQL if it's installed but stopped (Postgres.app, a Homebrew service, or `$PGDATA`, never with sudo), stops a stale server started from this directory, fetches deps, sets up the database, finds a free port, opens a browser, and runs the server. |
 | `launch.command` | macOS double-click wrapper around `launch.sh`. |
-| `launch.bat` | Windows equivalent. |
+| `launch.bat` | Windows equivalent, including the PostgreSQL start. Written but not run on Windows. |
 
 ## Tests
 

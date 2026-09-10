@@ -12,7 +12,7 @@ The landing page, presenter sign-in, and the five screens are built and driven b
 
 Prerequisites: Elixir and PostgreSQL. Check them with `elixir --version` and `pg_isready`; if either is missing, install Elixir from [elixir-lang.org/install](https://elixir-lang.org/install.html) and PostgreSQL from [postgresql.org/download](https://www.postgresql.org/download/).
 
-The quickest start is the launcher, which checks the prerequisites, fetches dependencies, sets up the database, picks a free port, and opens a browser:
+The quickest start is the launcher, which starts PostgreSQL if it's installed but not running, fetches dependencies, sets up the database, picks a free port, and opens a browser:
 
 ```bash
 ./launch.sh
