@@ -250,6 +250,7 @@ defmodule QuorumWeb.HostLive do
   defp held_because(%{held_reason: :word}), do: "uses a held word"
   defp held_because(%{held_reason: :link}), do: "carries a link"
   defp held_because(%{held_reason: :screening}), do: "being checked by the AI"
+  defp held_because(%{held_reason: :suspected}), do: "reads like an instruction to the AI"
   defp held_because(%{held_reason: :injection}), do: "the AI read this as aimed at itself"
   defp held_because(_), do: "held"
 

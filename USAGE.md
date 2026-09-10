@@ -188,7 +188,9 @@ Holding a student's first question reads trust per room, because students have n
 
 If you're signed in, **Start the rooms I open with the first of these on** makes holding your default. It seeds a new room only, so changing it never rewrites a session already running.
 
-The fifth trigger needs the AI service running, and it works the other way around from the rest: every question is held for a moment while a model reads it, a clean read releases it on its own within a few seconds, and only the ones read as aimed at the AI stay for you. Questions about AI go straight through; it's instructions to the machine the screen is for. While the service is down the switch holds nothing.
+The fifth trigger needs the AI service running, and it works the other way around from the rest: every question is held for a moment while a model reads it, a clean read releases it on its own within a few seconds, and only the ones read as aimed at the AI stay for you. Questions about AI go straight through; it's instructions to the machine the screen is for. It's on by default, since a room can be opened to anyone with the link, and you can turn it off per room. While the service is down the switch holds nothing.
+
+Underneath the switch, and whatever it's set to, the blatant attempts are caught for free: an "ignore previous instructions" opener, a demand to print the system prompt, a chat-role marker pasted into the body. These are held for you without a model reading them, and the text is cleaned of the invisible characters used to hide such wording before anything, a person or a pattern, reads it. This runs whenever the AI service is up, so an open room still has a floor under it even with the screen turned off.
 
 A held question is invisible to the room and to the projection. Its own asker sees it waiting, and can retract it, so nobody posts the same question twice thinking the first one failed. While anything is held, the console carries a review queue above the ranked queue, with **Approve** to send a question to the room and **Refuse** to hide it, and each row says why it's waiting. A refused question is hidden rather than deleted, so you can restore it.
 

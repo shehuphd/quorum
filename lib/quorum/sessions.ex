@@ -10,7 +10,7 @@ defmodule Quorum.Sessions do
   use Ash.Domain, otp_app: :quorum
 
   require Ash.Query
-  alias Quorum.Sessions.{Question, Reading, Room, Vote}
+  alias Quorum.Sessions.{Injection, Question, Reading, Room, Vote}
 
   resources do
     resource(Quorum.Sessions.Room)
@@ -64,8 +64,8 @@ defmodule Quorum.Sessions do
   Close a room to new questions and votes.
 
   The questions stay unless the room says otherwise. A term of them is what
-  tells a presenter which material didn't land, so keeping them is the point of
-  the room rather than a default nobody chose. A room with `keep_questions?`
+  shows a presenter which material missed, so keeping them is the point of the
+  room rather than a default nobody chose. A room with `keep_questions?`
   off has them deleted here, with their votes, and there's no undo.
   """
   def close_room(room) do
@@ -222,7 +222,10 @@ defmodule Quorum.Sessions do
   """
   def ask(room_id, attrs) do
     {:ok, room} = get_room(room_id)
-    body = attrs |> Map.get(:body, "") |> to_string()
+    # Normalized on the way in, so the length check, the moderation triggers, the
+    # stored row, and anything the AI reads all see the same clean text, with no
+    # invisible characters left to smuggle an instruction past a pattern or a person.
+    body = attrs |> Map.get(:body, "") |> to_string() |> Injection.normalize()
 
     cond do
       room.status == :closed ->
@@ -238,6 +241,7 @@ defmodule Quorum.Sessions do
         attrs =
           attrs
           |> Map.drop([:status, "status", :held_reason, "held_reason"])
+          |> Map.put(:body, body)
           |> Map.put(:room_id, room_id)
           |> Map.put(:held_reason, hold_reason(room, body, Map.get(attrs, :submitter_token)))
           |> drop_name_if_anonymous(room)
@@ -295,16 +299,25 @@ defmodule Quorum.Sessions do
   @doc """
   Why this room's moderation would hold this question, or `nil` to let it pass.
 
-  Four triggers, checked in the order a presenter would explain them. Each one
-  holds; none refuses, so the cost of a false positive is a wait.
+  Triggers, checked in the order a presenter would explain them. Each one holds;
+  none refuses, so the cost of a false positive is a wait.
 
+    * `:suspected` the body carries the blatant mark of an instruction to the AI
     * `:room` the room holds everything
     * `:first` the asker has had nothing approved here yet
     * `:word` the body uses a word on the room's held list
     * `:link` the body carries a link
+    * `:screening` the model is checking the body for injection
+
+  `:suspected` is a deterministic floor, ahead of the rest: it runs whenever the
+  AI is reachable at all, with no model call and regardless of the room's own
+  injection screen, so the obvious attempts are caught for free even in a room
+  that screens nothing. The model screen behind `:screening` is the opt-in layer
+  for the cases a pattern can't judge.
   """
   def hold_reason(room, body, submitter_token) do
     cond do
+      Quorum.AI.enabled?() and Injection.suspicious?(body) -> :suspected
       room.hold_for_review? -> :room
       room.hold_first_question? and newcomer?(room.id, submitter_token) -> :first
       held_word?(room.held_words, body) -> :word

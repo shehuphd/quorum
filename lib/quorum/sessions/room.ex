@@ -250,10 +250,10 @@ defmodule Quorum.Sessions.Room do
       default(true)
     end
 
-    # Questions outlive the session by default. A term of them is what tells a
-    # presenter which material didn't land, so they're the record the room is
-    # for. A presenter who'd rather not keep them turns this off, and closing
-    # the session takes them.
+    # Questions outlive the session by default. A term of them is what shows a
+    # presenter which material missed, so they're the record the room is for. A
+    # presenter who'd rather not keep them turns this off, and closing the
+    # session takes them.
     attribute :keep_questions?, :boolean do
       allow_nil?(false)
       public?(true)
@@ -276,13 +276,16 @@ defmodule Quorum.Sessions.Room do
       default(false)
     end
 
-    # Hold anything that reads as an attempt to instruct the AI rather than
-    # ask the presenter. Screened by a model through the sidecar, so the
-    # switch only does anything while one is running.
+    # Have a model read each question for an attempt to instruct the AI rather
+    # than ask the presenter, and hold the ones it flags. Screened through the
+    # sidecar, so the switch only does anything while one is running. On by
+    # default, since the demo is open to anyone with the link. The deterministic
+    # floor in `Sessions.Injection` catches the blatant attempts either way;
+    # this is the model layer for the ones a pattern can't judge.
     attribute :hold_injection?, :boolean do
       allow_nil?(false)
       public?(true)
-      default(false)
+      default(true)
     end
 
     # Hold a student's first question in this room, and let them through once

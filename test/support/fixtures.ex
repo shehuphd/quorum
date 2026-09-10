@@ -5,6 +5,10 @@ defmodule Quorum.Fixtures do
 
   def room(name \\ "Systems Design 201") do
     {:ok, room} = Sessions.open_room(name)
+    # A plain room for tests that aren't about moderation. Injection screening is
+    # on by default in production, so a test that wants it turns it back on; this
+    # keeps the fixture meaning "nothing held" the way most tests assume.
+    {:ok, room} = Sessions.update_settings(room, %{hold_injection?: false})
     room
   end
 

@@ -31,7 +31,7 @@ defmodule Quorum.Sessions.Question do
 
       argument :held_reason, :atom do
         description("Which moderation trigger holds this one for review, or nil for none.")
-        constraints(one_of: [:room, :first, :word, :link, :screening])
+        constraints(one_of: [:room, :first, :word, :link, :screening, :suspected])
       end
 
       # Status is never accepted from the client, only derived here, so no
@@ -124,7 +124,7 @@ defmodule Quorum.Sessions.Question do
     # History rather than state after approval, so it survives the release.
     attribute :held_reason, :atom do
       public?(true)
-      constraints(one_of: [:room, :first, :word, :link, :screening, :injection])
+      constraints(one_of: [:room, :first, :word, :link, :screening, :injection, :suspected])
     end
 
     # The reading-list items the pointer matched, shown to the asker alone.
