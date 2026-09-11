@@ -32,7 +32,7 @@ except ModuleNotFoundError:  # tomllib arrived in Python 3.11
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from keycall import KeyCall, KeyCallError, Message, TextInput
+from keycall import KeyCall, KeyCallError, Message, ModelCategory, TextInput
 
 try:
     import rates.ai as rates_ai
@@ -79,6 +79,20 @@ def key_hint(key):
     """The first four characters and asterisks. Enough to tell keys apart,
     never enough to matter."""
     return key[:4] + "*" * 12
+
+
+def text_models(models):
+    """The models a key can generate text with. The app's every call is text
+    generation (plain, or a schema KeyCall enforces or falls back to JSON for),
+    so a model that can't do that is no use here, whatever else it lists."""
+    return [m for m in models if ModelCategory.TEXT_GENERATION in m.categories]
+
+
+def category_names(models):
+    """What a key's models are for, in words, for an error that tells the person
+    what they handed over: "embedding, image generation"."""
+    names = {c.name.lower().replace("_", " ") for m in models for c in m.categories}
+    return ", ".join(sorted(names))
 
 
 def order_candidates(models):
@@ -265,11 +279,11 @@ class Target:
         return self._client
 
     def models(self):
-        """Every usable text model for this key, in the walk's own order.
-        KeyCall's listing already returns text models only and withholds the
-        ones its catalog records as shut down, which is what makes this list
-        safe to put straight into a picker."""
-        return [m.id for m in order_candidates(self.client().list_models().models)]
+        """Every text model for this key, in the walk's own order. KeyCall
+        withholds the ones its catalog records as shut down, and the category
+        filter drops anything that isn't text generation, so the list is safe to
+        put straight into a picker or walk as candidates."""
+        return [m.id for m in order_candidates(text_models(self.client().list_models().models))]
 
     def candidates(self, kind):
         with self._lock:
@@ -538,6 +552,21 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as error:
             return self._send(422, {"error": "refused", "message": str(error)})
 
+        # The app only ever generates text, so a key that lists none is turned
+        # away with what it does list, rather than stored to fail on first use.
+        usable = text_models(models)
+        if not usable:
+            offered = category_names(models)
+            detail = f" It's for {offered}." if offered else ""
+            return self._send(
+                422,
+                {
+                    "error": "no_text_models",
+                    "message": "This key can't generate text, so it can't run "
+                    f"the assistant.{detail}",
+                },
+            )
+
         self.keyfile.upsert(entry)
         self.keyfile.refresh()
         return self._send(
@@ -547,7 +576,7 @@ class Handler(BaseHTTPRequestHandler):
                 "name": entry["name"],
                 "provider": provider,
                 "key_hint": key_hint(key),
-                "models": [m.id for m in order_candidates(models)],
+                "models": [m.id for m in order_candidates(usable)],
             },
         )
 
