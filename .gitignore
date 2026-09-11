@@ -56,3 +56,7 @@ project/
 # macOS
 .DS_Store
 .neon
+
+# Python bytecode from the sidecar
+__pycache__/
+*.pyc
