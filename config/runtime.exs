@@ -18,6 +18,9 @@ import Config
 # script that automatically sets the env var above.
 if System.get_env("PHX_SERVER") do
   config :quorum, QuorumWeb.Endpoint, server: true
+  # The app is serving, so keep the database warm underneath it. Idle outside the
+  # warm window is the container scaled to zero, not a server sitting idle.
+  config :quorum, :heartbeat, enabled: true, interval_ms: 240_000
 end
 
 config :quorum, QuorumWeb.Endpoint,

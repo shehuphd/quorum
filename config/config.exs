@@ -83,6 +83,11 @@ config :quorum, Oban,
     {Oban.Plugins.Cron, crontab: [{"* * * * *", Quorum.Sessions.AutoClose}]}
   ]
 
+# A periodic query that keeps a suspending database warm while the app runs. Off
+# here; runtime config turns it on in production, where the stack scales to zero
+# and Neon suspends when idle.
+config :quorum, :heartbeat, enabled: false, interval_ms: 240_000
+
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
