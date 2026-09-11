@@ -20,7 +20,11 @@ defmodule QuorumWeb.PageController do
   @cooldown_key "contact_sent_at"
 
   def home(conn, _params) do
+    # The landing tab carries the brand and what the app is, rather than a page
+    # name and a suffix, so an empty suffix leaves the title exactly as set.
     render(conn, :home,
+      page_title: "Quorum | Live Questions Platform",
+      title_suffix: "",
       demo: demo(),
       example: LandingExamples.sample(),
       example_age: LandingExamples.random_age()

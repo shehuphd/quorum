@@ -3,6 +3,13 @@ defmodule QuorumWeb.PageControllerTest do
 
   alias Quorum.Sessions.Demo
 
+  test "the landing tab title is the brand and what the app is", %{conn: conn} do
+    html = conn |> get(~p"/") |> html_response(200)
+
+    assert html =~ "<title" and html =~ "Quorum | Live Questions Platform</title>"
+    refute html =~ "Quorum | Live Questions Platform · Quorum"
+  end
+
   test "the hero carries both entry points, a labelled code field and Start a room", %{conn: conn} do
     html = conn |> get(~p"/") |> html_response(200)
 
