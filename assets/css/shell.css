@@ -82,6 +82,29 @@
 .q-shell-footer .q-meta {
   margin: 0;
 }
+.q-byline {
+  font: 400 13px var(--q-font-sans);
+  color: var(--q-ink-muted);
+  white-space: nowrap;
+}
+.q-byline a {
+  color: inherit;
+  text-decoration: underline;
+}
+.q-byline a:hover {
+  color: var(--q-ink);
+}
+/* Centre the credit in the footer, independent of the brand and nav at the
+   edges, so it reads as a byline rather than one more nav item. */
+.q-shell-footer {
+  position: relative;
+}
+.q-shell-footer .q-byline {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
 
 /* The AI keys tab: one row per key, the model picker beside it, and the
    spend counter underneath. */

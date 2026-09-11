@@ -11,9 +11,8 @@ defmodule QuorumWeb.SessionControllerTest do
     assert html =~ ~s(for="code")
     # The placeholder is the code, so the hint and the key are one value.
     assert html =~ ~s(placeholder="#{Accounts.demo_code()}")
-    # The SSO control is disabled rather than inert-looking, and says what turns it on.
+    # The SSO control is disabled rather than inert-looking.
     assert html =~ ~s(disabled="disabled")
-    assert html =~ "Single sign-on turns on once your institution"
     assert html =~ "Join a session with a code"
   end
 

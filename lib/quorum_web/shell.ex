@@ -69,12 +69,22 @@ defmodule QuorumWeb.Shell do
       <.link navigate={~p"/"} class="q-shell-brand" aria-label="Quorum home">
         <Brand.logo size={19} />
       </.link>
+      <.byline />
       <nav class="q-shell-nav" aria-label="Site">
         <.link navigate={~p"/privacy"}>Privacy</.link>
         <.link navigate={~p"/accessibility"}>Accessibility</.link>
         <.link navigate={~p"/contact"}>Contact</.link>
       </nav>
     </footer>
+    """
+  end
+
+  @doc "The maker's credit, centred at the foot of every page."
+  def byline(assigns) do
+    ~H"""
+    <span class="q-byline">
+      By <a href="https://mohammedshehu.com" target="_blank" rel="noopener">Mo Shehu</a>
+    </span>
     """
   end
 end

@@ -175,7 +175,7 @@ defmodule QuorumWeb.ProjectionLive do
         </main>
       <% end %>
 
-      <footer style="display:flex;justify-content:space-between;align-items:flex-end;gap:22px;padding:24px 32px;">
+      <footer style="position:relative;display:flex;justify-content:space-between;align-items:flex-end;gap:22px;padding:24px 32px;">
         <div
           :if={@room.projection_show_counts?}
           style={"font:400 18px var(--q-font-sans);line-height:1.5;#{muted(@dark)}"}
@@ -197,6 +197,15 @@ defmodule QuorumWeb.ProjectionLive do
             else: " for a dark hall."}
           <span :if={@spotlight}>Press <strong>Q</strong> to hide the spotlight.</span>
         </div>
+        <span style={"position:absolute;left:50%;bottom:24px;transform:translateX(-50%);white-space:nowrap;font:400 13px var(--q-font-sans);#{faint(@dark)}"}>
+          By
+          <a
+            href="https://mohammedshehu.com"
+            target="_blank"
+            rel="noopener"
+            style="color:inherit;text-decoration:underline;"
+          >Mo Shehu</a>
+        </span>
       </footer>
     </div>
     """

@@ -46,7 +46,14 @@
             Scan to ask a question
           </p>
           <div class="q-l-projection-qr">{raw(qr(@demo.code, 148))}</div>
-          <p class="q-code" style="font-size:44px;margin:0;">{@demo.code}</p>
+          <p
+            class="q-code"
+            id="q-hero-code"
+            data-rotate-ms="5000"
+            style="font-size:44px;margin:0;"
+          >
+            {@demo.code}
+          </p>
           <div class="q-l-projection-stats">
             <span><strong>{@demo.connected}</strong> connected</span>
             <span><strong>{@demo.posted}</strong> questions</span>
@@ -139,15 +146,20 @@
           points them at items from that list.
         </p>
       </div>
-      <div class="q-l-pointer">
-        <p class="q-question" style="font-size:17px;margin:0;">
+      <div
+        class="q-l-pointer"
+        id="q-pointer"
+        data-rotate-ms="6000"
+        data-scenarios={Jason.encode!(QuorumWeb.LandingExamples.reading_scenarios())}
+      >
+        <p class="q-question" style="font-size:17px;margin:0;" data-pointer="question">
           Is Nagel's bat argument about knowledge or about ontology?
         </p>
         <div class="q-l-pointer-block">
           <div class="q-label" style="margin-bottom:8px;">
             While you wait, from your course reading list
           </div>
-          <p class="q-meta" style="margin:0;line-height:1.7;">
+          <p class="q-meta" style="margin:0;line-height:1.7;" data-pointer="readings">
             <span class="q-l-pointer-link">Nagel, What Is It Like to Be a Bat?</span>, pp. 435 to 441<br />
             <span class="q-l-pointer-link">Lecture 6 slides</span>, the epistemic gap section
           </p>
@@ -174,16 +186,13 @@
           <ul>
             <li>No student accounts, roster upload, or install needed.</li>
             <li>Close rooms at a set time or keep them open longer.</li>
-            <li>Questions are kept after the session, so a term of them reads back.</li>
+            <li>Questions are kept after the session.</li>
           </ul>
         </div>
       </div>
 
       <div class="q-l-section-actions">
         <.link href={~p"/demo/host"} class="q-button">See demo</.link>
-        <p class="q-meta" style="margin:0;">
-          The presenter's console, with a session already running.
-        </p>
       </div>
     </section>
   </div>
@@ -206,6 +215,7 @@
 
 <footer class="q-l-shell q-l-footer">
   <.link href={~p"/"} aria-label="Quorum home"><QuorumWeb.Brand.logo size={20} /></.link>
+  <QuorumWeb.Shell.byline />
   <nav class="q-shell-nav" aria-label="Site">
     <.link navigate={~p"/privacy"}>Privacy</.link>
     <.link navigate={~p"/accessibility"}>Accessibility</.link>

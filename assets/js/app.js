@@ -163,3 +163,79 @@ window.addEventListener("quorum:copy", (event) => {
     }
   })
 })()
+
+// Rotate the hero mock's join code through fresh random five-character strings,
+// so the preview reads as live. Decorative: the QR beside it still points at the
+// demo room. Held still under reduced motion, and paused while the tab is hidden.
+;(() => {
+  const el = document.getElementById("q-hero-code")
+  if (!el) return
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+
+  // The room-code alphabet, ambiguous glyphs (I, O, 0, 1) removed.
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  const code = () =>
+    Array.from({length: 5}, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("")
+
+  const ms = parseInt(el.dataset.rotateMs || "5000", 10)
+  el.style.transition = "opacity 220ms ease"
+  const step = () => {
+    el.style.opacity = "0"
+    setTimeout(() => {
+      el.textContent = code()
+      el.style.opacity = "1"
+    }, 220)
+  }
+
+  let timer = setInterval(step, ms)
+  document.addEventListener("visibilitychange", () => {
+    clearInterval(timer)
+    if (!document.hidden) timer = setInterval(step, ms)
+  })
+})()
+
+// Cycle the reading-pointer illustration through its scenarios: a question and
+// the two list items a room would point a student at. Same motion rules.
+;(() => {
+  const card = document.getElementById("q-pointer")
+  if (!card) return
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+
+  let scenarios
+  try { scenarios = JSON.parse(card.dataset.scenarios || "[]") } catch { return }
+  if (!Array.isArray(scenarios) || scenarios.length < 2) return
+
+  const question = card.querySelector('[data-pointer="question"]')
+  const readings = card.querySelector('[data-pointer="readings"]')
+  if (!question || !readings) return
+
+  const render = (s) => {
+    question.textContent = s.question
+    readings.replaceChildren()
+    s.readings.forEach((r, idx) => {
+      const link = document.createElement("span")
+      link.className = "q-l-pointer-link"
+      link.textContent = r.title
+      readings.append(link, document.createTextNode(`, ${r.detail}`))
+      if (idx < s.readings.length - 1) readings.append(document.createElement("br"))
+    })
+  }
+
+  const ms = parseInt(card.dataset.rotateMs || "6000", 10)
+  question.style.transition = readings.style.transition = "opacity 220ms ease"
+  let i = Math.floor(Math.random() * scenarios.length)
+  const step = () => {
+    i = (i + 1) % scenarios.length
+    question.style.opacity = readings.style.opacity = "0"
+    setTimeout(() => {
+      render(scenarios[i])
+      question.style.opacity = readings.style.opacity = "1"
+    }, 220)
+  }
+
+  let timer = setInterval(step, ms)
+  document.addEventListener("visibilitychange", () => {
+    clearInterval(timer)
+    if (!document.hidden) timer = setInterval(step, ms)
+  })
+})()

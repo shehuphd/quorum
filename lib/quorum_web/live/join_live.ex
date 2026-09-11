@@ -246,6 +246,7 @@ defmodule QuorumWeb.JoinLive do
         <div>
           <p>You remain anonymous unless you choose otherwise.</p>
         </div>
+        <QuorumWeb.Shell.byline />
         <button
           :if={@state == :resolved and @room.allow_display_name?}
           type="button"

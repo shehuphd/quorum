@@ -261,6 +261,10 @@
   margin: 0;
   max-width: 34em;
 }
+.q-join-foot .q-byline {
+  color: inherit;
+  font-size: 12px;
+}
 
 /* A text link needs a 44px target without the sentence around it growing. */
 .q-join-link {

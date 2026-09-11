@@ -105,8 +105,44 @@ defmodule QuorumWeb.LandingExamples do
     }
   ]
 
+  # Illustrative reading-pointer scenarios the landing card cycles through: a
+  # student's question and the two list items a room would point them at.
+  @reading_scenarios [
+    %{
+      question: "Is Nagel's bat argument about knowledge or about ontology?",
+      readings: [
+        %{title: "Nagel, What Is It Like to Be a Bat?", detail: "pp. 435 to 441"},
+        %{title: "Lecture 6 slides", detail: "the epistemic gap section"}
+      ]
+    },
+    %{
+      question: "Does the Chinese Room refute strong AI, or only a version of it?",
+      readings: [
+        %{title: "Searle, Minds, Brains, and Programs", detail: "the systems reply"},
+        %{title: "Lecture 8 slides", detail: "syntax without semantics"}
+      ]
+    },
+    %{
+      question: "Can functionalism handle the inverted spectrum?",
+      readings: [
+        %{title: "Block, Troubles with Functionalism", detail: "sections 2 to 3"},
+        %{title: "Seminar notes, week 5", detail: "qualia and causal role"}
+      ]
+    },
+    %{
+      question: "Is personal identity the body, the mind, or the story?",
+      readings: [
+        %{title: "Parfit, Reasons and Persons", detail: "part 3"},
+        %{title: "Lecture 10 slides", detail: "the teleporter case"}
+      ]
+    }
+  ]
+
   @doc "Every example, for the client to cycle through."
   def all, do: @questions
+
+  @doc "The reading-pointer scenarios the landing illustration cycles through."
+  def reading_scenarios, do: @reading_scenarios
 
   @doc "One example to render before any JavaScript runs, so the card is never empty."
   def sample, do: Enum.random(@questions)

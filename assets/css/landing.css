@@ -272,6 +272,7 @@
   flex-wrap: wrap;
 }
 .q-l-footer {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -281,6 +282,12 @@
      other band rather than jutting 32px further out on each side. */
   padding-top: 30px;
   padding-bottom: 30px;
+}
+.q-l-footer .q-byline {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
 @media (max-width: 900px) {
