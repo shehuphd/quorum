@@ -12,6 +12,12 @@ defmodule Quorum.Sessions.Demo do
 
   @name "Distributed Systems 301"
 
+  # A fixed, memorable code for the demo room, printed on the landing page so
+  # anyone can type it and land in the demo. The room-code generator drops the
+  # ambiguous glyphs I, O, 0, 1, so a code carrying an O can never be handed to
+  # a presenter's own room, and this one won't collide.
+  @code "DEMO7"
+
   # body, display name (nil is anonymous), votes
   @questions [
     {"If a supervisor restarts a crashed child, what happens to the messages that were already in its mailbox?",
@@ -33,6 +39,9 @@ defmodule Quorum.Sessions.Demo do
   @doc "The room's default name, for anything that needs to name it before it exists."
   def name, do: @name
 
+  @doc "The fixed join code the demo room always carries, for the landing page to print."
+  def code, do: @code
+
   @doc "How many questions a freshly seeded demo room holds."
   def question_count, do: length(@questions) + 1
 
@@ -43,8 +52,40 @@ defmodule Quorum.Sessions.Demo do
   """
   def ensure_room do
     case current() do
-      %Room{} = room -> {:ok, room}
-      nil -> seed()
+      %Room{join_code: @code} = room ->
+        {:ok, room}
+
+      # A demo room left over from before the code was fixed: close it so the
+      # next one carries the code the landing page prints.
+      %Room{} = stale ->
+        Sessions.close_room(stale)
+        seed()
+
+      nil ->
+        seed()
+    end
+  end
+
+  @doc """
+  The room a join code opens, seeding the demo room when the code is the demo's
+  own and no room answers to it yet. Every other code is a plain lookup, so this
+  can stand in for `Sessions.get_room_by_code/1` wherever a visitor might be
+  arriving with the printed demo code.
+  """
+  def room_for_code(code) do
+    upcased = code |> to_string() |> String.upcase()
+
+    # The demo code always opens a live demo room, seeding or reseeding one when
+    # the last was closed, so the printed code never opens onto a shut session.
+    # Every other code is the plain lookup, which resolves open and closed rooms
+    # alike so the join flow can show a closed room's archive.
+    if upcased == @code do
+      ensure_room()
+    else
+      case Sessions.get_room_by_code(upcased) do
+        {:ok, %Room{} = room} -> {:ok, room}
+        _ -> {:error, :not_found}
+      end
     end
   end
 
@@ -61,7 +102,15 @@ defmodule Quorum.Sessions.Demo do
 
   @doc "Open a new demo room, whether or not one is already open."
   def seed(name \\ @name) do
-    with {:ok, room} <- Sessions.open_room(name, demo?: true) do
+    # A join code is unique whether its room is open or closed, and the demo's is
+    # fixed, so a closed demo room still holds the code. Free it before taking it
+    # again. The delete cascades to the room's questions and their votes.
+    Room
+    |> Ash.Query.filter(join_code == ^@code)
+    |> Ash.read!()
+    |> Enum.each(&Sessions.delete_room/1)
+
+    with {:ok, room} <- Sessions.open_room(name, demo?: true, code: @code) do
       Enum.each(@questions, &add(room, &1))
 
       case add(room, @answered) do

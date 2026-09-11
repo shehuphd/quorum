@@ -39,10 +39,10 @@ defmodule QuorumWeb.PageControllerTest do
     assert html =~ ~s(href="/demo/project")
   end
 
-  test "with no demo room the page shows the sample code and seeds nothing", %{conn: conn} do
+  test "with no demo room the page shows the standard demo code and seeds nothing", %{conn: conn} do
     html = conn |> get(~p"/") |> html_response(200)
 
-    assert html =~ "Demo room, code K7QM4"
+    assert html =~ "Demo room, code #{Demo.code()}"
     assert Demo.current() == nil
   end
 

@@ -41,7 +41,7 @@ defmodule QuorumWeb.RoomController do
     code = params |> Map.get("code", "") |> to_string() |> String.trim() |> String.upcase()
     name = params |> Map.get("name", "") |> to_string() |> String.trim() |> String.slice(0, 60)
 
-    case Sessions.get_room_by_code(code) do
+    case Sessions.Demo.room_for_code(code) do
       {:ok, %{} = room} ->
         conn
         |> put_session(@display_name_key, name)

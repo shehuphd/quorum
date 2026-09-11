@@ -45,8 +45,18 @@ defmodule Quorum.Sessions do
       hold_for_review?: Keyword.get(opts, :hold_for_review?, moderates_by_default?(owner_id))
     }
 
-    Room |> Ash.Changeset.for_create(:open, attrs) |> Ash.create()
+    Room
+    |> Ash.Changeset.for_create(:open, attrs)
+    |> maybe_force_code(Keyword.get(opts, :code))
+    |> Ash.create()
   end
+
+  # The join code is generated, never client-set, with one exception: the demo
+  # room takes a fixed code so the landing page can print one that always works.
+  defp maybe_force_code(changeset, nil), do: changeset
+
+  defp maybe_force_code(changeset, code),
+    do: Ash.Changeset.force_change_attribute(changeset, :join_code, code)
 
   # A presenter who moderates one session usually moderates the next, so a new
   # room starts where their last preference left it. A room with no owner has

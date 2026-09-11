@@ -69,7 +69,7 @@ defmodule QuorumWeb.JoinLive do
     code = String.slice(code, 0, @length)
 
     if String.length(code) == @length do
-      case Sessions.get_room_by_code(code) do
+      case Sessions.Demo.room_for_code(code) do
         {:ok, %{} = room} -> socket |> assign(code: code) |> watch(room) |> reload()
         _ -> socket |> unwatch() |> assign(code: code, room: nil, state: :not_found)
       end

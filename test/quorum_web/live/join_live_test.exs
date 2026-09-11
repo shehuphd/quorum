@@ -83,6 +83,17 @@ defmodule QuorumWeb.JoinLiveTest do
     assert html =~ "disabled"
   end
 
+  test "the printed demo code resolves, seeding the demo the first time it's typed", %{conn: conn} do
+    assert Quorum.Sessions.Demo.current() == nil
+
+    {:ok, view, _html} = live(conn, ~p"/join")
+    html = type(view, Quorum.Sessions.Demo.code())
+
+    assert html =~ "In session"
+    assert html =~ "Join #{Quorum.Sessions.Demo.name()}"
+    assert Quorum.Sessions.Demo.current().join_code == Quorum.Sessions.Demo.code()
+  end
+
   test "a closed room says so, and offers what was asked rather than a way in", %{conn: conn} do
     room = room()
     question(room, "Was this answered?")

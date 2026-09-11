@@ -13,7 +13,9 @@ defmodule QuorumWeb.PageController do
   alias Quorum.Sessions.Demo
   alias QuorumWeb.LandingExamples
 
-  @sample %{code: "K7QM4", posted: 12, answered: 1, connected: 38, live?: false}
+  # Counts for the hero mock before anyone has seeded the demo room. The code is
+  # always the demo's fixed one, filled in by demo/0.
+  @sample %{posted: 12, answered: 1, connected: 38, live?: false}
   @cooldown_seconds 60
   @cooldown_key "contact_sent_at"
 
@@ -140,7 +142,7 @@ defmodule QuorumWeb.PageController do
   defp demo do
     case Demo.current() do
       nil ->
-        @sample
+        Map.put(@sample, :code, Demo.code())
 
       room ->
         %{visible: visible, answered: answered} =

@@ -26,7 +26,7 @@ defmodule QuorumWeb.AttendeeLive do
     token = session[QuorumWeb.BrowserToken.session_key()]
     name = session[QuorumWeb.RoomController.display_name_key()] || ""
 
-    case Sessions.get_room_by_code(code) do
+    case Sessions.Demo.room_for_code(code) do
       {:ok, %{} = room} ->
         if connected?(socket) do
           Sessions.subscribe(room.id)

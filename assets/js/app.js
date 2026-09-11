@@ -164,36 +164,6 @@ window.addEventListener("quorum:copy", (event) => {
   })
 })()
 
-// Rotate the hero mock's join code through fresh random five-character strings,
-// so the preview reads as live. Decorative: the QR beside it still points at the
-// demo room. Held still under reduced motion, and paused while the tab is hidden.
-;(() => {
-  const el = document.getElementById("q-hero-code")
-  if (!el) return
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
-
-  // The room-code alphabet, ambiguous glyphs (I, O, 0, 1) removed.
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-  const code = () =>
-    Array.from({length: 5}, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("")
-
-  const ms = parseInt(el.dataset.rotateMs || "5000", 10)
-  el.style.transition = "opacity 220ms ease"
-  const step = () => {
-    el.style.opacity = "0"
-    setTimeout(() => {
-      el.textContent = code()
-      el.style.opacity = "1"
-    }, 220)
-  }
-
-  let timer = setInterval(step, ms)
-  document.addEventListener("visibilitychange", () => {
-    clearInterval(timer)
-    if (!document.hidden) timer = setInterval(step, ms)
-  })
-})()
-
 // Cycle the reading-pointer illustration through its scenarios: a question and
 // the two list items a room would point a student at. Same motion rules.
 ;(() => {
