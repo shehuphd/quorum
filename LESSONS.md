@@ -24,3 +24,9 @@ az containerapp update --name quorum --resource-group quorum-demo --image "$DIGE
 ## Editing ACA scale rules via YAML
 
 `rules: null` in an update YAML means "leave unchanged," not "clear the rules." To remove a scale rule, either set `rules` to the explicit list you want to keep, or use the CLI `--scale-rule-*` flags, which replace the whole rule set with the single rule you name. Secrets serialize name-only in the dumped YAML and keep their values on re-apply, so dumping the config and re-applying it is safe.
+
+## A floor pin plus a cached Docker layer freezes the deployed version
+
+The sidecar installs its Python deps in one layer: `COPY sidecar ./sidecar` then `pip3 install -r sidecar/requirements.txt`. That layer is keyed on the `sidecar/` tree, so while nothing under `sidecar/` changes, Docker reuses it. `requirements.txt` pins floors (`keycall>=1.12.0`, `rates>=1.0.1`), and a floor only sets the lowest allowed version, not the installed one. Put together: the image keeps whatever a floor resolved to when the layer first built, and new upstream releases don't reach it however many ship. `keycall` sat behind its floor this way until the floor was raised.
+
+To move the deployed version, bump the floor in `requirements.txt`. The file changes, the layer rebuilds, and pip resolves the newest allowed. Don't trust the pin to tell you what shipped: read the version out of the built image, `docker run --rm --entrypoint python3 <image> -c "import importlib.metadata as m; print(m.version('keycall'))"`. The same caution applies to any dependency on a private API (the sidecar imports `keycall._registry`): test the exact imports against the new version before bumping, since a minor release can move a private module.
