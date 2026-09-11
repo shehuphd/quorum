@@ -743,10 +743,23 @@ defmodule QuorumWeb.SettingsLiveTest do
       on_exit(fn ->
         Application.delete_env(:quorum, :ai_stub_api)
         Application.delete_env(:quorum, :ai_stub)
+        System.delete_env("QUORUM_KEY_GUARD")
       end)
     end
 
     defp ai_api(map), do: Application.put_env(:quorum, :ai_stub_api, map)
+
+    defp house_target do
+      %{
+        "name" => "deepseek",
+        "provider" => "deepseek",
+        "key_hint" => "sk-3************",
+        "model" => nil,
+        "models" => ["deepseek-chat"],
+        "protected" => true,
+        "default" => true
+      }
+    end
 
     defp one_target do
       %{
@@ -905,6 +918,108 @@ defmodule QuorumWeb.SettingsLiveTest do
       assert html =~ "$0.0012</strong> spent"
       assert html =~ "2</strong> calls"
       assert html =~ "20</strong> tokens in"
+    end
+
+    test "the default key is marked, and another key can be made the default", %{conn: conn} do
+      test_pid = self()
+
+      other = Map.merge(one_target(), %{"default" => false, "protected" => false})
+
+      ai_api(%{
+        targets: fn -> {:ok, [house_target(), other]} end,
+        providers: fn -> {:ok, []} end,
+        put_default: fn name ->
+          send(test_pid, {:default, name})
+          :ok
+        end
+      })
+
+      room = room()
+      {:ok, view, html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      assert html =~ "Default"
+
+      view
+      |> element(~s(button[phx-value-name="anthropic"]), "Make default")
+      |> render_click()
+
+      assert_received {:default, "anthropic"}
+    end
+
+    test "a provider that already has a key drops off the add list", %{conn: conn} do
+      ai_api(%{
+        targets: fn -> {:ok, [house_target()]} end,
+        providers: fn -> {:ok, ["deepseek", "openai"]} end
+      })
+
+      room = room()
+      {:ok, _view, html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      assert html =~ ~s(value="openai")
+      refute html =~ ~s(<option value="deepseek">)
+    end
+
+    test "a protected key asks for the passcode before it comes out", %{conn: conn} do
+      test_pid = self()
+      System.put_env("QUORUM_KEY_GUARD", "323dcf")
+
+      ai_api(%{
+        targets: fn -> {:ok, [house_target()]} end,
+        providers: fn -> {:ok, []} end,
+        delete_target: fn name ->
+          send(test_pid, {:removed, name})
+          :ok
+        end
+      })
+
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      # Clicking Remove reveals the passcode field and removes nothing yet.
+      html = view |> element(~s(button[phx-click="ai_remove"]), "Remove") |> render_click()
+      assert html =~ "Passcode to remove"
+      refute_received {:removed, _}
+
+      # The wrong code refuses and keeps the key.
+      view
+      |> element(~s(form[phx-submit="ai_remove_confirm"]))
+      |> render_submit(%{"name" => "deepseek", "code" => "nope"})
+
+      refute_received {:removed, _}
+      assert render(view) =~ "doesn&#39;t match"
+
+      # The right code takes it out.
+      view
+      |> element(~s(form[phx-submit="ai_remove_confirm"]))
+      |> render_submit(%{"name" => "deepseek", "code" => "323dcf"})
+
+      assert_received {:removed, "deepseek"}
+    end
+
+    test "with no passcode set on the deployment, a protected key can't be removed", %{conn: conn} do
+      test_pid = self()
+      System.delete_env("QUORUM_KEY_GUARD")
+
+      ai_api(%{
+        targets: fn -> {:ok, [house_target()]} end,
+        providers: fn -> {:ok, []} end,
+        delete_target: fn name ->
+          send(test_pid, {:removed, name})
+          :ok
+        end
+      })
+
+      room = room()
+      {:ok, view, _html} = live(conn, ~p"/host/#{room.host_token}/settings/ai")
+
+      view |> element(~s(button[phx-click="ai_remove"]), "Remove") |> render_click()
+
+      view
+      |> element(~s(form[phx-submit="ai_remove_confirm"]))
+      |> render_submit(%{"name" => "deepseek", "code" => "anything"})
+
+      refute_received {:removed, _}
+      assert render(view) =~ "locked"
     end
   end
 end

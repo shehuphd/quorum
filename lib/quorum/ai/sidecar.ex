@@ -40,6 +40,14 @@ defmodule Quorum.AI.Sidecar do
     do: post("/targets/#{name}/model", %{model: model || ""}, config, 20_000)
 
   @impl true
+  def put_default(name, config) do
+    case post("/targets/#{name}/default", %{}, config, 10_000) do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @impl true
   def delete_target(name, config) do
     case request(:delete, "/targets/#{name}", nil, config, 10_000) do
       {:ok, _} -> :ok

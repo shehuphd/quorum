@@ -155,8 +155,21 @@ defmodule Quorum.AI do
   @doc "Pin a target to one model, or nil to go back to automatic."
   def pin_model(name, model), do: client().put_model(name, model, config())
 
+  @doc """
+  Make a target the default: tried first for every call, with the other keys
+  as its fallbacks when it can't answer.
+  """
+  def set_default(name), do: client().put_default(name, config())
+
   @doc "Remove a key. The next feature call finds it gone."
   def remove_key(name), do: client().delete_target(name, config())
+
+  @doc """
+  The passcode that guards removing a protected house key, from the environment.
+  `nil` when unset, which reads as locked: a protected key can't be removed
+  until the deployment sets one.
+  """
+  def key_guard, do: System.get_env("QUORUM_KEY_GUARD")
 
   ## The spend
 

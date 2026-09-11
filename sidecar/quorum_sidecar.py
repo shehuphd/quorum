@@ -244,6 +244,11 @@ class Target:
         self.name = entry["name"]
         self.provider = entry["provider"]
         self.pinned_model = entry.get("model")
+        # The house key of a deployed demo: tried first, and the app guards its
+        # removal so a visitor trying their own keys can't take it out. A
+        # user-added key carries neither flag.
+        self.protected = bool(entry.get("protected"))
+        self.default = bool(entry.get("default"))
         self.entry = entry
         self._client = None
         self._candidates = None
@@ -364,6 +369,21 @@ class KeyFile:
             self._write([t.entry for t in self.targets.values() if t.name != name])
             return True
 
+    def set_default(self, name):
+        with self.lock:
+            if name not in self.targets:
+                return False
+            entries = []
+            for target in self.targets.values():
+                entry = dict(target.entry)
+                if target.name == name:
+                    entry["default"] = True
+                else:
+                    entry.pop("default", None)
+                entries.append(entry)
+            self._write(entries)
+            return True
+
     def _write(self, entries):
         lines = [self.HEADER]
         for entry in entries:
@@ -371,6 +391,9 @@ class KeyFile:
             for field in ("provider", "name", "key", "model", "protocol", "base_url"):
                 if entry.get(field):
                     lines.append(f'{field} = "{self._escape(entry[field])}"')
+            for flag in ("protected", "default"):
+                if entry.get(flag):
+                    lines.append(f"{flag} = true")
         text = "\n".join(lines) + "\n"
 
         tmp = self.path + ".tmp"
@@ -424,7 +447,12 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "ok": True,
                     "targets": [
-                        {"name": t.name, "provider": t.provider}
+                        {
+                            "name": t.name,
+                            "provider": t.provider,
+                            "protected": t.protected,
+                            "default": t.default,
+                        }
                         for t in self.keyfile.targets.values()
                     ],
                 },
@@ -441,6 +469,8 @@ class Handler(BaseHTTPRequestHandler):
                     "provider": target.provider,
                     "key_hint": key_hint(target.entry["key"]),
                     "model": target.pinned_model,
+                    "protected": target.protected,
+                    "default": target.default,
                 }
                 try:
                     row["models"] = target.models()
@@ -465,6 +495,10 @@ class Handler(BaseHTTPRequestHandler):
         pin = re.fullmatch(r"/targets/([^/]+)/model", self.path)
         if pin:
             return self._pin_model(pin.group(1))
+
+        make_default = re.fullmatch(r"/targets/([^/]+)/default", self.path)
+        if make_default:
+            return self._set_default(make_default.group(1))
 
         return self._send(404, {"error": "not_found"})
 
@@ -539,6 +573,12 @@ class Handler(BaseHTTPRequestHandler):
         self.keyfile.refresh()
         return self._send(200, {"ok": True, "name": name, "model": model or None})
 
+    def _set_default(self, name):
+        if not self.keyfile.set_default(name):
+            return self._send(404, {"error": "unknown_target"})
+        self.keyfile.refresh()
+        return self._send(200, {"ok": True, "name": name, "default": True})
+
     def _generate(self):
         request = self._body()
         if request is None:
@@ -548,12 +588,16 @@ class Handler(BaseHTTPRequestHandler):
         if not prompt or not isinstance(prompt, str):
             return self._send(400, {"error": "missing_prompt"})
 
+        # A named target is used alone. Otherwise the default key is tried first
+        # and the others are its fallbacks, so a key that's down or out of credit
+        # doesn't take the feature with it while another can still answer.
         name = request.get("target")
         if name:
-            target = self.keyfile.targets.get(name)
+            picked = self.keyfile.targets.get(name)
+            order = [picked] if picked else []
         else:
-            target = next(iter(self.keyfile.targets.values()), None)
-        if target is None:
+            order = self._fallback_order()
+        if not order:
             return self._send(400, {"error": "unknown_target"})
 
         messages = []
@@ -573,52 +617,68 @@ class Handler(BaseHTTPRequestHandler):
             kwargs["response_schema"] = request["schema"]
 
         kind = "schema" if request.get("schema") is not None else "plain"
-        result = model = None
         last_error = None
-        try:
-            for model_id in target.candidates(kind):
-                try:
-                    result = generate_with_schema_fallback(
-                        target.client(), model_id, messages, kwargs
-                    )
-                    if not (result.text or "").strip():
-                        # Tokens were spent and nothing came back, most often a
-                        # reasoning model that thought its way through the whole
-                        # output budget. An empty answer is a failure for the
-                        # caller, so the walk moves on.
-                        last_error = RuntimeError(f"{model_id} returned no text")
-                        result = None
-                        continue
-                    model = model_id
-                    target.remember(kind, model_id)
+        for target in order:
+            try:
+                result, model, error = self._attempt(target, kind, messages, kwargs)
+            except Exception as error:  # a target that can't list, a dead socket
+                last_error = error
+                continue
+
+            if result is None:
+                last_error = error or last_error
+                continue
+
+            usage = result.usage
+            input_tokens = getattr(usage, "input_tokens", None) if usage else None
+            output_tokens = getattr(usage, "output_tokens", None) if usage else None
+            return self._send(
+                200,
+                {
+                    "text": result.text,
+                    "target": target.name,
+                    "provider": target.provider,
+                    "model": model,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "cost": PRICING.cost(target.provider, model, input_tokens, output_tokens),
+                    "elapsed_ms": result.round_trip_duration_ms,
+                    "finish_reason": str(result.finish_reason) if result.finish_reason else None,
+                },
+            )
+
+        return self._send(502, {"error": "provider", "message": str(last_error)})
+
+    def _fallback_order(self):
+        """The default target first, the rest behind it. One list drives both
+        the ordinary call and its fallbacks."""
+        targets = list(self.keyfile.targets.values())
+        return [t for t in targets if t.default] + [t for t in targets if not t.default]
+
+    def _attempt(self, target, kind, messages, kwargs):
+        """Walk one target's models. Returns (result, model_id, error): a result
+        with the model that answered, or None with the last error. Raises only
+        when the target can't be used at all (no listing, dead socket), which the
+        caller reads as a reason to fall through to the next key."""
+        last_error = None
+        for model_id in target.candidates(kind):
+            try:
+                result = generate_with_schema_fallback(
+                    target.client(), model_id, messages, kwargs
+                )
+                if not (result.text or "").strip():
+                    # Tokens were spent and nothing came back, most often a
+                    # reasoning model that thought its way through the whole
+                    # output budget. An empty answer is a failure, so it moves on.
+                    last_error = RuntimeError(f"{model_id} returned no text")
+                    continue
+                target.remember(kind, model_id)
+                return result, model_id, None
+            except KeyCallError as error:
+                last_error = error
+                if error.code.name in CREDENTIAL_FAILURES:
                     break
-                except KeyCallError as error:
-                    last_error = error
-                    if error.code.name in CREDENTIAL_FAILURES:
-                        break
-        except Exception as error:  # a target that can't list, a dead socket
-            return self._send(502, {"error": "sidecar", "message": str(error)})
-
-        if result is None:
-            return self._send(502, {"error": "provider", "message": str(last_error)})
-
-        usage = result.usage
-        input_tokens = getattr(usage, "input_tokens", None) if usage else None
-        output_tokens = getattr(usage, "output_tokens", None) if usage else None
-        return self._send(
-            200,
-            {
-                "text": result.text,
-                "target": target.name,
-                "provider": target.provider,
-                "model": model,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "cost": PRICING.cost(target.provider, model, input_tokens, output_tokens),
-                "elapsed_ms": result.round_trip_duration_ms,
-                "finish_reason": str(result.finish_reason) if result.finish_reason else None,
-            },
-        )
+        return None, None, last_error
 
 
 def main():

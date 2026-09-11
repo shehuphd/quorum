@@ -29,6 +29,9 @@ defmodule Quorum.AIStub do
   def put_model(name, model, _config), do: api(:put_model, [name, model])
 
   @impl true
+  def put_default(name, _config), do: api(:put_default, [name])
+
+  @impl true
   def delete_target(name, _config), do: api(:delete_target, [name])
 
   defp api(name, args) do

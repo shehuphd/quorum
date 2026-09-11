@@ -137,6 +137,21 @@
   margin: 0;
   color: var(--q-destructive);
 }
+.q-ai-default {
+  font: 500 11px var(--q-font-sans);
+  color: var(--q-accent);
+  letter-spacing: 0.04em;
+}
+.q-ai-guard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.q-ai-guard .q-input {
+  width: auto;
+  min-width: 150px;
+}
 .q-ai-add {
   display: flex;
   gap: 12px;

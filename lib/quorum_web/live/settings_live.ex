@@ -52,7 +52,9 @@ defmodule QuorumWeb.SettingsLive do
            ai_provider: "",
            ai_key_status: nil,
            ai_form_seq: 0,
-           ai_spend: nil
+           ai_spend: nil,
+           remove_guard: nil,
+           guard_error: nil
          )
          |> load()}
 
@@ -140,9 +142,47 @@ defmodule QuorumWeb.SettingsLive do
     {:noreply, load_ai(socket)}
   end
 
+  def handle_event("ai_default", %{"name" => name}, socket) do
+    Quorum.AI.set_default(name)
+    {:noreply, load_ai(socket)}
+  end
+
+  # A user-added key goes at a click. A protected house key asks for the
+  # passcode first, so a visitor trying their own keys can't take out the one
+  # the demo runs on.
   def handle_event("ai_remove", %{"name" => name}, socket) do
-    Quorum.AI.remove_key(name)
-    {:noreply, socket |> assign(ai_key_status: nil) |> load_ai()}
+    if protected?(socket, name) do
+      {:noreply, assign(socket, remove_guard: name, guard_error: nil)}
+    else
+      Quorum.AI.remove_key(name)
+      {:noreply, socket |> assign(ai_key_status: nil) |> load_ai()}
+    end
+  end
+
+  def handle_event("ai_remove_cancel", _params, socket),
+    do: {:noreply, assign(socket, remove_guard: nil, guard_error: nil)}
+
+  def handle_event("ai_remove_confirm", %{"name" => name, "code" => code}, socket) do
+    guard = Quorum.AI.key_guard()
+
+    cond do
+      not protected?(socket, name) ->
+        {:noreply, socket |> assign(remove_guard: nil, guard_error: nil) |> load_ai()}
+
+      guard in [nil, ""] ->
+        {:noreply, assign(socket, guard_error: "Removing this key is locked on this deployment.")}
+
+      code == guard ->
+        Quorum.AI.remove_key(name)
+
+        {:noreply,
+         socket
+         |> assign(remove_guard: nil, guard_error: nil, ai_key_status: nil)
+         |> load_ai()}
+
+      true ->
+        {:noreply, assign(socket, guard_error: "That code doesn't match.")}
+    end
   end
 
   def handle_event("ai_reload", _params, socket), do: {:noreply, load_ai(socket)}
@@ -306,9 +346,14 @@ defmodule QuorumWeb.SettingsLive do
   defp load_ai(socket) do
     case Quorum.AI.targets() do
       {:ok, targets} ->
+        # A provider with a key already is managed from its own row, so it drops
+        # off the add list. That also keeps a second key for a provider from
+        # overwriting the first, the house key among them.
+        keyed = MapSet.new(targets, & &1["provider"])
+
         providers =
           case Quorum.AI.providers() do
-            {:ok, providers} -> providers
+            {:ok, providers} -> Enum.reject(providers, &MapSet.member?(keyed, &1))
             _ -> []
           end
 
@@ -322,6 +367,12 @@ defmodule QuorumWeb.SettingsLive do
       {:error, _down} ->
         assign(socket, ai_up?: false, ai_targets: [], ai_spend: Quorum.AI.spend())
     end
+  end
+
+  # Whether a target the client sent back is a protected house key, so the
+  # server decides it rather than trusting a flag from the form.
+  defp protected?(socket, name) do
+    Enum.any?(socket.assigns.ai_targets, &(&1["name"] == name and &1["protected"]))
   end
 
   defp attrs(params, offset) do
@@ -544,6 +595,8 @@ defmodule QuorumWeb.SettingsLive do
                 key_status={@ai_key_status}
                 form_seq={@ai_form_seq}
                 spend={@ai_spend}
+                remove_guard={@remove_guard}
+                guard_error={@guard_error}
               />
             <% "appearance" -> %>
               <.appearance_pane room={@room} />
@@ -771,6 +824,8 @@ defmodule QuorumWeb.SettingsLive do
   attr :key_status, :any, required: true
   attr :form_seq, :integer, required: true
   attr :spend, :any, required: true
+  attr :remove_guard, :any, required: true
+  attr :guard_error, :any, required: true
 
   defp ai_pane(assigns) do
     ~H"""
@@ -793,6 +848,16 @@ defmodule QuorumWeb.SettingsLive do
           <div class="q-ai-key-id">
             <span class="q-label">{target["provider"]}</span>
             <code>{target["key_hint"]}</code>
+            <span :if={target["default"]} class="q-ai-default">Default &middot; others fall back to it</span>
+            <button
+              :if={!target["default"]}
+              type="button"
+              class="q-button--link"
+              phx-click="ai_default"
+              phx-value-name={target["name"]}
+            >
+              Make default
+            </button>
           </div>
           <form id={"ai-pin-#{target["name"]}"} phx-change="ai_pin" class="q-ai-key-model">
             <input type="hidden" name="target" value={target["name"]} />
@@ -812,14 +877,39 @@ defmodule QuorumWeb.SettingsLive do
               </option>
             </select>
           </form>
-          <button
-            type="button"
-            class="q-button q-button--destructive"
-            phx-click="ai_remove"
-            phx-value-name={target["name"]}
-          >
-            Remove
-          </button>
+          <%= if @remove_guard == target["name"] do %>
+            <form phx-submit="ai_remove_confirm" class="q-ai-guard" autocomplete="off">
+              <input type="hidden" name="name" value={target["name"]} />
+              <label class="q-sr-only" for={"guard-#{target["name"]}"}>
+                Passcode to remove {target["provider"]}
+              </label>
+              <input
+                id={"guard-#{target["name"]}"}
+                type="password"
+                name="code"
+                class="q-input"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Passcode to remove"
+              />
+              <button type="submit" class="q-button q-button--destructive">Remove</button>
+              <button type="button" class="q-button q-button--secondary" phx-click="ai_remove_cancel">
+                Cancel
+              </button>
+            </form>
+          <% else %>
+            <button
+              type="button"
+              class="q-button q-button--destructive"
+              phx-click="ai_remove"
+              phx-value-name={target["name"]}
+            >
+              Remove
+            </button>
+          <% end %>
+          <p :if={@remove_guard == target["name"] and @guard_error} class="q-meta q-ai-key-error">
+            {@guard_error}
+          </p>
           <p :if={target["error"]} class="q-meta q-ai-key-error">
             This key stopped working: {target["error"]}
           </p>

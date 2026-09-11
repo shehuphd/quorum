@@ -7,5 +7,6 @@ defmodule Quorum.AI.Client do
   @callback put_target(params :: map(), config :: keyword()) :: {:ok, map()} | {:error, term()}
   @callback put_model(name :: String.t(), model :: String.t() | nil, config :: keyword()) ::
               {:ok, map()} | {:error, term()}
+  @callback put_default(name :: String.t(), config :: keyword()) :: :ok | {:error, term()}
   @callback delete_target(name :: String.t(), config :: keyword()) :: :ok | {:error, term()}
 end
